@@ -1,0 +1,649 @@
+{
+ "name": "Reporting \u2014 Customers Sync (Journeys)",
+ "nodes": [
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "20 6 * * 3"
+      }
+     ]
+    }
+   },
+   "id": "sched",
+   "name": "Schedule",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    -1420,
+    0
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "manual",
+   "name": "Manual Trigger",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    -1420,
+    170
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// ===== CUSTOMER JOURNEYS SYNC =====\n// Weekly. Adds NEW customers (lifecycle stage 'customer') closed since 2026-01-01,\n// flips status on churn; existing rows otherwise stay untouched.\nconst ANTHROPIC_MODEL = 'claude-sonnet-5';\nconst BACKFILL_FROM = '2026-01-01';\nreturn [{ json: { ANTHROPIC_MODEL, BACKFILL_FROM } }];\n"
+   },
+   "id": "cfg",
+   "name": "Config",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -1240,
+    80
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://api.hubapi.com/crm/v3/properties/companies/lifecyclestage",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 800
+      }
+     }
+    }
+   },
+   "id": "labels",
+   "name": "Get Lifecycle Labels",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -1080,
+    80
+   ],
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT company_id::text AS company_id, status FROM customer_journeys",
+    "options": {}
+   },
+   "id": "readex",
+   "name": "Read Existing",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    -920,
+    80
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "nvtjRzdnFqttOZDI",
+     "name": "Postgres account"
+    }
+   },
+   "alwaysOutputData": true,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "const opts = (($('Get Lifecycle Labels').first().json || {}).options || []);\nconst cust = opts.find(o => String(o.value).toLowerCase() === 'customer' || /^customer$/i.test(o.label)) || { value: 'customer' };\nconst churn = opts.find(o => /churn/i.test(String(o.label)) || /churn/i.test(String(o.value)));\nconst values = [String(cust.value)]; if (churn) values.push(String(churn.value));\nreturn [{ json: { churnValue: churn ? String(churn.value) : null, body: {\n  filterGroups: [{ filters: [{ propertyName: 'lifecyclestage', operator: 'IN', values }] }],\n  properties: ['name','lifecyclestage','publisher_type','geoplitical_region','hs_analytics_source','hs_analytics_source_data_1','hs_v2_date_entered_customer','createdate','hubspot_owner_id'],\n  sorts: [{ propertyName: 'hs_object_id', direction: 'ASCENDING' }], limit: 100 } } }];\n"
+   },
+   "id": "bcs",
+   "name": "Build Cust Search",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -760,
+    80
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.hubapi.com/crm/v3/objects/companies/search",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 800
+      }
+     },
+     "pagination": {
+      "pagination": {
+       "parameters": {
+        "parameters": [
+         {
+          "type": "body",
+          "name": "after",
+          "value": "={{ $response.body?.paging?.next?.after }}"
+         }
+        ]
+       },
+       "paginationCompleteWhen": "other",
+       "completeExpression": "={{ !$response.body?.paging?.next }}",
+       "requestInterval": 800
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}"
+   },
+   "id": "searchc",
+   "name": "Search Customers",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -600,
+    80
+   ],
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "const cfg = $('Config').first().json;\nconst churnValue = $('Build Cust Search').first().json.churnValue;\nconst existing = {};\nfor (const it of $('Read Existing').all()) if (it.json && it.json.company_id) existing[String(it.json.company_id)] = it.json.status;\nconst rows = [];\nconst seen = new Set();\nfor (const it of $('Search Customers').all()) for (const r of (it.json.results || [])) {\n  if (seen.has(r.id)) continue; seen.add(r.id);\n  const p = r.properties || {};\n  const status = churnValue && String(p.lifecyclestage) === churnValue ? 'churned' : 'customer';\n  const closed = p.hs_v2_date_entered_customer ? String(p.hs_v2_date_entered_customer).slice(0, 10) : null;\n  if (!closed || closed < cfg.BACKFILL_FROM) continue;  // no verified 2026+ close -> outside backfill window\n  rows.push({ id: String(r.id), name: p.name || '', status, closed,\n    icp: p.publisher_type || null, region: p.geoplitical_region || null,\n    srcType: p.hs_analytics_source || null, srcDetail: p.hs_analytics_source_data_1 ? String(p.hs_analytics_source_data_1).slice(0, 80) : null,\n    created: p.createdate ? String(p.createdate).slice(0, 10) : null, ownerId: p.hubspot_owner_id || null });\n}\nconst toProcess = rows.filter(r => !(r.id in existing));\nconst statusFlips = rows.filter(r => r.id in existing && existing[r.id] !== r.status)\n  .map(r => ({ id: r.id, status: r.status }));\nconst ids = toProcess.map(r => r.id);\nconst activityQuery = ids.length ? [\n  \"SELECT company_id::text AS cid, 'call' AS k, jsonb_build_object('ts', ts, 'bucket', bucket, 'label', disposition_label, 'contact', contact_name) AS j FROM calls WHERE company_id IN (\" + ids.join(',') + \")\",\n  \"SELECT company_id::text, 'disc', jsonb_build_object('ts', meeting_start, 'status', status, 'note', outcome_note, 'topic', topic, 'contacts', contact_name, 'conv', conversions) FROM discoveries WHERE company_id IN (\" + ids.join(',') + \")\",\n  \"SELECT company_id::text, 'deal', jsonb_build_object('created', create_date, 'close', close_date, 'lstart', license_start, 'mrr', mrr, 'name', deal_name, 'type', dealtype, 'won', is_won, 'wasclosed', is_closed, 'partner', partner_name) FROM deals_mirror WHERE company_id IN (\" + ids.join(',') + \")\",\n  \"SELECT company_id::text, 'stage', jsonb_build_object('ts', effective_date, 'stage', stage) FROM company_stage_entries WHERE company_id IN (\" + ids.join(',') + \")\",\n  \"SELECT company_id::text, 'reply', jsonb_build_object('ts', date, 'contact', contact_name) FROM email_replies WHERE company_id IN (\" + ids.join(',') + \")\",\n  \"SELECT company_id::text, 'seqmail', jsonb_build_object('ts', first_sent) FROM sequence_companies WHERE company_id IN (\" + ids.join(',') + \")\"\n].join(' UNION ALL ') : \"SELECT '0' AS cid, 'none' AS k, '{}'::jsonb AS j WHERE false\";\nreturn [{ json: { toProcess, statusFlips, activityQuery, any: toProcess.length > 0 } }];\n"
+   },
+   "id": "diff",
+   "name": "Diff New",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -440,
+    80
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "={{ $json.activityQuery }}",
+    "options": {}
+   },
+   "id": "readact",
+   "name": "Read Activity",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    -280,
+    80
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "nvtjRzdnFqttOZDI",
+     "name": "Postgres account"
+    }
+   },
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const d = $('Diff New').first().json;\nif (!d.any) return [{ json: { skip: true, id: null, body: { filterGroups: [], limit: 1 } } }];\nreturn d.toProcess.map(r => { const f = [\n  { propertyName: 'associations.company', operator: 'EQ', value: r.id },\n  { propertyName: 'hs_email_direction', operator: 'EQ', value: 'EMAIL' }];\n  if (r.closed) f.push({ propertyName: 'hs_timestamp', operator: 'LT', value: String(Date.parse(r.closed) + 86400000) });\n  return { json: { id: r.id, body: { filterGroups: [{ filters: f }], properties: ['hs_object_id'], limit: 1 } } };\n});\n"
+   },
+   "id": "bec",
+   "name": "Build Email Counts",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    -120,
+    80
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.hubapi.com/crm/v3/objects/emails/search",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 800
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}"
+   },
+   "id": "cnte",
+   "name": "Count Emails",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    40,
+    80
+   ],
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "alwaysOutputData": true,
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "const d = $('Diff New').first().json;\nconst cfg = $('Config').first().json;\nif (!d.any) return [{ json: { has: false, rows: [], statusFlips: d.statusFlips } }];\nconst OWNERS = {};\ntry { for (const it of $('Get Owners').all()) for (const o of ((it.json || {}).results || []))\n  OWNERS[String(o.id)] = [o.firstName, o.lastName].filter(Boolean).join(' ') || (o.email || ''); } catch (e) {}\nconst emailTotals = {};\n{ const reqs = $('Build Email Counts').all();\n  $('Count Emails').all().forEach((it, i) => {\n    const id = (reqs[i] && reqs[i].json.id) || null;\n    if (id) emailTotals[id] = Number((it.json || {}).total) || 0; }); }\nconst act = {};\nfor (const it of $('Read Activity').all()) {\n  const r = it.json; if (!r || !r.cid) continue;\n  (act[r.cid] = act[r.cid] || []).push(Object.assign({ k: r.k }, r.j || {}));\n}\nconst DAY = 86400000;\nconst rows = [];\nfor (const c of d.toProcess) {\n  const ev = [];\n  const a = act[c.id] || [];\n  const close = c.closed;\n  const cutoff = close ? close + 'T23:59' : '9999';\n  const champCount = {};\n  let calls = 0, connected = 0, meetings = 0;\n  if (c.created) ev.push({ ts: c.created, kind: 'created', label: 'Record created' });\n  for (const x of a) {\n    const ts = String(x.ts || x.created || '').slice(0, 10);\n    if (!ts) continue;\n    if (x.k === 'call') {\n      if (ts <= cutoff) { calls++; if (x.bucket === 'connected') connected++; }\n      ev.push({ ts, kind: x.bucket === 'connected' ? 'conn' : 'call', label: x.label || 'Call', who: x.contact || null });\n    } else if (x.k === 'disc') {\n      if (x.status !== 'canceled' && ts <= cutoff) meetings++;\n      ev.push({ ts, kind: 'meeting', label: x.topic || x.note || 'Discovery meeting', who: x.contacts || null });\n      for (const nm of String(x.contacts || '').split(',').map(s => s.trim()).filter(Boolean))\n        champCount[nm] = (champCount[nm] || 0) + 2;\n      for (const part of String(x.conv || '').split(';').filter(Boolean)) {\n        const bits = part.split('|');\n        if (bits[1]) ev.push({ ts: bits[1], kind: bits[0] === 'download' ? 'download' : bits[0] === 'event' ? 'event' : 'form', label: bits[2] || bits[0] });\n      }\n    } else if (x.k === 'deal') {\n      if (x.created) ev.push({ ts: String(x.created), kind: 'deal', label: 'Deal created: ' + (x.name || '') });\n      if (x.close && x.wasclosed) ev.push({ ts: String(x.close), kind: x.won ? 'won' : 'lost', label: (x.won ? 'Won: ' : 'Lost: ') + (x.name || '') });\n    } else if (x.k === 'stage') {\n      ev.push({ ts, kind: 'stage', label: 'Entered ' + x.stage });\n    } else if (x.k === 'reply') {\n      ev.push({ ts, kind: 'reply', label: 'Replied' + (x.contact ? ': ' + x.contact : '') });\n      if (x.contact) champCount[x.contact] = (champCount[x.contact] || 0) + 1;\n    } else if (x.k === 'seqmail') {\n      ev.push({ ts, kind: 'email', label: 'Outreach sequence started' });\n    }\n  }\n  const deals = a.filter(x => x.k === 'deal');\n  const wonSorted = deals.filter(x => x.won).sort((p, q) => String(p.close || '') < String(q.close || '') ? -1 : 1);\n  const wonFL = wonSorted.find(x => /new|full|license/i.test(String(x.type || ''))) || wonSorted[0] || null;\n  const firstDeal = deals.map(x => String(x.created || '')).filter(Boolean).sort()[0] || null;\n  const firstDisc = a.filter(x => x.k === 'disc' && x.status !== 'canceled').map(x => String(x.ts).slice(0, 10)).sort()[0] || null;\n  const touchDates = ev.filter(e => ['call','conn','email','download','form','event','reply'].includes(e.kind)).map(e => e.ts).sort();\n  const firstTouch = touchDates[0] || c.created || firstDeal;\n  // first-became-customer: EARLIEST of all signals; renewals/merges only push dates later\n  const custEntries = a.filter(x => x.k === 'stage' && /customer/i.test(String(x.stage)) && !/churn/i.test(String(x.stage)))\n    .map(x => String(x.ts).slice(0, 10));\n  const flWon = deals.filter(x => x.won && /new|full|license/i.test(String(x.type || '')) && !/renewal|existing|bestand|upsell/i.test(String(x.type || '')));\n  const wonCloses = flWon.map(x => x.lstart || x.close).filter(Boolean).map(x => String(x).slice(0, 10));\n  const preCustomer = deals.some(x =>\n    (x.won && x.lstart && String(x.lstart).slice(0, 10) < cfg.BACKFILL_FROM) ||\n    (x.won && x.close && String(x.close).slice(0, 10) < cfg.BACKFILL_FROM) ||\n    (/renewal|existing|bestand|upsell/i.test(String(x.type || '')) && x.created && String(x.created).slice(0, 10) < cfg.BACKFILL_FROM));\n  if (preCustomer) continue;  // was a customer before the backfill window; belongs to an earlier cohort\n  const closeCands = [...custEntries, ...wonCloses, close].filter(Boolean).sort();\n  const closeDate = closeCands[0] || (wonFL && wonFL.close ? String(wonFL.close) : null);\n  if (!closeDate || closeDate < cfg.BACKFILL_FROM) continue;  // true first close outside window (e.g. merge reset the HubSpot date)\n  const lt = wonFL ? String(wonFL.type || '') : '';\n  const licenseType = !wonFL ? null : /light/i.test(lt) ? 'JENTIS Light' : /poc|pilot|test/i.test(lt) ? 'POC'\n    : /renewal|existing|bestand|upsell/i.test(lt) ? 'Renewal' : /new|full|license/i.test(lt) ? 'Full License' : (lt || null);\n  const dd = (a2, b2) => { if (!a2 || !b2) return null; const v = Math.round((Date.parse(b2) - Date.parse(a2)) / DAY); return v < 0 ? null : v; };\n  const champions = Object.entries(champCount).sort((p, q) => q[1] - p[1]).slice(0, 3).map(p => p[0]).join('; ') || null;\n  const partner = (deals.find(x => x.partner) || {}).partner || null;\n  ev.sort((p, q) => p.ts < q.ts ? -1 : 1);\n  const evCut = ev.filter(e => e.ts <= (closeDate ? closeDate + 'T23' : '9999')).slice(0, 300);\n  rows.push({ id: c.id, name: c.name, status: c.status, icp: c.icp, region: c.region,\n    srcType: c.srcType, srcDetail: c.srcDetail,\n    firstTouch, firstDisc, firstDeal, dealCreate: wonFL && wonFL.created ? String(wonFL.created) : null,\n    closeDate, cycleDays: wonFL ? dd(wonFL.created, wonFL.close || closeDate) : null,\n    journeyDays: dd(firstTouch, closeDate), ttDisc: dd(firstTouch, firstDisc),\n    ttDeal: dd(firstTouch, firstDeal), ttClose: wonFL ? dd(wonFL.created, closeDate) : null,\n    emails: emailTotals[c.id] != null ? emailTotals[c.id] : null, calls, connected, meetings,\n    champions, partner, licenseType, ownerName: c.ownerId ? (OWNERS[String(c.ownerId)] || null) : null,\n    mrr: wonFL && wonFL.mrr != null && !isNaN(Number(wonFL.mrr)) ? Number(wonFL.mrr) : null, events: evCut,\n    meetingNotes: a.filter(x => x.k === 'disc').map(x => [String(x.ts).slice(0, 10), x.topic, x.note].filter(Boolean).join(' ')).slice(0, 8) });\n}\nreturn [{ json: { has: rows.length > 0, rows, statusFlips: d.statusFlips } }];\n"
+   },
+   "id": "asm",
+   "name": "Assemble",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    200,
+    80
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const st = $('Assemble').first().json;\nif (!st.has) return [{ json: { has: false } }];\nconst cfg = $('Config').first().json;\nconst items = st.rows.map(r => ({ id: r.id, name: r.name, icp: r.icp, source: r.srcDetail || r.srcType,\n  stats: { first_touch: r.firstTouch, close: r.closeDate, cycle_days: r.cycleDays, journey_days: r.journeyDays,\n    emails: r.emails, calls: r.calls, connected: r.connected, meetings: r.meetings },\n  champions: r.champions, partner: r.partner,\n  meeting_notes: r.meetingNotes,\n  key_events: (r.events || []).filter(e => ['reply','download','form','event','meeting'].includes(e.kind)).slice(0, 25)\n    .map(e => e.ts + ' ' + e.kind + ': ' + String(e.label).slice(0, 70)) }));\nconst out = [];\nfor (let i = 0; i < items.length; i += 3) {\n  out.push({ json: { has: true, body: { model: cfg.ANTHROPIC_MODEL, max_tokens: 3600, messages: [{ role: 'user', content:\n    'You write compact customer-journey summaries for a B2B sales dashboard (JENTIS, server-side tracking). For each customer produce: ' +\n    'pain (max 6 words: the concrete pain/topic actually discussed in meetings; null if there are no meeting notes - NEVER use deal names or deal types as pain) and story (max 120 words). The story must be QUALITATIVE, like a salesperson telling a colleague how the deal was won: WHY they came to us / what triggered interest, the pain and its urgency, what mattered to them, objections or blockers and how they were handled, who pushed it internally (names/titles), and what sealed it. Do NOT recite the timeline, meeting counts, or stage changes - the dashboard already shows those; only mention an event if something qualitatively important happened there. Pull substance from the meeting notes; if meeting_notes is empty or thin, the story MUST be 1-2 honest sentences (e.g. that the win happened with little recorded discovery context) - never fill space by listing deals, renewals, or stage changes. German notes -> answer in English. Plain prose, no bullets. ' +\n    'Respond ONLY with a JSON array, no fences: [{\"id\":\"...\",\"pain\":\"...\",\"story\":\"...\"}]' +\n    String.fromCharCode(10) + String.fromCharCode(10) + JSON.stringify(items.slice(i, i + 3)) } ] } } });\n}\nreturn out;\n"
+   },
+   "id": "bcr",
+   "name": "Build Claude Story",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    360,
+    80
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "c1",
+       "leftValue": "={{ $json.has === true }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    }
+   },
+   "id": "anyif",
+   "name": "Any New?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    520,
+    80
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 800
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "anthropic-version",
+       "value": "2023-06-01"
+      },
+      {
+       "name": "content-type",
+       "value": "application/json"
+      }
+     ]
+    }
+   },
+   "id": "claude",
+   "name": "Claude Story",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    680,
+    0
+   ],
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FYCg4BhREROic6UN",
+     "name": "Anthropic Admin"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "mode": "append",
+    "numberInputs": 2
+   },
+   "id": "mrg",
+   "name": "Merge Story",
+   "type": "n8n-nodes-base.merge",
+   "typeVersion": 3,
+   "position": [
+    840,
+    80
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const esc = v => v === null || v === undefined || v === '' ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst num = v => v === null || v === undefined || v === '' || isNaN(Number(v)) ? 'NULL' : String(Number(v));\nconst st = $('Assemble').first().json;\nconst ai = {};\nfor (const it of $input.all()) {\n  const content = it.json && it.json.content;\n  if (!Array.isArray(content)) continue;\n  let t = content.filter(c => c.type === 'text').map(c => c.text).join('');\n  try {\n    let tt = t.replace(/```json|```/g, '').trim();\n    const a2 = tt.indexOf('['); if (a2 > 0) tt = tt.slice(a2, tt.lastIndexOf(']') + 1);\n    for (const r of JSON.parse(tt)) ai[String(r.id)] = r;\n  } catch (e) {}\n}\nconst stmts = ['BEGIN;'];\nfor (const r of (st.rows || [])) {\n  const a = ai[r.id] || {};\n  stmts.push('INSERT INTO customer_journeys (company_id,name,status,icp,region,source_type,source_detail,first_touch,first_disc,first_deal,deal_create,close_date,cycle_days,journey_days,tt_disc,tt_deal,tt_close,emails,calls,connected,meetings,champions,partner_name,license_type,owner_name,mrr,pain,ai_story,events,updated_at) VALUES (' +\n    [num(r.id), esc(r.name), esc(r.status), esc(r.icp), esc(r.region), esc(r.srcType), esc(r.srcDetail),\n     esc(r.firstTouch), esc(r.firstDisc), esc(r.firstDeal), esc(r.dealCreate), esc(r.closeDate),\n     num(r.cycleDays), num(r.journeyDays), num(r.ttDisc), num(r.ttDeal), num(r.ttClose),\n     num(r.emails), num(r.calls), num(r.connected), num(r.meetings),\n     esc(r.champions), esc(r.partner), esc(r.licenseType), esc(r.ownerName), num(r.mrr), esc(a.pain || null), esc(a.story || null),\n     esc(JSON.stringify(r.events || [])) + '::jsonb', esc(new Date().toISOString())].join(',') +\n    ') ON CONFLICT (company_id) DO UPDATE SET name=EXCLUDED.name, status=EXCLUDED.status, icp=EXCLUDED.icp, region=EXCLUDED.region, close_date=EXCLUDED.close_date, cycle_days=EXCLUDED.cycle_days, journey_days=EXCLUDED.journey_days, emails=EXCLUDED.emails, calls=EXCLUDED.calls, connected=EXCLUDED.connected, meetings=EXCLUDED.meetings, champions=EXCLUDED.champions, partner_name=EXCLUDED.partner_name, license_type=EXCLUDED.license_type, owner_name=EXCLUDED.owner_name, mrr=EXCLUDED.mrr, pain=COALESCE(EXCLUDED.pain, customer_journeys.pain), ai_story=COALESCE(EXCLUDED.ai_story, customer_journeys.ai_story), events=EXCLUDED.events, updated_at=EXCLUDED.updated_at;');\n}\nfor (const f of (st.statusFlips || []))\n  stmts.push(\"UPDATE customer_journeys SET status=\" + esc(f.status) + \", churn_date=\" + (f.status === 'churned' ? 'CURRENT_DATE' : 'NULL') + \", updated_at=now() WHERE company_id=\" + num(f.id) + \";\");\nif (stmts.length <= 1) return [{ json: { sql: 'SELECT 1;' } }];\nstmts.push('COMMIT;');\nreturn [{ json: { sql: stmts.join(String.fromCharCode(10)) } }];\n"
+   },
+   "id": "bsql",
+   "name": "Build SQL",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1000,
+    80
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "={{ $json.sql }}",
+    "options": {}
+   },
+   "id": "wdb",
+   "name": "Write DB",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    1160,
+    80
+   ],
+   "credentials": {
+    "postgres": {
+     "id": "nvtjRzdnFqttOZDI",
+     "name": "Postgres account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://api.hubapi.com/crm/v3/owners/?limit=500",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "options": {}
+   },
+   "id": "owners",
+   "name": "Get Owners",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    -1000,
+    180
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 4000,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "alwaysOutputData": true,
+   "onError": "continueRegularOutput"
+  }
+ ],
+ "connections": {
+  "Schedule": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config": {
+   "main": [
+    [
+     {
+      "node": "Get Lifecycle Labels",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get Lifecycle Labels": {
+   "main": [
+    [
+     {
+      "node": "Get Owners",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read Existing": {
+   "main": [
+    [
+     {
+      "node": "Build Cust Search",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Cust Search": {
+   "main": [
+    [
+     {
+      "node": "Search Customers",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Search Customers": {
+   "main": [
+    [
+     {
+      "node": "Diff New",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Diff New": {
+   "main": [
+    [
+     {
+      "node": "Read Activity",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read Activity": {
+   "main": [
+    [
+     {
+      "node": "Build Email Counts",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Email Counts": {
+   "main": [
+    [
+     {
+      "node": "Count Emails",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Count Emails": {
+   "main": [
+    [
+     {
+      "node": "Assemble",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Assemble": {
+   "main": [
+    [
+     {
+      "node": "Build Claude Story",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Claude Story": {
+   "main": [
+    [
+     {
+      "node": "Any New?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Any New?": {
+   "main": [
+    [
+     {
+      "node": "Claude Story",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Merge Story",
+      "type": "main",
+      "index": 1
+     }
+    ]
+   ]
+  },
+  "Claude Story": {
+   "main": [
+    [
+     {
+      "node": "Merge Story",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Merge Story": {
+   "main": [
+    [
+     {
+      "node": "Build SQL",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build SQL": {
+   "main": [
+    [
+     {
+      "node": "Write DB",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get Owners": {
+   "main": [
+    [
+     {
+      "node": "Read Existing",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1"
+ },
+ "active": false
+}

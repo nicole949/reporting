@@ -1,0 +1,177 @@
+{
+ "name": "Reporting \u2014 Goals Sync",
+ "nodes": [
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 7 * * *"
+      }
+     ]
+    }
+   },
+   "id": "sched",
+   "name": "Schedule",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "manual",
+   "name": "Manual Trigger",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    180
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// ===== GOALS SYNC CONFIG =====\nconst SPREADSHEET_ID = '1L4jaTxPdlKMvzFme73McVRqzRJqLrJvaJ0Xxdgy-E0c';\nreturn [{ json: { SPREADSHEET_ID } }];\n"
+   },
+   "id": "config",
+   "name": "Config",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    220,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $('Config').first().json.SPREADSHEET_ID }}"
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "Goals"
+    }
+   },
+   "id": "read-goals-tab",
+   "name": "Read Goals Tab",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.5,
+   "position": [
+    440,
+    0
+   ],
+   "alwaysOutputData": true,
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "yj0X2FYvq39a3cPm",
+     "name": "Google Sheets account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst esc = v => v === null || v === undefined || v === '' ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst num = v => v === null || v === undefined || v === '' || isNaN(Number(v)) ? 'NULL' : String(Number(v));\nconst bool = v => v ? 'true' : 'false';\n\nconst VALID = ['responded','discovery','qualified','opportunity','customer','calls','won_value'];\nconst rows = $input.all().map(i => i.json).filter(r => r && r.metric && r.period && r.target !== undefined && r.target !== '');\nconst good = rows.filter(r => VALID.includes(String(r.metric).trim().toLowerCase()) && !isNaN(Number(r.target)));\nconst stmts = ['BEGIN;'];\nif (good.length) {\n  stmts.push('INSERT INTO goals (metric,period,target,label,updated_at) VALUES\\n' +\n    good.map(r => '(' + [esc(String(r.metric).trim().toLowerCase()), esc(String(r.period).trim()),\n      num(r.target), esc(r.label || ''), esc(new Date().toISOString())].join(',') + ')').join(',\\n') +\n    '\\nON CONFLICT (metric,period) DO UPDATE SET target=EXCLUDED.target, label=EXCLUDED.label, updated_at=EXCLUDED.updated_at;');\n  stmts.push('DELETE FROM goals WHERE (metric,period) NOT IN (' +\n    good.map(r => '(' + esc(String(r.metric).trim().toLowerCase()) + ',' + esc(String(r.period).trim()) + ')').join(',') + ');');\n} else { stmts.push('DELETE FROM goals;'); }\nstmts.push('COMMIT;');\nreturn [{ json: { sql: stmts.join('\\n') } }];\n"
+   },
+   "id": "build-sql",
+   "name": "Build SQL",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    660,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "={{ $json.sql }}",
+    "options": {}
+   },
+   "id": "write-db",
+   "name": "Write DB",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    880,
+    0
+   ],
+   "alwaysOutputData": true,
+   "executeOnce": true,
+   "credentials": {
+    "postgres": {
+     "id": "nvtjRzdnFqttOZDI",
+     "name": "Postgres account"
+    }
+   }
+  }
+ ],
+ "connections": {
+  "Schedule": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config": {
+   "main": [
+    [
+     {
+      "node": "Read Goals Tab",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read Goals Tab": {
+   "main": [
+    [
+     {
+      "node": "Build SQL",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build SQL": {
+   "main": [
+    [
+     {
+      "node": "Write DB",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "timezone": "Europe/Vienna",
+  "executionOrder": "v1"
+ },
+ "pinData": {}
+}

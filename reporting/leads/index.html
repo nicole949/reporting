@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leads · JENTIS Sales Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?v=24">
+<style>
+.msel{position:relative;display:inline-block}
+.msel-btn{font:inherit;font-size:.85rem;padding:.45rem .8rem;border:1px solid var(--hair);border-radius:10px;background:var(--panel);cursor:pointer;color:inherit}
+.msel.on .msel-btn{border-color:var(--brand-navy);font-weight:600}
+.msel-dd{display:none;position:absolute;z-index:30;top:calc(100% + 4px);left:0;min-width:230px;max-height:300px;overflow:auto;background:var(--panel);border:1px solid var(--hair);border-radius:12px;box-shadow:0 8px 24px rgba(20,40,60,.14);padding:.4rem}
+.msel.open .msel-dd{display:block}
+.msel-dd label{display:flex;gap:.5rem;align-items:center;font-size:.83rem;padding:.28rem .45rem;border-radius:8px;cursor:pointer;white-space:nowrap}
+.msel-dd label:hover{background:var(--paper)}
+.msel-dd .msel-clear{display:block;width:100%;text-align:left;font:inherit;font-size:.78rem;color:var(--slate);background:none;border:none;border-bottom:1px solid var(--hair);padding:.3rem .45rem .45rem;margin-bottom:.25rem;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="shell"></div>
+  <div class="filters">
+    <div class="msel" id="f-region" data-label="Region"><button type="button" class="msel-btn">Region: all</button><div class="msel-dd"></div></div>
+    <div class="msel" id="f-tier" data-label="ABM tier"><button type="button" class="msel-btn">ABM tier: all</button><div class="msel-dd"></div></div>
+    <div class="msel" id="f-icp" data-label="ICP type"><button type="button" class="msel-btn">ICP type: all</button><div class="msel-dd"></div></div>
+    <select id="f-gran">
+      <option value="weekly">Weekly</option><option value="monthly">Monthly</option>
+      <option value="quarterly">Quarterly</option><option value="yearly">Yearly</option>
+    </select>
+    <select id="f-view">
+      <option value="effective">Corrected dates</option>
+      <option value="reported">As set in HubSpot</option>
+    </select>
+    <select id="f-range">
+      <option value="12">Last 12</option><option value="26">Last 26</option><option value="0">All</option>
+    </select>
+    <input type="search" id="f-search" placeholder="Find company…">
+  </div>
+  <div class="metrics" id="metrics"></div>
+  <div class="split">
+    <div class="card">
+      <h2 id="matrix-title">Entries by week and stage</h2>
+      <div id="matrix" class="state">Loading…</div>
+      <div class="legend">
+        <span><span class="sw"></span>darker = more entries</span>
+        <span><span class="dot"></span>restated in the last run</span>
+        <span>click a cell for the companies behind it</span>
+      </div>
+    </div>
+    <div class="card" id="drill">
+      <h2 id="drill-title">Companies</h2>
+      <div id="drill-body" class="empty">Select a cell in the matrix.</div>
+    </div>
+  </div>
+  <div class="card trends" id="trends" style="display:none">
+    <div class="who">Trends · written by Claude after each Monday run</div>
+    <p id="trends-text"></p>
+  </div>
+  <div class="sechead" style="margin-top:1.2rem">Stage entries over time</div>
+  <div class="grid" id="stage-trends" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem"></div>
+  <footer>Lifecycle stage entries per company (one per company and stage, corrected effective dates) · weekly refresh Monday 05:00 Vienna · restatements revise past weeks as evidence improves.</footer>
+</div>
+<script src="../assets/config.js?v=24"></script>
+<script src="../assets/app.js?v=24"></script>
+<script>
+R.shell('leads', { title: 'Leads · lifecycle cohorts', subtitle: 'Companies entering each lifecycle stage, on corrected effective dates' });
+const STAGES = ['lead','engaged','responded','discovery','qualified','opportunity','customer'];
+const SHORT = {lead:'Lead',engaged:'Eng.',responded:'Resp.',discovery:'Disc.',qualified:'Qual.',opportunity:'Opp.',customer:'Cust.'};
+const EV = {createdate:'Created',hs_auto:'Score',hs_manual:'Manual',hs_reported:'HubSpot only',call_connected:'Call',
+  email_reply_positive:'Reply',meeting_typed:'Meeting typed',meeting_title:'Title match',meeting_inferred:'Inferred',
+  deal_create:'Deal',deal_won:'Won',monotonic_backfill:'Backfilled',manual_override:'Override'};
+let entries=[], dims={}, restated=new Set(), lastRun=null, selected=null;
+
+async function init(){
+  const mx=document.getElementById('matrix');
+  mx.className='state'; mx.textContent='Loading…';
+  try{
+    const cutoff=new Date(Date.now()-8*86400000).toISOString();
+    const [e,d,rst,rl]=await Promise.all([
+      R.fetchAll('company_stage_entries?suppressed=eq.false&select=company_id,stage,entry_number,effective_date,reported_ts,evidence_type,confidence,lag_days,override_conflict'),
+      R.fetchAll('company_dimensions?select=company_id,name,geopolitical_region,account_tier_label,publisher_type,country'),
+      R.fetchAll('restatements?changed_at=gte.'+encodeURIComponent(cutoff)+'&select=company_id,stage,entry_number'),
+      R.fetchAll('run_log?order=run_ts.desc&limit=1')
+    ]);
+    entries=e; dims={}; for(const x of d) dims[x.company_id]=x;
+    restated=new Set(rst.map(r=>r.company_id+'|'+r.stage+'|'+r.entry_number));
+    lastRun=rl[0]||null;
+    buildFilters(); R.runMeta(lastRun, init); renderTrends(); renderAll();
+  }catch(err){ R.errState(mx, err); }
+}
+
+function buildFilters(){
+  msel('f-region',new Set(Object.values(dims).map(d=>d.geopolitical_region||'Unknown')));
+  msel('f-tier',new Set(Object.values(dims).map(d=>d.account_tier_label||'Unknown')));
+  msel('f-icp',new Set(Object.values(dims).map(d=>d.publisher_type||'Unknown')),ICP_LABELS);
+}
+// HubSpot labels for publisher_type (property "ICP Type"), fetched 03.09.2026
+const ICP_LABELS={news_publishers:'News publishers',vertical_or_niche_publishers:'Vertical publishers',radio:'Radio',
+  'Finance & banking':'Banking & Finance',tv__broadcasters:'TV & broadcasters',utility_sites:'Utility sites',
+  owned__operated:'Owned & operated media',retail_media:'Retail media',not_a_publisher:'Not a publisher',
+  'E-Commerce':'E-Commerce','SaaS / Software':'SaaS / Software','Agency & services':'Agency & services',
+  'Other / Unclassified':'Other / Unclassified','Partner – Business':'Partner – Solution',
+  'Partner – Implementation':'Partner – Implementation','Partner – Developer':'Partner – Technology',
+  'Sensitive data organizations':'Sensitive data organizations'};
+const MSEL_SEL={};
+function mselSummary(box){
+  const id=box.id, lab=box.dataset.label, sel=MSEL_SEL[id]||new Set();
+  box.querySelector('.msel-btn').textContent=sel.size?lab+': '+(sel.size===1?[...sel].map(x=>box._labels[x]||x)[0]:sel.size+' selected'):lab+': all';
+  box.classList.toggle('on',sel.size>0);
+}
+function msel(id,vals,labels){
+  const box=document.getElementById(id);
+  box._labels=labels||{};
+  MSEL_SEL[id]=MSEL_SEL[id]||new Set();
+  const dd=box.querySelector('.msel-dd');
+  dd.innerHTML='<button type="button" class="msel-clear">✕ Clear · select all shown = none</button>'+
+    [...vals].sort((a,b)=>String((labels||{})[a]||a).localeCompare(String((labels||{})[b]||b))).map(v=>
+      '<label><input type="checkbox" value="'+R.esc(v)+'"'+(MSEL_SEL[id].has(v)?' checked':'')+'> '+R.esc((labels||{})[v]||v)+'</label>').join('');
+  mselSummary(box);
+  if(!box._wired){
+    box._wired=true;
+    box.querySelector('.msel-btn').addEventListener('click',e=>{
+      e.stopPropagation();
+      document.querySelectorAll('.msel.open').forEach(m=>m!==box&&m.classList.remove('open'));
+      box.classList.toggle('open');
+    });
+    dd.addEventListener('click',e=>e.stopPropagation());
+    dd.addEventListener('change',e=>{
+      const cb=e.target; if(cb.type!=='checkbox') return;
+      cb.checked?MSEL_SEL[id].add(cb.value):MSEL_SEL[id].delete(cb.value);
+      mselSummary(box); renderAll();
+    });
+    dd.querySelector('.msel-clear').addEventListener('click',()=>{
+      MSEL_SEL[id].clear();
+      dd.querySelectorAll('input').forEach(c=>c.checked=false);
+      mselSummary(box); renderAll();
+    });
+  }
+}
+document.addEventListener('click',()=>document.querySelectorAll('.msel.open').forEach(m=>m.classList.remove('open')));
+
+function filtered(){
+  const fr=MSEL_SEL['f-region']||new Set(), ft=MSEL_SEL['f-tier']||new Set(), fi=MSEL_SEL['f-icp']||new Set();
+  const q=v('f-search').trim().toLowerCase();
+  const view=v('f-view'), gran=v('f-gran');
+  return entries.map(e=>{
+    const dm=dims[e.company_id]||{};
+    const date=view==='reported'?(e.reported_ts?e.reported_ts.slice(0,10):null):e.effective_date;
+    if(!date) return null;
+    const p=R.periodOf(date,gran);
+    return {...e,_date:date,_p:p.key,_pl:p.label,_dm:dm};
+  }).filter(e=>e
+    &&(!fr.size||fr.has(e._dm.geopolitical_region||'Unknown'))
+    &&(!ft.size||ft.has(e._dm.account_tier_label||'Unknown'))
+    &&(!fi.size||fi.has(e._dm.publisher_type||'Unknown'))
+    &&(!q||(e._dm.name||'').toLowerCase().includes(q)));
+}
+const v=id=>document.getElementById(id).value;
+
+function renderAll(){
+  const rows=filtered();
+  const range=Number(v('f-range')), gran=v('f-gran');
+  const labels={};
+  let periods=[...new Set(rows.map(r=>(labels[r._p]=r._pl,r._p)))].sort().reverse();
+  if(range) periods=periods.slice(0,range);
+  const pSet=new Set(periods);
+  const counts={}, hasRe={};
+  let max=1;
+  for(const r of rows){
+    if(!pSet.has(r._p)) continue;
+    const k=r._p+'|'+r.stage;
+    counts[k]=(counts[k]||0)+1;
+    if(counts[k]>max) max=counts[k];
+    if(restated.has(r.company_id+'|'+r.stage+'|'+r.entry_number)) hasRe[k]=true;
+  }
+  renderMetrics(rows,periods,labels);
+  const gt={weekly:'week',monthly:'month',quarterly:'quarter',yearly:'year'}[gran];
+  document.getElementById('matrix-title').textContent='Entries by '+gt+' and stage';
+  const mx=document.getElementById('matrix');
+  if(!periods.length){mx.className='state';mx.textContent='No entries match the current filters.';return;}
+  mx.className='';
+  const ch={weekly:'Week of',monthly:'Month',quarterly:'Quarter',yearly:'Year'}[gran];
+  let h='<table class="matrix"><tr><th>'+ch+'</th>'+STAGES.map(s=>'<th>'+SHORT[s]+'</th>').join('')+'</tr>';
+  for(const w of periods){
+    h+='<tr><td class="wk" title="'+w+'">'+labels[w]+'</td>';
+    for(const s of STAGES){
+      const c=counts[w+'|'+s]||0;
+      const sel=selected&&selected.period===w&&selected.stage===s?' sel':'';
+      const a=c?0.10+0.72*(c/max):0;
+      h+='<td><button class="cell'+(c?'':' zero')+(a>0.55?' hot':'')+sel+'" '+
+        (c?'onclick="pick(\''+w+'\',\''+s+'\')" ':'tabindex="-1" ')+
+        'style="background:rgba(20,80,108,'+a.toFixed(2)+')" aria-label="'+labels[w]+' '+s+': '+c+'">'+
+        c+(hasRe[w+'|'+s]?'<span class="re"></span>':'')+'</button></td>';
+    }
+    h+='</tr>';
+  }
+  mx.innerHTML=h+'</table>';
+  renderDrill(rows);
+  renderStageTrends(counts,periods,labels,gran);
+}
+const STAGE_COLORS={lead:'#9AA4AD',engaged:'#7A93A5',responded:'#7FB3CE',discovery:'#1FA294',
+  qualified:'#D9A441',opportunity:'#E98862',customer:'#C4574E'};
+function renderStageTrends(counts,periods,labels,gran){
+  const box=document.getElementById('stage-trends');
+  const chron=[...periods].reverse();
+  box.innerHTML=STAGES.map(st=>{
+    const vals=chron.map(p=>counts[p+'|'+st]||0);
+    const max=Math.max(1,...vals);
+    const W=440,H=130,padB=20,padT=16;
+    const bw=Math.max(6,(W-12)/chron.length-4);
+    const showN=Math.ceil(chron.length/12);
+    let svg='<svg viewBox="0 0 '+W+' '+H+'" class="chart">';
+    chron.forEach((p,i)=>{
+      const v=vals[i];
+      const x=Math.round(6+i*((W-12)/chron.length));
+      const hgt=Math.round((H-padT-padB)*v/max);
+      const y=H-padB-hgt;
+      if(i%showN===0) svg+='<text x="'+(x+bw/2)+'" y="'+(H-4)+'" text-anchor="middle">'+String(labels[p]).slice(0,6)+'</text>';
+      svg+='<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+Math.max(hgt,1)+'" rx="2" fill="'+STAGE_COLORS[st]+'" opacity="'+(v?'0.9':'0.2')+'"><title>'+labels[p]+': '+v+'</title></rect>';
+      if(chron.length<=30) svg+='<text x="'+(x+bw/2)+'" y="'+(y-3)+'" text-anchor="middle" style="font-weight:600;font-size:9px;fill:'+(v?STAGE_COLORS[st]:'var(--faint)')+'">'+v+'</text>';
+    });
+    const total=vals.reduce((a,b)=>a+b,0);
+    return '<div class="card" style="padding:.9rem 1rem"><h2 style="font-size:.9rem">'+
+      '<span style="display:inline-block;width:.6rem;height:.6rem;border-radius:99px;background:'+STAGE_COLORS[st]+';margin-right:.4rem"></span>'+
+      st.charAt(0).toUpperCase()+st.slice(1)+' <span>· '+total+' in view</span></h2>'+svg+'</svg></div>';
+  }).join('');
+}
+
+function renderMetrics(rows,periods,labels){
+  const latest=periods[0];
+  const cnt=rows.filter(r=>r._p===latest).length;
+  const last4=new Set(periods.slice(0,4));
+  const recent=rows.filter(r=>last4.has(r._p));
+  const unv=recent.length?Math.round(100*recent.filter(r=>r.confidence!=='verified').length/recent.length):0;
+  const lags=rows.map(r=>r.lag_days).filter(x=>x!==null&&x!==undefined).sort((a,b)=>a-b);
+  const med=lags.length?lags[Math.floor(lags.length/2)]:0;
+  R.metrics(document.getElementById('metrics'),[
+    {label:'Entries · '+(latest?labels[latest]:'—'), val:cnt},
+    {label:'Restatements · last run', val:lastRun?lastRun.restatements:0, warn:lastRun&&lastRun.restatements>0},
+    {label:'Median lag (days)', val:med},
+    {label:'Unverified · last 4 periods', val:unv+'%', warn:unv>25}
+  ]);
+}
+
+function pick(period,stage){ selected={period,stage}; renderAll(); }
+
+function renderDrill(rows){
+  const body=document.getElementById('drill-body');
+  const title=document.getElementById('drill-title');
+  if(!selected){title.textContent='Companies';body.className='empty';
+    body.textContent='Select a cell in the matrix.';return;}
+  const list=rows.filter(r=>r._p===selected.period&&r.stage===selected.stage)
+    .sort((a,b)=>(a._dm.name||'').localeCompare(b._dm.name||''));
+  const pl=list.length?list[0]._pl:selected.period;
+  title.innerHTML='Companies <span>· '+pl+' · '+selected.stage+' · '+list.length+'</span>';
+  body.className='';
+  if(!list.length){body.className='empty';body.textContent='No entries here with the current filters.';return;}
+  body.innerHTML=list.map(r=>{
+    const dm=r._dm;
+    const badge=r.override_conflict?'b-conflict':('b-'+(r.confidence||'verified'));
+    const lag=(r.lag_days!==null&&r.lag_days!==undefined)?('lag '+r.lag_days+'d'):'';
+    return '<div class="co"><div style="min-width:0"><div class="nm"><a href="'+R.hs('0-2',r.company_id)+'" target="_blank" rel="noopener">'+
+      R.esc(dm.name||r.company_id)+'</a></div><div class="meta">'+
+      [dm.geopolitical_region,dm.account_tier_label,R.fmtDate(r._date)].filter(Boolean).join(' · ')+
+      (r.entry_number>1?' · entry '+r.entry_number:'')+'</div></div>'+
+      '<div class="side"><span class="badge '+badge+'" title="'+R.esc(r.override_conflict||r.confidence)+'">'+
+      R.esc(EV[r.evidence_type]||r.evidence_type)+'</span><span class="lag">'+lag+'</span></div></div>';
+  }).join('');
+}
+
+function renderTrends(){
+  const card=document.getElementById('trends');
+  if(lastRun&&lastRun.notes){card.style.display='';
+    document.getElementById('trends-text').innerHTML=R.esc(lastRun.notes)
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/^[-•]\s?/gm,'<span style="color:var(--brand-teal)">▸</span> ');}
+  else card.style.display='none';
+}
+
+document.getElementById('f-gran').addEventListener('change',()=>{selected=null;renderAll();});
+for(const id of ['f-view','f-range'])
+  document.getElementById(id).addEventListener('change',renderAll);
+document.getElementById('f-search').addEventListener('input',()=>renderAll());
+init();
+</script>
+</body>
+</html>

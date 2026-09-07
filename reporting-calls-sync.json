@@ -1,0 +1,562 @@
+{
+ "name": "Reporting \u2014 Calls Sync",
+ "nodes": [
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "30 6 * * *"
+      }
+     ]
+    }
+   },
+   "id": "sched",
+   "name": "Schedule",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "manual",
+   "name": "Manual Trigger",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    180
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// ===== CALLS SYNC CONFIG =====\nconst LOOKBACK_DAYS = 35;\nconst BACKFILL_START = '';   // set '2026-01-01' for the first run, then back to ''\nconst DISPO = {\n  'f240bbac-87c9-4f6e-bf70-924b57d47db7': ['Connected','connected'],\n  'fbb23c68-d69d-484b-9ffb-928adacccc34': ['Meeting Booked','connected'],\n  '351dfa83-f9c9-448c-bcd8-fa278a7e7eb5': ['Not interested','rejected'],\n  '2d05f9d0-0e9e-4bd4-8ba3-878716827148': ['Wrong Person','rejected'],\n  '56cf510f-a883-457e-8ab2-1b497a414238': ['Competitor/Partner','rejected'],\n  'c1109a32-7bec-41f5-b5df-b33e42db2afb': ['No Budget','rejected'],\n  '75debd7e-340b-4f1e-9247-87170ea2b9bd': ['No Productfit','rejected'],\n  'c8df4524-aef4-422b-9d22-f1bf71ce9649': ['Solution in Place','rejected'],\n  'eb62c822-ad58-4578-8709-48a9823e319b': ['Wrong Timing','rejected'],\n  '9d9162e7-6cf3-4944-bf63-4dff82258764': ['Busy','no_contact'],\n  '73a0d17f-1163-4015-bdd5-ec830791da20': ['No answer','no_contact'],\n  'b2cf5968-551e-4856-9783-52b3da59a7d0': ['Left voicemail','no_contact'],\n  'a4c4c377-d246-4b32-a13b-75a56a4cd0ff': ['Left live message','no_contact'],\n  '17b47fee-58de-441e-a44c-c6300d46f273': ['Wrong number','no_contact'],\n  '7e815e57-1158-4f20-9d3f-64f048bea013': ['Other','no_contact']\n};\n\nconst DAY = 86400000; const now = Date.now();\nlet chunks = [];\nif (BACKFILL_START) {\n  let cur = Date.parse(BACKFILL_START);\n  while (cur < now) { const d = new Date(cur); const nx = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);\n    chunks.push({ fromMs: cur, toMs: Math.min(nx, now) }); cur = nx; }\n} else { chunks = [{ fromMs: now - LOOKBACK_DAYS * DAY, toMs: now }]; }\n\nreturn chunks.map(c => ({ json: { fromMs: c.fromMs, toMs: c.toMs, DISPO } }));\n"
+   },
+   "id": "config",
+   "name": "Config",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    220,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://api.hubapi.com/crm/v3/owners/?limit=100",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 600
+      }
+     }
+    },
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "get-owners",
+   "name": "Get Owners",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    440,
+    0
+   ],
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "return $('Config').all().map(it => ({ json: { body: {\n  filterGroups: [{ filters: [\n    { propertyName: 'hs_timestamp', operator: 'GTE', value: String(it.json.fromMs) },\n    { propertyName: 'hs_timestamp', operator: 'LT', value: String(it.json.toMs) }]}],\n  properties: ['hs_call_disposition','hs_timestamp','hubspot_owner_id','hs_call_duration'],\n  sorts: [{ propertyName: 'hs_object_id', direction: 'ASCENDING' }], limit: 200 } } }));\n"
+   },
+   "id": "build-search",
+   "name": "Build Search",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    660,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.hubapi.com/crm/v3/objects/calls/search",
+    "options": {
+     "pagination": {
+      "pagination": {
+       "parameters": {
+        "parameters": [
+         {
+          "type": "body",
+          "name": "after",
+          "value": "={{ $response.body?.paging?.next?.after }}"
+         }
+        ]
+       },
+       "paginationCompleteWhen": "other",
+       "completeExpression": "={{ !$response.body?.paging?.next }}",
+       "requestInterval": 750
+      }
+     },
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 2200
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "search-calls",
+   "name": "Search Calls",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    880,
+    0
+   ],
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst calls = {}; for (const it of $input.all()) for (const r of (it.json.results || [])) calls[r.id] = r;\nconst ids = Object.keys(calls);\nconst out = [];\nfor (const to of ['companies','contacts'])\n  for (let i = 0; i < ids.length; i += 100)\n    out.push({ json: { to, url: 'https://api.hubapi.com/crm/v4/associations/calls/' + to + '/batch/read',\n      body: { inputs: ids.slice(i, i + 100).map(id => ({ id })) } } });\nif (!out.length) return [{ json: { skip: true } }];\nreturn out;\n"
+   },
+   "id": "build-assoc",
+   "name": "Build Assoc",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1100,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $json.url }}",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 600
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "read-assoc",
+   "name": "Read Assoc",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1320,
+    0
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst pi = it => it.pairedItem ? (typeof it.pairedItem === 'number' ? it.pairedItem : it.pairedItem.item) : 0;\n\nconst reqs = $('Build Assoc').all();\nconst cids = new Set();\nfor (const it of $input.all()) {\n  const meta = reqs[pi(it)] ? reqs[pi(it)].json : {};\n  if (meta.to !== 'contacts') continue;\n  for (const r of (it.json.results || [])) for (const t of (r.to || [])) cids.add(String(t.toObjectId));\n}\nconst ids = [...cids];\nif (!ids.length) return [{ json: { skip: true, has: false } }];\nconst out = [];\nfor (let i = 0; i < ids.length; i += 100)\n  out.push({ json: { has: true, body: { inputs: ids.slice(i, i + 100).map(id => ({ id })), properties: ['associatedcompanyid','firstname','lastname','hs_persona'] } } });\nreturn out;\n"
+   },
+   "id": "build-contact-reads",
+   "name": "Build Contact Reads",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1540,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "c1",
+       "leftValue": "={{ $json.has === true || !$json.skip && !!$json.body }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    }
+   },
+   "id": "any-contacts",
+   "name": "Any Contacts?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    1760,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.hubapi.com/crm/v3/objects/contacts/batch/read",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 600
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "read-contacts",
+   "name": "Read Contacts",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1980,
+    -100
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "mode": "append",
+    "numberInputs": 2
+   },
+   "id": "merge-contacts",
+   "name": "Merge Contacts",
+   "type": "n8n-nodes-base.merge",
+   "typeVersion": 3,
+   "position": [
+    2200,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst pi = it => it.pairedItem ? (typeof it.pairedItem === 'number' ? it.pairedItem : it.pairedItem.item) : 0;\n\nconst reqs = $('Build Assoc').all();\nconst assoc = $('Read Assoc').all();\nconst callToCompany = {}, callToContacts = {};\nfor (const it of assoc) {\n  const meta = reqs[pi(it)] ? reqs[pi(it)].json : {};\n  for (const r of (it.json.results || [])) {\n    const f = String(r.from && r.from.id);\n    if (meta.to === 'companies') callToCompany[f] = String((r.to || [])[0] ? r.to[0].toObjectId : '');\n    if (meta.to === 'contacts') callToContacts[f] = (r.to || []).map(t => String(t.toObjectId));\n  }\n}\nconst contacts = {};\nfor (const it of $input.all()) { if (it.json.skip) continue;\n  for (const r of (it.json.results || [])) { const p = r.properties || {};\n    contacts[String(r.id)] = { companyId: p.associatedcompanyid || null, persona: p.hs_persona || null,\n      name: ((p.firstname || '') + ' ' + (p.lastname || '')).trim() }; } }\nconst compIds = new Set(Object.values(callToCompany).filter(Boolean));\nfor (const v of Object.values(contacts)) if (v && v.companyId) compIds.add(String(v.companyId));\nconst ids = [...compIds];\nconst out = [];\nfor (let i = 0; i < ids.length; i += 100)\n  out.push({ json: { body: { inputs: ids.slice(i, i + 100).map(id => ({ id })), properties: ['name','publisher_type'] } } });\nif (!out.length) out.push({ json: { skip: true } });\nreturn [{ json: { callToCompany, callToContacts, contacts } }, ...out];\n"
+   },
+   "id": "build-company-reads",
+   "name": "Build Company Reads",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2420,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.hubapi.com/crm/v3/objects/companies/batch/read",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 600
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body || {inputs:[]}) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "read-companies",
+   "name": "Read Companies",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2640,
+    0
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst esc = v => v === null || v === undefined || v === '' ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst num = v => v === null || v === undefined || v === '' || isNaN(Number(v)) ? 'NULL' : String(Number(v));\nconst bool = v => v ? 'true' : 'false';\n\nconst owners = {};\nfor (const o of ($('Get Owners').first().json.results || []))\n  owners[String(o.id)] = ((o.firstName || '') + ' ' + (o.lastName || '')).trim() || o.email || String(o.id);\n\nconst pi = it => it.pairedItem ? (typeof it.pairedItem === 'number' ? it.pairedItem : it.pairedItem.item) : 0;\n\nconst state = $('Build Company Reads').all()[0].json;\nconst names = {};\nfor (const it of $input.all()) for (const r of ((it.json || {}).results || [])) names[String(r.id)] = { name: (r.properties || {}).name || '', icp: (r.properties || {}).publisher_type || null };\nconst cfg = $('Config').all()[0].json;\nconst rows = [];\nconst seen = new Set();\nfor (const it of $('Search Calls').all()) for (const c of (it.json.results || [])) {\n  if (seen.has(c.id)) continue; seen.add(c.id);\n  const p = c.properties || {};\n  const [label, bucket] = cfg.DISPO[p.hs_call_disposition] || ['Unknown','no_contact'];\n  let comp = state.callToCompany[String(c.id)] || null;\n  let contactId = null, contactName = '', persona = null;\n  for (const ct of (state.callToContacts[String(c.id)] || [])) {\n    const co = state.contacts[ct];\n    if (!contactId) { contactId = ct; contactName = co ? co.name : ''; persona = co ? co.persona : null; }\n    if (!comp && co && co.companyId) comp = String(co.companyId);\n  }\n  const compInfo = comp ? names[comp] || {} : {};\n  const PL = { persona_17:'Adtech', persona_9:'Agency', persona_18:'Audience', persona_15:'Commercial & Sales',\n    persona_1:'Data & Analytics', persona_8:'Engineering & IT', persona_7:'Executive', persona_3:'E-Commerce',\n    persona_10:'Legal', persona_6:'Marketing - General', persona_4:'Marketing - Performance', persona_16:'Product',\n    persona_12:'Reader Revenue & Subscription', persona_11:'No fitting persona' };\n  rows.push('(' + [num(c.id), esc(new Date(Number(p.hs_timestamp) || Date.parse(p.hs_timestamp)).toISOString()),\n    esc(owners[String(p.hubspot_owner_id)] || 'Unknown'), esc(p.hs_call_disposition), esc(label), esc(bucket),\n    num(comp), esc(compInfo.name || ''), num(contactId), esc(contactName), esc(compInfo.icp), esc(persona ? PL[persona] || persona : null), num(p.hs_call_duration ? Math.round(p.hs_call_duration / 1000) : null)].join(',') + ')');\n}\nif (!rows.length) return [{ json: { sql: 'SELECT 1;' } }];\nreturn [{ json: { sql: 'INSERT INTO calls (call_id,ts,owner_name,disposition_id,disposition_label,bucket,company_id,company_name,contact_id,contact_name,icp_type,persona,duration_seconds) VALUES\\n' +\n  rows.join(',\\n') + '\\nON CONFLICT (call_id) DO UPDATE SET ts=EXCLUDED.ts, owner_name=EXCLUDED.owner_name, disposition_id=EXCLUDED.disposition_id, disposition_label=EXCLUDED.disposition_label, bucket=EXCLUDED.bucket, company_id=EXCLUDED.company_id, company_name=EXCLUDED.company_name, contact_id=EXCLUDED.contact_id, contact_name=EXCLUDED.contact_name, icp_type=EXCLUDED.icp_type, persona=EXCLUDED.persona, duration_seconds=EXCLUDED.duration_seconds;' } }];\n"
+   },
+   "id": "build-sql",
+   "name": "Build SQL",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2860,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "={{ $json.sql }}",
+    "options": {}
+   },
+   "id": "write-db",
+   "name": "Write DB",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    3080,
+    0
+   ],
+   "alwaysOutputData": true,
+   "executeOnce": true,
+   "credentials": {
+    "postgres": {
+     "id": "nvtjRzdnFqttOZDI",
+     "name": "Postgres account"
+    }
+   }
+  }
+ ],
+ "connections": {
+  "Schedule": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config": {
+   "main": [
+    [
+     {
+      "node": "Get Owners",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get Owners": {
+   "main": [
+    [
+     {
+      "node": "Build Search",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Search": {
+   "main": [
+    [
+     {
+      "node": "Search Calls",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Search Calls": {
+   "main": [
+    [
+     {
+      "node": "Build Assoc",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Assoc": {
+   "main": [
+    [
+     {
+      "node": "Read Assoc",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read Assoc": {
+   "main": [
+    [
+     {
+      "node": "Build Contact Reads",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Contact Reads": {
+   "main": [
+    [
+     {
+      "node": "Any Contacts?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Any Contacts?": {
+   "main": [
+    [
+     {
+      "node": "Read Contacts",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Merge Contacts",
+      "type": "main",
+      "index": 1
+     }
+    ]
+   ]
+  },
+  "Read Contacts": {
+   "main": [
+    [
+     {
+      "node": "Merge Contacts",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Merge Contacts": {
+   "main": [
+    [
+     {
+      "node": "Build Company Reads",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Company Reads": {
+   "main": [
+    [
+     {
+      "node": "Read Companies",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read Companies": {
+   "main": [
+    [
+     {
+      "node": "Build SQL",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build SQL": {
+   "main": [
+    [
+     {
+      "node": "Write DB",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "timezone": "Europe/Vienna",
+  "executionOrder": "v1"
+ },
+ "pinData": {}
+}

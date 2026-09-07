@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subject Lines · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?v=24">
+</head>
+<body>
+<div class="wrap">
+  <div id="shell"></div>
+  <div class="filters">
+    <select id="f-range">
+      <option value="90">Sent in last 90 days</option><option value="180">Last 180 days</option>
+      <option value="365">Last year</option><option value="0">All time</option></select>
+    <label style="align-self:center;font-size:.8rem;color:var(--slate)">Min sends
+      <input type="number" id="f-min" value="100" min="0" step="25"></label>
+    <input type="search" id="f-search" placeholder="Search subject lines…">
+  </div>
+  <div class="winners-hero" id="ai-card" style="display:none"><h2>🤖 AI analysis · by ICP &amp; persona <span id="ai-date"></span></h2>
+    <div id="ai-body" style="font-size:.88rem;line-height:1.55;margin-top:.5rem"></div></div>
+
+  <div class="sechead">🏅 Best performers · last 90 days (significant volume only)</div>
+  <div class="topsubs" id="topsubs"></div>
+  <div class="metrics" id="metrics"></div>
+  <div class="split">
+    <div class="card"><h2>Subject line performance</h2><div id="content" class="empty">Loading…</div></div>
+    <div class="card" style="position:sticky;top:1rem;align-self:start;max-height:calc(100vh - 2rem);overflow:auto"><h2 id="rec-title">Segments</h2><div id="recipients" class="empty">Click a subject line for open/reply rates by persona, ICP type and seniority.</div></div>
+  </div>
+  <footer>Replies are counted from actual incoming answers — out-of-office and automated replies are filtered out · open rates are directional (Apple MPP inflates uniformly) · ICP type from the recipient's company, seniority derived from the job title.</footer>
+</div>
+<script src="../assets/config.js?v=24"></script>
+<script src="../assets/app.js?v=24"></script>
+<script>
+R.shell('subjects', { title: 'Subject Lines', subtitle: 'Which subject lines earn opens and real replies — and with whom' });
+const prettyIcp=x=>x?String(x).replace(/_/g,' ').replace(/^\w/,c=>c.toUpperCase()):x;
+let rows=null, STEPS=[], SEQNAMES={};
+async function init(){
+  const c=document.getElementById('content');
+  rows=await R.loadViewOrPending('v_subject_stats?select=*&order=sends.desc', c, {
+    title:'Subject line pipeline not connected yet',
+    text:'Import and run reporting-outreach-sync.json — it aggregates all sent sales emails per subject line.',
+    view:'v_subject_stats (details: v_subject_segments)'});
+  if(!rows) return;
+  const pretty=x=>String(x||'').replace(/_/g,' ').replace(/^\w/,c=>c.toUpperCase());
+  R.fetchAll('v_report_notes?key=eq.subject_insights&select=*').then(n=>{
+    document.getElementById('ai-card').style.display='';
+    if(!n.length||!n[0].note){
+      document.getElementById('ai-body').innerHTML='<span style="color:#CDEBE6">Appears after the next outreach-sync run (v15+) — it will break down what worked and what to test per ICP type and persona.</span>';
+      return;
+    }
+    document.getElementById('ai-date').textContent='· '+R.fmtDate(n[0].updated_at);
+    document.getElementById('ai-body').innerHTML=R.esc(n[0].note)
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/^[-•]\s?/gm,'<span style="color:#7FE0D6">▸</span> ')
+      .replace(/\n/g,'<br>');
+  }).catch(()=>{});
+  render();
+}
+function render(){
+  const days=Number(document.getElementById('f-range').value);
+  const min=Number(document.getElementById('f-min').value)||0;
+  const q=document.getElementById('f-search').value.trim().toLowerCase();
+  const cut=days?Date.now()-days*86400000:0;
+  const list=rows.filter(r=>(!cut||(r.last_sent&&Date.parse(r.last_sent)>=cut))
+    &&(Number(r.sends)||0)>=min
+    &&(!q||(r.subject||'').toLowerCase().includes(q)));
+  // best performers: last 90 days, significant volume
+  const cut90=Date.now()-90*86400000;
+  const sig=rows.filter(r=>r.last_sent&&Date.parse(r.last_sent)>=cut90&&(Number(r.sends)||0)>=Math.max(min,100));
+  const top=[...sig].sort((a,b)=>((b.open_rate||0)-(a.open_rate||0))||((b.reply_rate||0)-(a.reply_rate||0))).slice(0,3);
+  document.getElementById('topsubs').innerHTML=top.length?top.map(r=>
+    '<div class="topsub"><div class="s">'+R.esc(r.subject)+'</div><div class="r">'+
+    R.num(r.sends)+' sends · '+(Math.round((r.open_rate||0)*10)/10)+'% open · <strong>'+(Math.round((r.reply_rate||0)*10)/10)+'% reply</strong>'+
+    (r.main_persona?' · '+R.esc(r.main_persona):'')+(r.main_icp?' · '+R.esc(prettyIcp(r.main_icp)):'')+'</div></div>').join('')
+    :'<div class="empty" style="grid-column:1/-1">No subject lines above the volume threshold in the last 90 days yet.</div>';
+  const sends=list.reduce((s,r)=>s+(Number(r.sends)||0),0);
+  const rates=list.map(r=>Number(r.open_rate)||0).sort((a,b)=>a-b);
+  R.metrics(document.getElementById('metrics'),[
+    {label:'Subject lines in view', val:list.length},
+    {label:'Sends (in view)', val:R.num(sends)},
+    {label:'Median open rate', val:rates.length?Math.round(rates[Math.floor(rates.length/2)]*10)/10+'%':'—'},
+    {label:'Real replies (in view)', val:R.num(list.reduce((s,r)=>s+(Number(r.replies)||0),0))}
+  ]);
+  R.table(document.getElementById('content'),[
+    {key:'subject',label:'Subject line',cell:r=>'<strong>'+R.esc(r.subject)+'</strong>'+
+      '<div class="mini">'+R.fmtDate(r.first_sent)+' – '+R.fmtDate(r.last_sent)+'</div>'},
+    {key:'sends',label:'Sends',num:true,sortVal:r=>Number(r.sends)||0,cell:r=>R.num(r.sends)},
+    {key:'open_rate',label:'Open',num:true,sortVal:r=>Number(r.open_rate)||0,cell:r=>(Math.round((r.open_rate||0)*10)/10)+'%'},
+    {key:'reply_rate',label:'Reply',num:true,sortVal:r=>Number(r.reply_rate)||0,cell:r=>(Math.round((r.reply_rate||0)*10)/10)+'%'},
+    {key:'first_sent',label:'First sent',sortVal:r=>r.first_sent||'',cell:r=>R.fmtDate(r.first_sent)},
+    {key:'main_icp',label:'Main ICP',cell:r=>R.esc(prettyIcp(r.main_icp)||'—')},
+    {key:'main_persona',label:'Main persona',cell:r=>R.esc(r.main_persona||'—')}
+  ],list,{sort:{key:'open_rate',dir:-1},rowClick:openSegments});
+}
+async function openSegments(r,tr){
+  document.querySelectorAll('#content tr.open').forEach(x=>x.classList.remove('open'));
+  tr.classList.add('open');
+  const el=document.getElementById('recipients');
+  document.getElementById('rec-title').innerHTML='Segments <span>· '+R.esc(r.subject).slice(0,60)+'</span>';
+  el.className='empty'; el.textContent='Loading…';
+  try{
+    const seg=await R.fetchAll('v_subject_segments?subject=eq.'+encodeURIComponent(r.subject)+'&select=*');
+    if(!seg.length){el.textContent='No segment breakdown recorded for this line yet (re-run outreach-sync after the v9 update).';return;}
+    const avgO=Number(r.open_rate)||0, avgR=Number(r.reply_rate)||0;
+    const GOOD='background:rgba(31,162,148,.14);border-radius:6px;font-weight:600;color:#127264';
+    const block=(dim,title)=>{
+      const g=seg.filter(x=>x.dim===dim).sort((a,b)=>b.sends-a.sends);
+      if(!g.length) return '';
+      return '<div class="mini" style="margin:.7rem 0 .3rem">'+title+'</div><table class="data">'+
+        '<tr><th></th><th class="num">Sends</th><th class="num">Open</th><th class="num">Reply</th></tr>'+
+        g.map(x=>{
+          const thin=x.sends<10;
+          const oR=x.sends?100*x.opens/x.sends:0, rR=x.sends?100*x.replies/x.sends:0;
+          const oHi=!thin&&oR>=Math.max(avgO*1.2,avgO+5)&&x.opens>=3;
+          const rHi=!thin&&x.replies>=1&&rR>=Math.max(avgR*1.5,1);
+          return '<tr'+(thin?' style="opacity:.45"':'')+'><td>'+R.esc(dim==='icp'?prettyIcp(x.value):x.value)+(thin?' <span class="mini">n<10</span>':'')+'</td>'+
+            '<td class="num">'+R.num(x.sends)+'</td>'+
+            '<td class="num"><span style="'+(oHi?GOOD+';padding:.06rem .35rem':'')+'">'+R.pct(x.opens,x.sends)+'</span></td>'+
+            '<td class="num"><span style="'+(rHi?GOOD+';padding:.06rem .35rem':'')+'">'+R.pct(x.replies,x.sends)+'</span></td></tr>';
+        }).join('')+'</table>';
+    };
+    el.className='';
+    el.innerHTML='<div class="mini" style="margin-bottom:.2rem">Green = clearly better than this subject\u2019s average · dimmed = too few sends to judge</div>'+
+      block('persona','By persona')+block('seniority','By seniority')+block('icp','By ICP type')+(function(){
+      const subjN=(r.subject||'').trim().toLowerCase();
+      const seqIds=[...new Set(STEPS.filter(x=>(x.subject||'').trim().toLowerCase()===subjN).map(x=>x.sequence_id))];
+      return seqIds.length?'<div class="mini" style="margin-top:.7rem;font-weight:600">Used in sequences</div>'+
+        seqIds.map(id=>'<div class="mini">• '+R.esc(SEQNAMES[id]||id)+'</div>').join(''):'';
+    })();
+  }catch(err){ el.className='empty'; el.textContent='Could not load segments ('+err.message+').'; }
+}
+document.getElementById('f-range').addEventListener('change',()=>rows&&render());
+document.getElementById('f-min').addEventListener('input',()=>rows&&render());
+document.getElementById('f-search').addEventListener('input',()=>rows&&render());
+Promise.all([
+  R.fetchAll('v_sequence_steps?select=sequence_id,subject').catch(()=>[]),
+  R.fetchAll('v_sequence_stats?select=sequence_id,sequence_name').catch(()=>[])
+]).then(([st2,sq2])=>{STEPS=st2;for(const q of sq2)SEQNAMES[q.sequence_id]=q.sequence_name||q.sequence_id;});
+init();
+</script>
+</body>
+</html>

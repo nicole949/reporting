@@ -1,0 +1,721 @@
+{
+ "name": "Reporting \u2014 Deals Sync",
+ "nodes": [
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "40 6 * * *"
+      }
+     ]
+    }
+   },
+   "id": "sched",
+   "name": "Schedule",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "manual",
+   "name": "Manual Trigger",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    180
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// ===== DEALS SYNC CONFIG =====\nconst LOOKBACK_DAYS = 40;\nconst BACKFILL_START = '';   // '2020-01-01' once for full history, then ''\n\nconst DAY = 86400000; const now = Date.now();\nlet chunks = [];\nif (BACKFILL_START) {\n  let cur = Date.parse(BACKFILL_START);\n  while (cur < now) { const d = new Date(cur); const nx = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);\n    chunks.push({ fromMs: cur, toMs: Math.min(nx, now) }); cur = nx; }\n} else { chunks = [{ fromMs: now - LOOKBACK_DAYS * DAY, toMs: now }]; }\n\nreturn chunks.map(c => ({ json: { fromMs: c.fromMs, toMs: c.toMs } }));\n"
+   },
+   "id": "config",
+   "name": "Config",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    220,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://api.hubapi.com/crm/v3/owners/?limit=100",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 600
+      }
+     }
+    },
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "get-owners",
+   "name": "Get Owners",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    440,
+    0
+   ],
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "method": "GET",
+    "url": "https://api.hubapi.com/crm/v3/pipelines/deals",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 600
+      }
+     }
+    },
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "get-pipelines",
+   "name": "Get Pipelines",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    660,
+    0
+   ],
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "return $('Config').all().map(it => ({ json: { body: {\n  filterGroups: [{ filters: [\n    { propertyName: 'hs_lastmodifieddate', operator: 'GTE', value: String(it.json.fromMs) },\n    { propertyName: 'hs_lastmodifieddate', operator: 'LT', value: String(it.json.toMs) }]}],\n  properties: ['dealname','amount','dealstage','pipeline','dealtype','createdate','closedate',\n    'hs_is_closed_won','hs_is_closed','hubspot_owner_id','hs_next_step','notes_last_updated','hs_mrr','license_start_date__c','contract_signed_on__c'],\n  sorts: [{ propertyName: 'hs_object_id', direction: 'ASCENDING' }], limit: 200 } } }));\n"
+   },
+   "id": "build-search",
+   "name": "Build Search",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    880,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.hubapi.com/crm/v3/objects/deals/search",
+    "options": {
+     "pagination": {
+      "pagination": {
+       "parameters": {
+        "parameters": [
+         {
+          "type": "body",
+          "name": "after",
+          "value": "={{ $response.body?.paging?.next?.after }}"
+         }
+        ]
+       },
+       "paginationCompleteWhen": "other",
+       "completeExpression": "={{ !$response.body?.paging?.next }}",
+       "requestInterval": 750
+      }
+     },
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 2200
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "search-deals",
+   "name": "Search Deals",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1100,
+    0
+   ],
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst ids = []; const seen = new Set();\nfor (const it of $input.all()) for (const r of (it.json.results || [])) if (!seen.has(r.id)) { seen.add(r.id); ids.push(r.id); }\nconst out = [];\nfor (let i = 0; i < ids.length; i += 100)\n  out.push({ json: { url: 'https://api.hubapi.com/crm/v4/associations/deals/companies/batch/read',\n    body: { inputs: ids.slice(i, i + 100).map(id => ({ id })) } } });\nif (!out.length) out.push({ json: { skip: true } });\nreturn out;\n"
+   },
+   "id": "build-assoc",
+   "name": "Build Assoc",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1320,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $json.url }}",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 600
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "read-assoc",
+   "name": "Read Assoc",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1540,
+    0
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst dealToCompanies = {};\nfor (const it of $('Read Assoc').all()) { if (it.json.skip) continue;\n  for (const r of (it.json.results || []))\n    dealToCompanies[String(r.from && r.from.id)] = (r.to || []).map(t => String(t.toObjectId)).filter(Boolean); }\nconst ids = [...new Set(Object.values(dealToCompanies).flat())];\nconst out = [{ json: { dealToCompanies } }];\nfor (let i = 0; i < ids.length; i += 100)\n  out.push({ json: { body: { inputs: ids.slice(i, i + 100).map(id => ({ id })), properties: ['name','lifecyclestage','type','hs_analytics_source','hs_analytics_source_data_1'] } } });\nreturn out;\n"
+   },
+   "id": "build-company-reads",
+   "name": "Build Company Reads",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1760,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.hubapi.com/crm/v3/objects/companies/batch/read",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 600
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body || {inputs:[]}) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "read-companies",
+   "name": "Read Companies",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1980,
+    0
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst esc = v => v === null || v === undefined || v === '' ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst num = v => v === null || v === undefined || v === '' || isNaN(Number(v)) ? 'NULL' : String(Number(v));\nconst bool = v => v ? 'true' : 'false';\n\nconst owners = {};\nfor (const o of ($('Get Owners').first().json.results || []))\n  owners[String(o.id)] = ((o.firstName || '') + ' ' + (o.lastName || '')).trim() || o.email || String(o.id);\n\nconst state = $('Build Company Reads').all()[0].json;\nconst comps = {};\nfor (const it of $('Read Companies').all()) for (const r of ((it.json || {}).results || [])) {\n  const p = r.properties || {};\n  comps[String(r.id)] = { name: p.name || '',\n    isPartner: /partner|agentur|agency/i.test(String(p.lifecyclestage || '') + ' ' + String(p.type || '')),\n    srcType: p.hs_analytics_source || null, srcDetail: p.hs_analytics_source_data_1 ? String(p.hs_analytics_source_data_1).slice(0, 80) : null };\n}\nconst dtLabels = {};\nfor (const o of (($('Get Dealtypes').first().json || {}).options || [])) dtLabels[o.value] = o.label;\nconst hasQuote = new Set();\nfor (const it of $('Read Quotes Assoc').all()) for (const r of ((it.json || {}).results || []))\n  if ((r.to || []).length) hasQuote.add(String(r.from && r.from.id));\nconst ai = {};\nfor (const it of $input.all()) {\n  const content = it.json && it.json.content;\n  if (!Array.isArray(content)) continue;\n  let t = content.filter(c => c.type === 'text').map(c => c.text).join('');\n  try { for (const r of JSON.parse(t.replace(/```json|```/g, '').trim())) ai[String(r.id)] = r; } catch (e) {}\n}\nconst pipes = {}; const stages = {};\nfor (const p of ($('Get Pipelines').first().json.results || [])) {\n  pipes[p.id] = p.label;\n  for (const s of (p.stages || [])) stages[s.id] = s.label;\n}\nconst rows = []; const seen = new Set();\nfor (const it of $('Search Deals').all()) for (const d of (it.json.results || [])) {\n  if (seen.has(d.id)) continue; seen.add(d.id);\n  const p = d.properties || {};\n  const assocIds = state.dealToCompanies[String(d.id)] || [];\n  const primaryId = assocIds.find(id => comps[id] && !comps[id].isPartner) || assocIds[0] || null;\n  const partnerId = assocIds.find(id => comps[id] && comps[id].isPartner) || null;\n  const comp = primaryId;\n  const partnerName = partnerId && comps[partnerId] ? comps[partnerId].name : null;\n  rows.push('(' + [num(d.id), esc(p.dealname), num(comp), esc(comp && comps[comp] ? comps[comp].name : ''),\n    esc(pipes[p.pipeline] || p.pipeline), esc(stages[p.dealstage] || p.dealstage), num(p.amount),\n    esc(owners[String(p.hubspot_owner_id)] || 'Unknown'),\n    esc(p.createdate ? p.createdate.slice(0, 10) : null), esc(p.closedate ? p.closedate.slice(0, 10) : null),\n    esc(p.dealtype ? (dtLabels[p.dealtype] || p.dealtype) : 'Unknown'), bool(String(p.hs_is_closed) === 'true'), bool(String(p.hs_is_closed_won) === 'true'),\n    esc(p.hs_next_step ? String(p.hs_next_step).slice(0, 200) : null),\n    esc(p.notes_last_updated ? String(p.notes_last_updated).slice(0, 10) : null),\n    num(p.hs_mrr), bool(hasQuote.has(String(d.id))), esc(partnerName),\n    esc(comp && comps[comp] ? comps[comp].srcType : null), esc(comp && comps[comp] ? comps[comp].srcDetail : null),\n    esc(p.license_start_date__c ? String(p.license_start_date__c).slice(0, 10) : (p.contract_signed_on__c ? String(p.contract_signed_on__c).slice(0, 10) : null)),\n    esc((ai[String(d.id)] || {}).status || null), esc((ai[String(d.id)] || {}).todo || null),\n    esc(new Date().toISOString())].join(',') + ')');\n}\nif (!rows.length) return [{ json: { sql: 'SELECT 1;' } }];\nreturn [{ json: { sql: 'INSERT INTO deals_mirror (deal_id,deal_name,company_id,company_name,pipeline_label,stage_label,amount,owner_name,create_date,close_date,dealtype,is_closed,is_won,next_step,last_activity,mrr,has_quote,partner_name,source_type,source_detail,license_start,status_note,todo,updated_at) VALUES\\n' +\n  rows.join(',\\n') + '\\nON CONFLICT (deal_id) DO UPDATE SET deal_name=EXCLUDED.deal_name, company_id=EXCLUDED.company_id, company_name=EXCLUDED.company_name, pipeline_label=EXCLUDED.pipeline_label, stage_label=EXCLUDED.stage_label, amount=EXCLUDED.amount, owner_name=EXCLUDED.owner_name, create_date=EXCLUDED.create_date, close_date=EXCLUDED.close_date, dealtype=EXCLUDED.dealtype, is_closed=EXCLUDED.is_closed, is_won=EXCLUDED.is_won, next_step=EXCLUDED.next_step, last_activity=EXCLUDED.last_activity, mrr=EXCLUDED.mrr, has_quote=EXCLUDED.has_quote, partner_name=EXCLUDED.partner_name, source_type=EXCLUDED.source_type, source_detail=EXCLUDED.source_detail, license_start=EXCLUDED.license_start, status_note=COALESCE(EXCLUDED.status_note, deals_mirror.status_note), todo=EXCLUDED.todo, updated_at=EXCLUDED.updated_at;' } }];\n"
+   },
+   "id": "build-sql",
+   "name": "Build SQL",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2200,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "={{ $json.sql }}",
+    "options": {}
+   },
+   "id": "write-db",
+   "name": "Write DB",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    2420,
+    0
+   ],
+   "alwaysOutputData": true,
+   "executeOnce": true,
+   "credentials": {
+    "postgres": {
+     "id": "nvtjRzdnFqttOZDI",
+     "name": "Postgres account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "const ids = []; const seen = new Set();\nfor (const it of $('Search Deals').all()) for (const r of (it.json.results || [])) if (!seen.has(r.id)) { seen.add(r.id); ids.push(r.id); }\nconst out = [];\nfor (let i = 0; i < ids.length; i += 100)\n  out.push({ json: { body: { inputs: ids.slice(i, i + 100).map(id => ({ id })) } } });\nif (!out.length) out.push({ json: { skip: true } });\nreturn out;\n"
+   },
+   "id": "build-quote-assoc",
+   "name": "Build Quote Assoc",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1650,
+    140
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.hubapi.com/crm/v4/associations/deals/quotes/batch/read",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body || {inputs:[]}) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 600
+      }
+     }
+    }
+   },
+   "id": "read-quotes-assoc",
+   "name": "Read Quotes Assoc",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1760,
+    140
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "const quotes = new Set();\nfor (const it of $('Read Quotes Assoc').all()) for (const r of ((it.json || {}).results || []))\n  if ((r.to || []).length) quotes.add(String(r.from && r.from.id));\nconst seen = new Set(); const items = [];\nconst now = Date.now();\nfor (const it of $('Search Deals').all()) for (const d of (it.json.results || [])) {\n  if (seen.has(d.id)) continue; seen.add(d.id);\n  const p = d.properties || {};\n  if (String(p.hs_is_closed) === 'true') continue;\n  const la = p.notes_last_updated ? Math.round((now - Date.parse(p.notes_last_updated)) / 86400000) : null;\n  const age = p.createdate ? Math.round((now - Date.parse(p.createdate)) / 86400000) : null;\n  items.push({ id: d.id, name: String(p.dealname || '').slice(0, 80), stage: p.dealstage, type: p.dealtype || '',\n    age_days: age, days_since_activity: la, next_step: String(p.hs_next_step || '').slice(0, 200) });\n}\nif (!items.length) return [{ json: { has: false, quotes: [...quotes] } }];\nconst out = [];\nfor (let i = 0; i < items.length; i += 20) {\n  out.push({ json: { has: true, quotes: [...quotes], body: { model: 'claude-sonnet-5', max_tokens: 2200, messages: [{ role: 'user', content:\n    'You write one-glance pipeline notes for a B2B sales dashboard (JENTIS). For each OPEN deal, from its next_step text and activity facts, produce: ' +\n    'status (max 7 words, qualitative, what is happening / where it stands, e.g. \"Quote sent, waiting on prospect\" or \"Fresh deal, discovery done\") and ' +\n    'todo (max 6 words, the concrete action on our side, or null). If next_step is empty, derive from staleness (e.g. \"No activity 24d - re-engage\"). German next_steps may be answered in English. ' +\n    'Respond ONLY with a JSON array, no fences: [{\"id\":\"...\",\"status\":\"...\",\"todo\":...}]\\n\\n' + JSON.stringify(items.slice(i, i + 20)) } ] } } });\n}\nreturn out;\n"
+   },
+   "id": "build-claude-status",
+   "name": "Build Claude Status",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2090,
+    140
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "c1",
+       "leftValue": "={{ $json.has === true }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    }
+   },
+   "id": "any-open",
+   "name": "Any Open?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    2200,
+    140
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "anthropic-version",
+       "value": "2023-06-01"
+      },
+      {
+       "name": "content-type",
+       "value": "application/json"
+      }
+     ]
+    },
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "options": {}
+   },
+   "id": "claude-status",
+   "name": "Claude Status",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2310,
+    60
+   ],
+   "alwaysOutputData": true,
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FYCg4BhREROic6UN",
+     "name": "Anthropic Admin"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "mode": "append",
+    "numberInputs": 2
+   },
+   "id": "merge-status",
+   "name": "Merge Status",
+   "type": "n8n-nodes-base.merge",
+   "typeVersion": 3,
+   "position": [
+    2420,
+    140
+   ]
+  },
+  {
+   "parameters": {
+    "url": "https://api.hubapi.com/crm/v3/properties/deals/dealtype",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "options": {}
+   },
+   "id": "get-dealtypes",
+   "name": "Get Dealtypes",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    770,
+    0
+   ],
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   }
+  }
+ ],
+ "connections": {
+  "Schedule": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config": {
+   "main": [
+    [
+     {
+      "node": "Get Owners",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get Owners": {
+   "main": [
+    [
+     {
+      "node": "Get Pipelines",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get Pipelines": {
+   "main": [
+    [
+     {
+      "node": "Get Dealtypes",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Search": {
+   "main": [
+    [
+     {
+      "node": "Search Deals",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Search Deals": {
+   "main": [
+    [
+     {
+      "node": "Build Assoc",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Assoc": {
+   "main": [
+    [
+     {
+      "node": "Read Assoc",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read Assoc": {
+   "main": [
+    [
+     {
+      "node": "Build Quote Assoc",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Company Reads": {
+   "main": [
+    [
+     {
+      "node": "Read Companies",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read Companies": {
+   "main": [
+    [
+     {
+      "node": "Build Claude Status",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build SQL": {
+   "main": [
+    [
+     {
+      "node": "Write DB",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Quote Assoc": {
+   "main": [
+    [
+     {
+      "node": "Read Quotes Assoc",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read Quotes Assoc": {
+   "main": [
+    [
+     {
+      "node": "Build Company Reads",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Claude Status": {
+   "main": [
+    [
+     {
+      "node": "Any Open?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Any Open?": {
+   "main": [
+    [
+     {
+      "node": "Claude Status",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Merge Status",
+      "type": "main",
+      "index": 1
+     }
+    ]
+   ]
+  },
+  "Claude Status": {
+   "main": [
+    [
+     {
+      "node": "Merge Status",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Merge Status": {
+   "main": [
+    [
+     {
+      "node": "Build SQL",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get Dealtypes": {
+   "main": [
+    [
+     {
+      "node": "Build Search",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "timezone": "Europe/Vienna",
+  "executionOrder": "v1"
+ },
+ "pinData": {}
+}

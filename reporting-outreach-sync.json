@@ -1,0 +1,891 @@
+{
+ "name": "Reporting \u2014 Outreach Sync (Sequences + Subjects)",
+ "nodes": [
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 6 * * 2"
+      }
+     ]
+    }
+   },
+   "id": "sched",
+   "name": "Schedule",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    0
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "manual",
+   "name": "Manual Trigger",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    0,
+    180
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// ===== OUTREACH SYNC CONFIG (sequences + subject lines) =====\n// Rolling recompute window. 270 days keeps runtime roughly constant forever;\n// raise it (or set FIXED_FROM) if you need deeper history in the stats.\nconst WINDOW_DAYS = 270;\nconst FIXED_FROM = null;          // e.g. '2026-01-01' to override the rolling window\nconst FULL_FROM = FIXED_FROM || new Date(Date.now() - WINDOW_DAYS * 86400000).toISOString().slice(0, 10);\nconst SPREADSHEET_ID = '1L4jaTxPdlKMvzFme73McVRqzRJqLrJvaJ0Xxdgy-E0c';\nconst ANTHROPIC_MODEL = 'claude-sonnet-5';\nconst PERSONA_LABELS = { persona_17:'Adtech', persona_9:'Agency', persona_18:'Audience',\n  persona_15:'Commercial & Sales Leadership', persona_1:'Data & Analytics', persona_8:'Engineering & IT',\n  persona_7:'Executive', persona_3:'E-Commerce', persona_10:'Legal', persona_6:'Marketing - General',\n  persona_4:'Marketing - Performance', persona_16:'Product', persona_12:'Reader Revenue & Subscription',\n  persona_11:'No fitting persona' };\nconst DAY = 86400000; const now = Date.now();\nlet chunks = []; let cur = Date.parse(FULL_FROM);\nwhile (cur < now) { const d = new Date(cur); const nx = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);\n  chunks.push({ fromMs: cur, toMs: Math.min(nx, now) }); cur = nx; }\nreturn chunks.map(c => ({ json: { fromMs: c.fromMs, toMs: c.toMs, SPREADSHEET_ID, ANTHROPIC_MODEL, PERSONA_LABELS } }));\n"
+   },
+   "id": "config",
+   "name": "Config",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    220,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "={{ $('Config').first().json.SPREADSHEET_ID }}"
+    },
+    "sheetName": {
+     "__rl": true,
+     "mode": "name",
+     "value": "SequenceMap"
+    }
+   },
+   "id": "read-sequencemap",
+   "name": "Read SequenceMap",
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.5,
+   "position": [
+    440,
+    0
+   ],
+   "alwaysOutputData": true,
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "yj0X2FYvq39a3cPm",
+     "name": "Google Sheets account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "return $('Config').all().map(it => ({ json: { body: {\n  filterGroups: [\n    { filters: [\n      { propertyName: 'hs_timestamp', operator: 'GTE', value: String(it.json.fromMs) },\n      { propertyName: 'hs_timestamp', operator: 'LT', value: String(it.json.toMs) },\n      { propertyName: 'hs_email_direction', operator: 'EQ', value: 'EMAIL' },\n      { propertyName: 'hs_email_status', operator: 'EQ', value: 'SENT' }]},\n    { filters: [\n      { propertyName: 'hs_timestamp', operator: 'GTE', value: String(it.json.fromMs) },\n      { propertyName: 'hs_timestamp', operator: 'LT', value: String(it.json.toMs) },\n      { propertyName: 'hs_email_direction', operator: 'EQ', value: 'INCOMING_EMAIL' }]}\n  ],\n  properties: ['hs_email_subject','hs_timestamp','hs_email_direction','hs_email_open_count','hs_email_click_count','hs_sequence_id'],\n  sorts: [{ propertyName: 'hs_object_id', direction: 'ASCENDING' }], limit: 200 } } }));\n"
+   },
+   "id": "build-search",
+   "name": "Build Search",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    660,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.hubapi.com/crm/v3/objects/emails/search",
+    "options": {
+     "pagination": {
+      "pagination": {
+       "parameters": {
+        "parameters": [
+         {
+          "type": "body",
+          "name": "after",
+          "value": "={{ $response.body?.paging?.next?.after }}"
+         }
+        ]
+       },
+       "paginationCompleteWhen": "other",
+       "completeExpression": "={{ !$response.body?.paging?.next }}",
+       "requestInterval": 1000
+      }
+     },
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 3000
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "search-emails",
+   "name": "Search Emails",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    880,
+    0
+   ],
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst ids = []; const seen = new Set();\nfor (const it of $input.all()) for (const r of (it.json.results || [])) if (!seen.has(r.id)) { seen.add(r.id); ids.push(r.id); }\nconst out = [];\nfor (let i = 0; i < ids.length; i += 100)\n  out.push({ json: { url: 'https://api.hubapi.com/crm/v4/associations/emails/contacts/batch/read',\n    body: { inputs: ids.slice(i, i + 100).map(id => ({ id })) } } });\nif (!out.length) out.push({ json: { skip: true } });\nreturn out;\n"
+   },
+   "id": "build-assoc",
+   "name": "Build Assoc",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1100,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $json.url }}",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 600
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body || {inputs:[]}) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "read-assoc",
+   "name": "Read Assoc",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1320,
+    0
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst eToC = {};\nfor (const it of $input.all()) { if (it.json.skip) continue;\n  for (const r of (it.json.results || [])) eToC[String(r.from && r.from.id)] = (r.to || []).map(t => String(t.toObjectId)); }\nconst cids = new Set(); for (const a of Object.values(eToC)) for (const c of a) cids.add(c);\nconst ids = [...cids];\nconst out = [{ json: { eToC } }];\nfor (let i = 0; i < ids.length; i += 100)\n  out.push({ json: { body: { inputs: ids.slice(i, i + 100).map(id => ({ id })),\n    properties: ['hs_persona','industry','jobtitle','associatedcompanyid','firstname','lastname'] } } });\nreturn out;\n"
+   },
+   "id": "build-contact-reads",
+   "name": "Build Contact Reads",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1540,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.hubapi.com/crm/v3/objects/contacts/batch/read",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 600
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body || {inputs:[]}) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "read-contacts",
+   "name": "Read Contacts",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1760,
+    0
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst contacts = {};\nfor (const it of $input.all()) for (const r of ((it.json || {}).results || [])) {\n  const p = r.properties || {};\n  contacts[String(r.id)] = { persona: p.hs_persona || null, industry: p.industry || null, jobtitle: p.jobtitle || null,\n    companyId: p.associatedcompanyid ? String(p.associatedcompanyid) : null,\n    name: ((p.firstname || '') + ' ' + (p.lastname || '')).trim() };\n}\nconst compIds = new Set(); for (const c of Object.values(contacts)) if (c.companyId) compIds.add(c.companyId);\nconst ids = [...compIds];\nconst out = [{ json: { contacts } }];\nfor (let i = 0; i < ids.length; i += 100)\n  out.push({ json: { body: { inputs: ids.slice(i, i + 100).map(id => ({ id })),\n    properties: ['name','industry','publisher_type'] } } });\nreturn out;\n"
+   },
+   "id": "build-company-reads",
+   "name": "Build Company Reads",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1980,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.hubapi.com/crm/v3/objects/companies/batch/read",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 600
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body || {inputs:[]}) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "read-companies",
+   "name": "Read Companies",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2200,
+    0
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "const cfg = $('Config').all()[0].json;\nconst eToC = $('Build Contact Reads').all()[0].json.eToC;\nconst contacts = $('Build Company Reads').all()[0].json.contacts;\nconst companies = {};\nfor (const it of $input.all()) for (const r of ((it.json || {}).results || [])) {\n  const p = r.properties || {};\n  companies[String(r.id)] = { name: p.name || '', icp: p.publisher_type || null };\n}\n// SequenceMap: sequence_id | sequence_name | status (subjects/steps no longer needed \u2014\n// HubSpot's hs_sequence_id on each email gives exact attribution)\nconst seqMeta = {};\nfor (const r of $('Read SequenceMap').all().map(i => i.json)) {\n  if (r && r.sequence_id) seqMeta[String(r.sequence_id).trim()] = { name: r.sequence_name || null, status: r.status || '' };\n}\nconst norm = s => String(s || '').replace(/^((re|aw|fwd?|wg)\\s*:\\s*)+/i, '').replace(/\\s+/g, ' ').trim().toLowerCase();\nconst AUTO_RE = /^(automat|auto[- ]?reply|autoreply|automatic reply|autosvar|out of office|abwesen|ooo\\b|r\u00e9ponse automatique|risposta automatica|respuesta autom\u00e1tica|delivery status|undeliverable|mail delivery|zustellung|nicht zustellbar|thank you for your (e-?mail|message)|vielen dank f\u00fcr ihre (e-?mail|nachricht))/i;\nconst seniority = jt => {\n  const t = String(jt || '').toLowerCase();\n  if (!t) return 'Unknown';\n  if (/(chief|ceo|cto|cmo|coo|cfo|cio|cdo|founder|gr\u00fcnder|gesch\u00e4ftsf\u00fchr|vorstand|owner|inhaber|president)/.test(t)) return 'C-Level';\n  if (/(vp|vice president|director|head of|leiter|bereichsleit|chapter lead)/.test(t)) return 'VP / Director / Head';\n  if (/(manager|lead|verantwortlich)/.test(t)) return 'Manager';\n  return 'Specialist / Other';\n};\nconst subjects = {}, seg = {}, seqAgg = {}, engagers = [], samples = {}, sampleTs = {}, perDay = {}, repliers = [];\nconst stepAgg = {}, seqCompanies = {};\nconst cross = {};\nconst seqContacts = {};\nconst normToKey = {};\nconst sentIndex = {};\nconst incoming = [];\nconst seen = new Set();\nfor (const it of $('Search Emails').all()) for (const e of (it.json.results || [])) {\n  if (seen.has(e.id)) continue; seen.add(e.id);\n  const p = e.properties || {};\n  const dir = p.hs_email_direction;\n  const subjRaw = String(p.hs_email_subject || '').trim();\n  const ts = Date.parse(p.hs_timestamp);\n  const d = isNaN(ts) ? null : new Date(ts).toISOString().slice(0, 10);\n  const cts = eToC[String(e.id)] || [];\n  if (dir === 'INCOMING_EMAIL') { incoming.push({ id: e.id, subj: subjRaw, d, ts, contactId: cts[0] || null,\n      snippet: String(p.hs_email_html || '').replace(/<style[\\s\\S]*?<\\/style>/gi, ' ').replace(/<[^>]+>/g, ' ')\n        .replace(/&nbsp;|&amp;|&lt;|&gt;/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 300) || null }); continue; }\n  if (!subjRaw) continue;\n  const seqIdRaw = p.hs_sequence_id ? String(p.hs_sequence_id) : null;\n  if (!seqIdRaw) continue;   // 1:1 / partner / non-sequence sales mails are not outreach performance\n  const key = subjRaw.slice(0, 300);\n  const nk = norm(subjRaw);\n  normToKey[nk] = key;\n  if (d) perDay[d] = (perDay[d] || 0) + 1;\n  const opened = Number(p.hs_email_open_count) > 0, clicked = Number(p.hs_email_click_count) > 0;\n  const s = (subjects[key] = subjects[key] || { sends: 0, opens: 0, replies: 0, first: d, last: d, icp: {}, persona: {} });\n  s.sends++; if (opened) s.opens++;\n  if (d) { if (!s.first || d < s.first) s.first = d; if (!s.last || d > s.last) s.last = d; }\n  const ct = cts.map(c => contacts[c]).find(Boolean);\n  const comp = ct && ct.companyId ? companies[ct.companyId] : null;\n  const persona = ct && ct.persona ? (cfg.PERSONA_LABELS[ct.persona] || ct.persona) : 'Unknown';\n  const icp = (comp && comp.icp) || 'Unknown';\n  const sen = seniority(ct && ct.jobtitle);\n  s.icp[icp] = (s.icp[icp] || 0) + 1;\n  s.persona[persona] = (s.persona[persona] || 0) + 1;\n  for (const [dim, val] of [['persona', persona], ['icp', icp], ['seniority', sen]]) {\n    const gk = key + '|' + dim + '|' + val;\n    seg[gk] = seg[gk] || { subject: key, dim, value: val, sends: 0, opens: 0, replies: 0 };\n    seg[gk].sends++; if (opened) seg[gk].opens++;\n  }\n  for (const ck of ['p|' + icp + '|' + persona, 's|' + icp + '|' + sen]) {\n    const c = (cross[ck] = cross[ck] || { sends: 0, opens: 0, replies: 0 });\n    c.sends++; if (opened) c.opens++;\n  }\n  const si = { key, persona, icp, sen };\n  if (cts[0]) sentIndex[cts[0] + '|' + nk] = si;\n  const seqId = seqIdRaw;\n  if (seqId) {\n    const meta = seqMeta[seqId] || {};\n    const a = (seqAgg[seqId] = seqAgg[seqId] || { name: meta.name || ('Sequence ' + seqId), status: meta.status || '',\n      enrolled: 0, delivered: 0, opens: 0, clicks: 0, replies: 0, first: d, last: d });\n    a.delivered++;\n    if (opened) a.opens++; if (clicked) a.clicks++;\n    if (d) { if (!a.first || d < a.first) a.first = d; if (!a.last || d > a.last) a.last = d; }\n    if (cts[0]) (seqContacts[seqId] = seqContacts[seqId] || new Set()).add(cts[0]);\n    a.personaT = a.personaT || {}; a.icpT = a.icpT || {};\n    a.personaT[persona] = (a.personaT[persona] || 0) + 1;\n    a.icpT[icp] = (a.icpT[icp] || 0) + 1;\n    const sk = seqId + '|' + nk;\n    const sa = (stepAgg[sk] = stepAgg[sk] || { seq: seqId, subject: key, sends: 0, opens: 0, clicks: 0, replies: 0, firstTs: ts, sampleId: e.id, sampleTs: ts });\n    if (!isNaN(ts) && ts < sa.sampleTs) { sa.sampleId = e.id; sa.sampleTs = ts; }\n    sa.sends++; if (opened) sa.opens++; if (clicked) sa.clicks++;\n    if (!isNaN(ts) && ts < sa.firstTs) sa.firstTs = ts;\n    if (ct && ct.companyId) {\n      const ck = seqId + '|' + ct.companyId;\n      const sc = (seqCompanies[ck] = seqCompanies[ck] || { seq: seqId, companyId: ct.companyId, companyName: comp ? comp.name : '', firstTs: ts });\n      if (!isNaN(ts) && ts < sc.firstTs) { sc.firstTs = ts; if (comp) sc.companyName = comp.name; }\n    }\n    // sample the two earliest emails of the sequence for Claude's creative analysis\n    const arr = (samples[seqId] = samples[seqId] || []); const tarr = (sampleTs[seqId] = sampleTs[seqId] || []);\n    if (arr.length < 2) { arr.push(e.id); tarr.push(ts); }\n    else { const mi = tarr[0] > tarr[1] ? 0 : 1; if (ts < tarr[mi]) { arr[mi] = e.id; tarr[mi] = ts; } }\n    si.seqId = seqId;\n    if (clicked) engagers.push({ seq: seqId, nk, contactId: cts[0] || null, contactName: ct ? ct.name : '',\n      companyId: ct && ct.companyId ? ct.companyId : null, companyName: comp ? comp.name : '',\n      action: 'click', step: null, ts: isNaN(ts) ? null : new Date(ts).toISOString() });\n  }\n}\nfor (const [id, set] of Object.entries(seqContacts)) seqAgg[id].enrolled = set.size;\nfor (const inc of incoming) {\n  if (AUTO_RE.test(inc.subj) || AUTO_RE.test(norm(inc.subj))) continue;\n  const nk = norm(inc.subj);\n  const key = normToKey[nk];\n  const ct = inc.contactId ? contacts[inc.contactId] : null;\n  const comp = ct && ct.companyId ? companies[ct.companyId] : null;\n  const si = inc.contactId && key ? sentIndex[inc.contactId + '|' + nk] : null;\n  if (!si) continue;   // reply doesn't match any sequence email we sent this contact\n  repliers.push({ emailId: inc.id, date: inc.d, contactId: inc.contactId,\n    contactName: ct ? ct.name : '', companyId: ct && ct.companyId ? ct.companyId : null,\n    snippet: inc.snippet || null });\n  if (key) subjects[key].replies++;\n  if (si) {\n    for (const [dim, val] of [['persona', si.persona], ['icp', si.icp], ['seniority', si.sen]]) {\n      const gk = key + '|' + dim + '|' + val;\n      if (seg[gk]) seg[gk].replies++;\n    }\n    for (const ck of ['p|' + si.icp + '|' + si.persona, 's|' + si.icp + '|' + si.sen])\n      if (cross[ck]) cross[ck].replies++;\n    if (si.seqId && seqAgg[si.seqId]) {\n      seqAgg[si.seqId].replies++;\n      engagers.push({ seq: si.seqId, nk, contactId: inc.contactId, contactName: ct ? ct.name : '',\n        companyId: ct && ct.companyId ? ct.companyId : null, companyName: comp ? comp.name : '',\n        action: 'reply', step: null, ts: isNaN(inc.ts) ? null : new Date(inc.ts).toISOString() });\n      const sk2 = si.seqId + '|' + nk;\n      if (stepAgg[sk2]) stepAgg[sk2].replies++;\n    }\n  }\n}\nconst top = obj => { const e = Object.entries(obj || {}).sort((a, b) => b[1] - a[1])[0];\n  if (!e) return null; const total = Object.values(obj).reduce((a, b) => a + b, 0);\n  return e[0] + ' (' + Math.round(100 * e[1] / total) + '%)'; };\nfor (const s of Object.values(subjects)) { s.mainIcp = top(s.icp); s.mainPersona = top(s.persona); }\n// rank steps within each sequence by first send time\nconst rank = {};\nconst bySeq = {};\nfor (const sa of Object.values(stepAgg)) (bySeq[sa.seq] = bySeq[sa.seq] || []).push(sa);\nconst stepRows = [];\nfor (const [seqId, arr] of Object.entries(bySeq)) {\n  arr.sort((a, b) => a.firstTs - b.firstTs);\n  arr.forEach((sa, i) => {\n    sa.rank = i + 1;\n    rank[seqId + '|' + norm(sa.subject)] = i + 1;\n    stepRows.push({ seq: seqId, rank: i + 1, subject: sa.subject, sends: sa.sends, opens: sa.opens,\n      clicks: sa.clicks, replies: sa.replies, first: new Date(sa.firstTs).toISOString().slice(0, 10) });\n  });\n  if (seqAgg[seqId]) seqAgg[seqId].steps = arr.length;\n}\n// personalized AI sequences: nearly every contact gets a unique subject -> cluster into categories later\nconst clusterReqs = [];\nfor (const [seqId, arr] of Object.entries(bySeq)) {\n  const a = seqAgg[seqId];\n  if (!a) continue;\n  if (arr.length >= 12 && a.delivered / arr.length < 3) {\n    a.personalized = true;\n    clusterReqs.push({ seq: seqId, subjects: arr.sort((x, y) => x.firstTs - y.firstTs).map(s => s.subject.slice(0, 90)).slice(0, 400) });\n  }\n}\nfor (const [id, a] of Object.entries(seqAgg)) {\n  a.mainPersona = top(a.personaT); a.mainIcp = top(a.icpT);\n  delete a.personaT; delete a.icpT;\n}\nfor (const e of engagers) { e.step = rank[e.seq + '|' + e.nk] || null; delete e.nk; }\nconst seqCompanyRows = Object.values(seqCompanies).map(c => ({ seq: c.seq, companyId: c.companyId,\n  companyName: c.companyName, first: new Date(c.firstTs).toISOString().slice(0, 10) }));\nconst personalizedSet = new Set(clusterReqs.map(c => c.seq));\nconst stepSamples = [];\nfor (const [seqId, arr] of Object.entries(bySeq)) {\n  if (personalizedSet.has(seqId)) continue;\n  for (const sa of arr.slice(0, 12)) stepSamples.push({ seq: seqId, subject: sa.subject, emailId: sa.sampleId });\n}\nreturn [{ json: { subjects, seg: Object.values(seg), seqAgg, engagers, samples, perDay, repliers, stepRows, seqCompanyRows, clusterReqs, stepSamples, cross } }];\n"
+   },
+   "id": "aggregate",
+   "name": "Aggregate",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2420,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst st = $('Aggregate').all()[0].json;\nconst ids = [];\nfor (const arr of Object.values(st.samples)) for (const id of arr) ids.push(id);\nfor (const s of (st.stepSamples || [])) if (s.emailId) ids.push(s.emailId);\nconst uniq = [...new Set(ids)]; ids.length = 0; ids.push(...uniq);\nif (!ids.length) return [{ json: { skip: true, has: false } }];\nconst out = [];\nfor (let i = 0; i < ids.length; i += 50)\n  out.push({ json: { has: true, body: { inputs: ids.slice(i, i + 50).map(id => ({ id })),\n    properties: ['hs_email_subject','hs_email_html'] } } });\nreturn out;\n"
+   },
+   "id": "build-sample-reads",
+   "name": "Build Sample Reads",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2640,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.hubapi.com/crm/v3/objects/emails/batch/read",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 600
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body || {inputs:[]}) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth"
+   },
+   "id": "read-samples",
+   "name": "Read Samples",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    2860,
+    0
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "Uv4k2RMMsWPZCuS2",
+     "name": "Hubspot Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 5000
+  },
+  {
+   "parameters": {
+    "jsCode": "const cfg = $('Config').all()[0].json;\nconst st = $('Aggregate').all()[0].json;\nconst bodies = {};\nfor (const it of $input.all()) for (const r of ((it.json || {}).results || []))\n  bodies[String(r.id)] = String((r.properties || {}).hs_email_html || '').replace(/<style[\\s\\S]*?<\\/style>/gi, '')\n    .replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\\s+/g, ' ').trim();\nconst r1 = (a, b) => b ? Math.round(1000 * a / b) / 10 : null;\nconst statsOf = id => { const a = st.seqAgg[id] || {};\n  return { enrolled: a.enrolled, steps: a.steps, status: a.status,\n    open_rate: r1(a.opens, a.delivered), reply_rate: r1(a.replies, a.delivered) }; };\nconst stepsBySeq = {};\nfor (const s of (st.stepSamples || []))\n  (stepsBySeq[s.seq] = stepsBySeq[s.seq] || []).push({ subject: s.subject.slice(0, 120), body: (bodies[s.emailId] || '').slice(0, 900) });\nconst personalized = new Set((st.clusterReqs || []).map(c => c.seq));\nconst items = Object.keys(st.seqAgg).map(id => {\n  if (personalized.has(id)) {\n    const sample = (st.samples[id] || []).map(eid => bodies[eid]).filter(Boolean).join('\\n---\\n').slice(0, 2200);\n    return { id, name: st.seqAgg[id].name, stats: statsOf(id), personalized: true, sample };\n  }\n  return { id, name: st.seqAgg[id].name, stats: statsOf(id), steps: stepsBySeq[id] || [] };\n});\nconst out = [];\nfor (let i = 0; i < items.length; i += 3) {\n  const batch = items.slice(i, i + 3);\n  out.push({ json: { has: true, body: { model: cfg.ANTHROPIC_MODEL, max_tokens: 4500, messages: [{ role: 'user', content:\n    'You analyze cold outreach sequences for a B2B sales team (JENTIS, server-side tracking for publishers). ' +\n    'For each sequence: per step in \"steps\", determine cta (concrete ask, max 6 words) and collateral (linked asset/resource, max 5 words, else null) from that email body. ' +\n    'Also per sequence: tone (direct | consultative | playful | formal | provocative), length_words (avg words of the bodies, integer), ' +\n    'Personalized sequences have \"sample\" instead of steps: give sequence-level cta/collateral from the sample. Empty bodies -> nulls. ' +\n    'Respond ONLY with a JSON array, no fences: [{\"id\":\"...\",\"tone\":...,\"length_words\":...,\"cta\":...,\"collateral\":...,\"steps\":[{\"subject\":\"...\",\"cta\":...,\"collateral\":...}]}]\\n\\n' +\n    JSON.stringify(batch) } ] } } });\n}\nconst clusterItems = (st.clusterReqs || []).map(cr => ({ json: { has: true, body: { model: cfg.ANTHROPIC_MODEL, max_tokens: 6000, messages: [{ role: 'user', content:\n  'These are personalized, per-contact AI-generated subject lines from ONE outreach sequence. Group them into 3-8 thematic categories by angle/approach (e.g. \"Pain point: consent loss\", \"Case study reference\", \"Question opener\"). Category names max 5 words. ' +\n  'Respond ONLY with JSON, no fences: {\"sequence_id\":\"' + cr.seq + '\",\"categories\":[{\"category\":\"...\",\"subject_indices\":[0,2,5]}]} where indices refer to the array below. Assign every index to exactly one category.\\n\\n' +\n  JSON.stringify(cr.subjects.slice(0, 250)) } ] } } }));\nif (!out.length && !clusterItems.length) return [{ json: { has: false } }];\nreturn out.concat(clusterItems);\n"
+   },
+   "id": "build-claude-request",
+   "name": "Build Claude Request",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3080,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "c1",
+       "leftValue": "={{ $json.has === true }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    }
+   },
+   "id": "any-sequences",
+   "name": "Any Sequences?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    3300,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages",
+    "options": {
+     "batching": {
+      "batch": {
+       "batchSize": 1,
+       "batchInterval": 400
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "anthropic-version",
+       "value": "2023-06-01"
+      },
+      {
+       "name": "content-type",
+       "value": "application/json"
+      }
+     ]
+    }
+   },
+   "id": "claude-attributes",
+   "name": "Claude Attributes",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    3520,
+    -100
+   ],
+   "alwaysOutputData": true,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FYCg4BhREROic6UN",
+     "name": "Anthropic Admin"
+    }
+   },
+   "retryOnFail": true,
+   "maxTries": 5,
+   "waitBetweenTries": 3000
+  },
+  {
+   "parameters": {
+    "mode": "append",
+    "numberInputs": 2
+   },
+   "id": "merge-claude",
+   "name": "Merge Claude",
+   "type": "n8n-nodes-base.merge",
+   "typeVersion": 3,
+   "position": [
+    3740,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "const esc = v => v === null || v === undefined || v === '' ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst num = v => v === null || v === undefined || v === '' || isNaN(Number(v)) ? 'NULL' : String(Number(v));\nconst st = $('Aggregate').all()[0].json;\nconst attrs = {};\nconst clusters = {};\nfor (const it of $('Merge Claude').all()) {\n  const content = it.json && it.json.content;\n  if (!Array.isArray(content)) continue;\n  let t = content.filter(c => c.type === 'text').map(c => c.text).join('');\n  try {\n    let tt = t.replace(/```json|```/g, '').trim();\n    if (!(tt.startsWith('{') || tt.startsWith('['))) {\n      const a = tt.indexOf('['), o = tt.indexOf('{');\n      const start = (a >= 0 && (o < 0 || a < o)) ? a : o;\n      if (start >= 0) tt = tt.slice(start, (tt.lastIndexOf(tt[start] === '[' ? ']' : '}') + 1) || undefined);\n    }\n    const parsed = JSON.parse(tt);\n    if (Array.isArray(parsed)) { for (const r of parsed) attrs[String(r.id)] = r; }\n    else if (parsed && parsed.id) attrs[String(parsed.id)] = parsed;\n    else if (parsed && parsed.sequence_id && Array.isArray(parsed.categories)) clusters[String(parsed.sequence_id)] = parsed.categories;\n  } catch (e) {}\n}\nconst norm2 = s => String(s || '').replace(/\\s+/g, ' ').trim().toLowerCase();\nconst stepAttr = {};\nfor (const [id, a] of Object.entries(attrs)) {\n  if (!a.cta && Array.isArray(a.steps) && a.steps[0]) a.cta = a.steps[0].cta;\n  if (!a.collateral && Array.isArray(a.steps) && a.steps[0]) a.collateral = a.steps[0].collateral;\n  for (const s of (a.steps || [])) stepAttr[id + '|' + norm2(s.subject)] = { cta: s.cta || null, collateral: s.collateral || null };\n}\n// collapse steps of personalized sequences into Claude's categories\nlet stepRows = st.stepRows || [];\nconst clusteredSeqs = new Set(Object.keys(clusters));\nif (clusteredSeqs.size) {\n  const keep = stepRows.filter(r => !clusteredSeqs.has(String(r.seq)));\n  for (const [seqId, cats] of Object.entries(clusters)) {\n    const raw = stepRows.filter(r => String(r.seq) === seqId).sort((a, b) => a.first < b.first ? -1 : 1);\n    const catRows = [];\n    for (const c of cats) {\n      const members = (c.subject_indices || []).map(i => raw[i]).filter(Boolean);\n      if (!members.length) continue;\n      catRows.push({ seq: seqId, subject: ('\ud83d\udcc2 ' + String(c.category || 'Other').slice(0, 80)),\n        sends: members.reduce((s, m) => s + m.sends, 0), opens: members.reduce((s, m) => s + m.opens, 0),\n        clicks: members.reduce((s, m) => s + m.clicks, 0), replies: members.reduce((s, m) => s + m.replies, 0),\n        first: members.map(m => m.first).sort()[0] });\n    }\n    const assigned = new Set((cats.flatMap(c => c.subject_indices || [])));\n    const rest = raw.filter((m, i) => !assigned.has(i));\n    if (rest.length) catRows.push({ seq: seqId, subject: '\ud83d\udcc2 Other', sends: rest.reduce((s, m) => s + m.sends, 0),\n      opens: rest.reduce((s, m) => s + m.opens, 0), clicks: rest.reduce((s, m) => s + m.clicks, 0),\n      replies: rest.reduce((s, m) => s + m.replies, 0), first: rest.map(m => m.first).sort()[0] });\n    catRows.sort((a, b) => a.first < b.first ? -1 : 1).forEach((r, i) => { r.rank = i + 1; keep.push(r); });\n    if (st.seqAgg[seqId]) st.seqAgg[seqId].steps = catRows.length;\n  }\n  stepRows = keep;\n  for (const e of st.engagers) if (clusteredSeqs.has(String(e.seq))) e.step = null;\n}\n// personalized sequences whose clustering failed: collapse to one aggregate row instead of hundreds\nconst persNoCluster = Object.entries(st.seqAgg).filter(([id, a]) => a.personalized && !clusteredSeqs.has(String(id))).map(([id]) => String(id));\nif (persNoCluster.length) {\n  const keep2 = stepRows.filter(r => !persNoCluster.includes(String(r.seq)));\n  for (const seqId of persNoCluster) {\n    const raw = stepRows.filter(r => String(r.seq) === seqId);\n    if (!raw.length) continue;\n    keep2.push({ seq: seqId, rank: 1, subject: '\ud83d\udcc2 Personalized subjects (' + raw.length + ' unique)',\n      sends: raw.reduce((s, m) => s + m.sends, 0), opens: raw.reduce((s, m) => s + m.opens, 0),\n      clicks: raw.reduce((s, m) => s + m.clicks, 0), replies: raw.reduce((s, m) => s + m.replies, 0),\n      first: raw.map(m => m.first).sort()[0] });\n    if (st.seqAgg[seqId]) st.seqAgg[seqId].steps = 1;\n  }\n  stepRows = keep2;\n  for (const e of st.engagers) if (persNoCluster.includes(String(e.seq))) e.step = null;\n}\nconst stmts = ['BEGIN;', 'TRUNCATE subject_stats;', 'TRUNCATE subject_recipients;', 'TRUNCATE subject_segments;',\n  'TRUNCATE sequence_engagers;', 'TRUNCATE sequence_steps;', 'TRUNCATE sequence_companies;', 'TRUNCATE email_daily;', 'TRUNCATE email_replies;'];\nconst sv = Object.entries(st.subjects).map(([k, s]) =>\n  '(' + [esc(k), num(s.sends), num(s.opens), num(s.replies), esc(s.first), esc(s.last), esc(s.mainIcp), esc(s.mainPersona), esc(new Date().toISOString())].join(',') + ')');\nif (sv.length) stmts.push('INSERT INTO subject_stats (subject,sends,opens,replies,first_sent,last_sent,main_icp,main_persona,updated_at) VALUES\\n' + sv.join(',\\n') + ';');\nconst gv = st.seg.map(g => '(' + [esc(g.subject), esc(g.dim), esc(g.value), num(g.sends), num(g.opens), num(g.replies)].join(',') + ')');\nif (gv.length) stmts.push('INSERT INTO subject_segments (subject,dim,value,sends,opens,replies) VALUES\\n' + gv.join(',\\n') + ';');\nconst ev = st.engagers.map(e => '(' + [esc(e.seq), num(e.contactId), esc(e.contactName), num(e.companyId),\n  esc(e.companyName), esc(e.action), num(e.step), esc(e.ts)].join(',') + ')');\nif (ev.length) stmts.push('INSERT INTO sequence_engagers (sequence_id,contact_id,contact_name,company_id,company_name,action,step,ts) VALUES\\n' + ev.join(',\\n') + ';');\nconst rpv = (st.repliers || []).map(r => '(' + [num(r.emailId), esc(r.date), num(r.contactId), esc(r.contactName), num(r.companyId), esc(r.snippet)].join(',') + ')');\nif (rpv.length) stmts.push('INSERT INTO email_replies (email_id,date,contact_id,contact_name,company_id,reply_snippet) VALUES\\n' + rpv.join(',\\n') + ';');\nconst dv = Object.entries(st.perDay || {}).map(([d, n]) => '(' + esc(d) + ',' + num(n) + ')');\nif (dv.length) stmts.push('INSERT INTO email_daily (date,sends) VALUES\\n' + dv.join(',\\n') + ';');\nconst qv = Object.entries(st.seqAgg).map(([id, a]) => {\n  const at = attrs[id] || {};\n  return '(' + [esc(id), esc(a.name), esc(a.status), num(a.enrolled), num(a.delivered), num(a.opens), num(a.clicks),\n    num(a.replies), 'NULL', 'NULL', esc(at.cta), esc(at.collateral), num(at.length_words), esc(at.tone),\n    num(a.steps), esc(a.mainIcp), esc(a.mainPersona), esc(at.note),\n    esc(a.first), esc(a.last), esc(new Date().toISOString())].join(',') + ')';\n});\nif (qv.length) stmts.push('INSERT INTO sequence_stats (sequence_id,sequence_name,status,enrolled,delivered,opens,clicks,replies,meetings,bounces,cta,collateral,email_length_words,tone,steps,main_icp,main_persona,ai_note,first_send,last_send,updated_at) VALUES\\n' +\n  qv.join(',\\n') + '\\nON CONFLICT (sequence_id) DO UPDATE SET sequence_name=EXCLUDED.sequence_name, status=EXCLUDED.status, enrolled=EXCLUDED.enrolled, delivered=EXCLUDED.delivered, opens=EXCLUDED.opens, clicks=EXCLUDED.clicks, replies=EXCLUDED.replies, cta=COALESCE(EXCLUDED.cta, sequence_stats.cta), collateral=COALESCE(EXCLUDED.collateral, sequence_stats.collateral), email_length_words=COALESCE(EXCLUDED.email_length_words, sequence_stats.email_length_words), tone=COALESCE(EXCLUDED.tone, sequence_stats.tone), steps=EXCLUDED.steps, main_icp=EXCLUDED.main_icp, main_persona=EXCLUDED.main_persona, ai_note=COALESCE(EXCLUDED.ai_note, sequence_stats.ai_note), first_send=EXCLUDED.first_send, last_send=EXCLUDED.last_send, updated_at=EXCLUDED.updated_at;');\nconst spv = (stepRows || []).map(r => { const sa = stepAttr[r.seq + '|' + norm2(r.subject)] || {};\n  return '(' + [esc(r.seq), num(r.rank), esc(r.subject), num(r.sends), num(r.opens), num(r.clicks), num(r.replies), esc(sa.cta), esc(sa.collateral), esc(r.first)].join(',') + ')'; });\nif (spv.length) stmts.push('INSERT INTO sequence_steps (sequence_id,step_rank,subject,sends,opens,clicks,replies,cta,collateral,first_sent) VALUES\\n' + spv.join(',\\n') + ';');\nconst scv = (st.seqCompanyRows || []).map(r => '(' + [esc(r.seq), num(r.companyId), esc(r.companyName), esc(r.first)].join(',') + ')');\nif (scv.length) stmts.push('INSERT INTO sequence_companies (sequence_id,company_id,company_name,first_sent) VALUES\\n' + scv.join(',\\n') + ';');\nconst noteRows = {};\nfor (const it of $input.all()) {\n  const content = it.json && it.json.content;\n  if (!Array.isArray(content)) continue;\n  const t = content.filter(c => c.type === 'text').map(c => c.text).join('').trim();\n  if (!t) continue;\n  // delimiter format: ===OUTREACH=== ... ===SUBJECTS=== ...\n  if (/===\\s*OUTREACH\\s*===/i.test(t)) {\n    const m = t.split(/===\\s*SUBJECTS\\s*===/i);\n    noteRows.outreach_insights = m[0].replace(/===\\s*OUTREACH\\s*===/i, '').trim();\n    if (m[1]) noteRows.subject_insights = m[1].trim();\n  } else if (t.includes('\"outreach_insights\"')) {\n    try { const o = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1));\n      if (o.outreach_insights) noteRows.outreach_insights = o.outreach_insights;\n      if (o.subject_insights) noteRows.subject_insights = o.subject_insights;\n    } catch (e) { noteRows.outreach_insights = t; }\n  } else if (t.length > 40 && !t.includes('\"sequence_id\"')) noteRows.outreach_insights = t;\n}\nfor (const [k, note] of Object.entries(noteRows))\n  stmts.push(\"INSERT INTO report_notes (key,note,updated_at) VALUES (\" + esc(k) + \",\" + esc(note) + \",\" + esc(new Date().toISOString()) + \") ON CONFLICT (key) DO UPDATE SET note=EXCLUDED.note, updated_at=EXCLUDED.updated_at;\");\nstmts.push('COMMIT;');\nreturn [{ json: { sql: stmts.join('\\n') } }];\n"
+   },
+   "id": "build-sql",
+   "name": "Build SQL",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3960,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "={{ $json.sql }}",
+    "options": {}
+   },
+   "id": "write-db",
+   "name": "Write DB",
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    4180,
+    0
+   ],
+   "alwaysOutputData": true,
+   "executeOnce": true,
+   "credentials": {
+    "postgres": {
+     "id": "nvtjRzdnFqttOZDI",
+     "name": "Postgres account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "const st = $('Aggregate').all()[0].json;\nconst r1 = (a, b) => b ? Math.round(1000 * a / b) / 10 : null;\nconst dims = { persona: {}, icp: {}, seniority: {} };\nfor (const g of (st.seg || [])) {\n  const d = (dims[g.dim][g.value] = dims[g.dim][g.value] || { sends: 0, opens: 0, replies: 0 });\n  d.sends += g.sends; d.opens += g.opens; d.replies += g.replies;\n}\nconst dimSummary = {};\nfor (const [dim, vals] of Object.entries(dims)) {\n  dimSummary[dim] = Object.entries(vals).filter(([v, d]) => d.sends >= 30)\n    .map(([v, d]) => ({ value: v, sends: d.sends, open_rate: r1(d.opens, d.sends), reply_rate: r1(d.replies, d.sends) }))\n    .sort((a, b) => (b.reply_rate || 0) - (a.reply_rate || 0)).slice(0, 8);\n}\nconst EVENT_RE = /(einladung|invite|event|afterwork|drinks|webinar|meetup|summit|konferenz|conference|dmexco|omr|stammtisch|networking|save the date|vor ort|rooftop)/i;\nconst subjAll = Object.entries(st.subjects || {}).map(([k, s]) => ({ subject: k.slice(0, 90), sends: s.sends,\n  open_rate: r1(s.opens, s.sends), reply_rate: r1(s.replies, s.sends), last: s.last, event: EVENT_RE.test(k) }));\nconst subj = subjAll.filter(s => s.sends >= 50 && !s.event);\nsubj.sort((a, b) => (b.reply_rate || 0) - (a.reply_rate || 0));\nconst cut30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);\nconst recent_cold = subjAll.filter(s => !s.event && s.sends >= 25 && s.last >= cut30)\n  .sort((a, b) => (b.reply_rate || 0) - (a.reply_rate || 0)).slice(0, 12);\nconst recent_event = subjAll.filter(s => s.event && s.sends >= 10 && s.last >= cut30).slice(0, 8);\nconst event_all = subjAll.filter(s => s.event && s.sends >= 10).slice(0, 10);\nconst seqs = Object.entries(st.seqAgg || {}).map(([id, a]) => ({ name: a.name, enrolled: a.enrolled, steps: a.steps,\n  open_rate: r1(a.opens, a.delivered), reply_rate: r1(a.replies, a.delivered), event: EVENT_RE.test(a.name || '') }));\nconst crossRows = { icp_x_persona: [], icp_x_seniority: [] };\nfor (const [ck, c] of Object.entries(st.cross || {})) {\n  if (c.sends < 30) continue;\n  const [kind, icp, val] = ck.split('|');\n  (kind === 'p' ? crossRows.icp_x_persona : crossRows.icp_x_seniority).push(\n    { icp, [kind === 'p' ? 'persona' : 'seniority']: val, sends: c.sends,\n      open_rate: r1(c.opens, c.sends), reply_rate: r1(c.replies, c.sends) });\n}\ncrossRows.icp_x_persona.sort((a, b) => b.sends - a.sends);\ncrossRows.icp_x_seniority.sort((a, b) => b.sends - a.sends);\ncrossRows.icp_x_persona = crossRows.icp_x_persona.slice(0, 30);\ncrossRows.icp_x_seniority = crossRows.icp_x_seniority.slice(0, 24);\nconst payload = { by_persona: dimSummary.persona, by_icp: dimSummary.icp, by_seniority: dimSummary.seniority,\n  top_subjects: subj.slice(0, 6), weakest_subjects: subj.slice(-4),\n  recent_30d_cold_subjects: recent_cold, recent_30d_event_subjects: recent_event, event_subjects_all: event_all,\n  icp_x_persona: crossRows.icp_x_persona, icp_x_seniority: crossRows.icp_x_seniority,\n  sequences_cold: seqs.filter(s => !s.event), sequences_event: seqs.filter(s => s.event) };\n// per-ICP and per-persona best/worst subject lines for the subject-page analysis\nconst bySubjDim = { icp: {}, persona: {} };\nfor (const g of (st.seg || [])) {\n  if (!bySubjDim[g.dim] || g.sends < 25) continue;\n  (bySubjDim[g.dim][g.value] = bySubjDim[g.dim][g.value] || []).push(\n    { subject: g.subject.slice(0, 80), sends: g.sends, open_rate: r1(g.opens, g.sends), reply_rate: r1(g.replies, g.sends) });\n}\nconst subjByDim = {};\nfor (const [dim, vals] of Object.entries(bySubjDim)) {\n  subjByDim[dim] = {};\n  for (const [val, arr] of Object.entries(vals)) {\n    arr.sort((a, b) => (b.reply_rate || 0) - (a.reply_rate || 0));\n    subjByDim[dim][val] = { best: arr.slice(0, 2), worst: arr.slice(-1) };\n  }\n}\nconst has = (st.seg || []).length > 0;\nreturn [{ json: { has, body: { model: 'claude-sonnet-5', max_tokens: 4000, messages: [{ role: 'user', content:\n  'You are analyzing cold outreach performance for JENTIS (server-side tracking for publishers, DACH market). ' +\n  'Data: open/reply rates by persona/ICP/seniority; best & weakest subject lines overall and per segment; sequence overview. Replies exclude auto-replies. ICP values are internal slugs - prettify them (news_publishers -> News Publishers). ' +\n  'Produce TWO analyses separated by delimiter lines, no JSON, no fences. Format exactly:\\n===OUTREACH===\\n<first analysis>\\n===SUBJECTS===\\n<second analysis>\\n' +\n  'IMPORTANT: event invitations and event-related sequences (marked event:true / in the *_event fields) are NOT cold outreach - interpret them separately: high engagement there is expected and says nothing about cold messaging. Never mix them into cold-outreach conclusions. ' +\n  'The OUTREACH analysis (max 260 words, markdown bullets): **Who responds** - one line per top ICP and persona with an emoji verdict (\ud83d\udfe2 strong / \ud83d\udfe1 mixed / \ud83d\udd34 weak) + sends + reply%; **Personas & seniority by ICP** - use the icp_x_persona and icp_x_seniority data: name the strongest and weakest persona and seniority pockets WITHIN each major ICP, with open AND reply rates - never average across ICPs, always segment by ICP type; **Last 30 days** - the freshest cold subject lines: which are earning attention/replies right now, which are already flopping (this is the most important section - be specific, name the lines); **Events** - one or two lines on event invites, judged as events; **Sequences** - notable cold-outreach patterns; **Do next** - 2-3 concrete recommendations. ' +\n  'The SUBJECTS analysis (max 260 words, markdown bullets): always segmented by ICP type - per major ICP type, then persona and seniority within it - \ud83d\udfe2 what worked (name the subject line), \ud83d\udd34 what did not, \ud83d\udca1 one concrete improvement or A/B test to try. Skip segments with too little volume, say so once. ' +\n  'Always finish your sentences - never stop mid-thought. Only claim what the data supports. No preamble.\\n\\n' + JSON.stringify({ ...payload, per_segment_subjects: subjByDim }) } ] } } }];\n"
+   },
+   "id": "build-insights",
+   "name": "Build Insights Request",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3850,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "typeValidation": "loose",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "c1",
+       "leftValue": "={{ $json.has === true }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "equals"
+       }
+      }
+     ],
+     "combinator": "and"
+    }
+   },
+   "id": "any-insights",
+   "name": "Any Insights?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    3960,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.body) }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "anthropic-version",
+       "value": "2023-06-01"
+      },
+      {
+       "name": "content-type",
+       "value": "application/json"
+      }
+     ]
+    },
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "options": {}
+   },
+   "id": "claude-insights",
+   "name": "Claude Insights",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    4070,
+    -80
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 5000,
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "FYCg4BhREROic6UN",
+     "name": "Anthropic Admin"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "mode": "append",
+    "numberInputs": 2
+   },
+   "id": "merge-insights",
+   "name": "Merge Insights",
+   "type": "n8n-nodes-base.merge",
+   "typeVersion": 3,
+   "position": [
+    4180,
+    0
+   ]
+  }
+ ],
+ "connections": {
+  "Schedule": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "node": "Config",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Config": {
+   "main": [
+    [
+     {
+      "node": "Read SequenceMap",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read SequenceMap": {
+   "main": [
+    [
+     {
+      "node": "Build Search",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Search": {
+   "main": [
+    [
+     {
+      "node": "Search Emails",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Search Emails": {
+   "main": [
+    [
+     {
+      "node": "Build Assoc",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Assoc": {
+   "main": [
+    [
+     {
+      "node": "Read Assoc",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read Assoc": {
+   "main": [
+    [
+     {
+      "node": "Build Contact Reads",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Contact Reads": {
+   "main": [
+    [
+     {
+      "node": "Read Contacts",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read Contacts": {
+   "main": [
+    [
+     {
+      "node": "Build Company Reads",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Company Reads": {
+   "main": [
+    [
+     {
+      "node": "Read Companies",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read Companies": {
+   "main": [
+    [
+     {
+      "node": "Aggregate",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Aggregate": {
+   "main": [
+    [
+     {
+      "node": "Build Sample Reads",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Sample Reads": {
+   "main": [
+    [
+     {
+      "node": "Read Samples",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read Samples": {
+   "main": [
+    [
+     {
+      "node": "Build Claude Request",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Claude Request": {
+   "main": [
+    [
+     {
+      "node": "Any Sequences?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Any Sequences?": {
+   "main": [
+    [
+     {
+      "node": "Claude Attributes",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Merge Claude",
+      "type": "main",
+      "index": 1
+     }
+    ]
+   ]
+  },
+  "Claude Attributes": {
+   "main": [
+    [
+     {
+      "node": "Merge Claude",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Merge Claude": {
+   "main": [
+    [
+     {
+      "node": "Build Insights Request",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build SQL": {
+   "main": [
+    [
+     {
+      "node": "Write DB",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Insights Request": {
+   "main": [
+    [
+     {
+      "node": "Any Insights?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Any Insights?": {
+   "main": [
+    [
+     {
+      "node": "Claude Insights",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Merge Insights",
+      "type": "main",
+      "index": 1
+     }
+    ]
+   ]
+  },
+  "Claude Insights": {
+   "main": [
+    [
+     {
+      "node": "Merge Insights",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Merge Insights": {
+   "main": [
+    [
+     {
+      "node": "Build SQL",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "timezone": "Europe/Vienna",
+  "executionOrder": "v1"
+ },
+ "pinData": {}
+}

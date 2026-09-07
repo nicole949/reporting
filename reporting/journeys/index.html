@@ -1,0 +1,295 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JENTIS · Customer Journeys</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?v=24">
+<style>
+.msel{position:relative;display:inline-block}
+.msel-btn{font:inherit;font-size:.82rem;padding:.4rem .75rem;border:1px solid var(--hair);border-radius:10px;background:var(--panel);cursor:pointer;color:inherit}
+.msel.on .msel-btn{border-color:var(--brand-navy);font-weight:600}
+.msel-dd{display:none;position:absolute;z-index:30;top:calc(100% + 4px);left:0;min-width:230px;max-height:300px;overflow:auto;background:var(--panel);border:1px solid var(--hair);border-radius:12px;box-shadow:0 8px 24px rgba(20,40,60,.14);padding:.4rem}
+.msel.open .msel-dd{display:block}
+.msel-dd label{display:flex;gap:.5rem;align-items:center;font-size:.82rem;padding:.26rem .45rem;border-radius:8px;cursor:pointer}
+.msel-dd label:hover{background:var(--paper)}
+.msel-dd .msel-clear{display:block;width:100%;text-align:left;font:inherit;font-size:.76rem;color:var(--slate);background:none;border:none;border-bottom:1px solid var(--hair);padding:.3rem .45rem .45rem;margin-bottom:.25rem;cursor:pointer}
+details.cust{background:var(--panel);border:1px solid var(--hair);border-radius:16px;margin-bottom:.7rem;overflow:hidden;transition:box-shadow .15s}
+details.cust:hover{box-shadow:0 3px 14px rgba(20,60,80,.09)}
+details.cust.ch{background:#FBF1F0;border-color:#EAC9C5}
+.exp-btn{flex:0 0 auto;width:1.7rem;height:1.7rem;border-radius:8px;border:1px solid var(--hair);background:var(--paper);cursor:pointer;font-size:.85rem;color:var(--brand-navy);line-height:1}
+details.cust[open] .exp-btn{background:var(--brand-navy);color:#fff}
+.agslot{flex:0 0 155px;font-size:.72rem;font-weight:600;color:#7A5A18;background:#F5EDDD;border-radius:8px;padding:.3rem .5rem;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agslot.none{background:var(--paper);color:var(--faint);font-weight:500}
+details.yrcard{background:var(--panel);border:1px solid var(--hair);border-radius:18px;padding:1rem 1.1rem;margin-bottom:1.2rem}
+details.yrcard>summary{list-style:none;cursor:pointer}
+details.yrcard>summary::-webkit-details-marker{display:none}
+details.yrcard>summary h2{font-family:'Instrument Sans';color:var(--brand-navy);margin:0 0 .2rem;display:inline-block}
+details.qsec{margin-top:1rem;border-left:3px solid var(--brand-teal,#1FA294);padding-left:.8rem}
+details.qsec>summary{list-style:none;cursor:pointer}
+details.qsec>summary::-webkit-details-marker{display:none}
+details.qsec>summary h3{font-family:'Instrument Sans';font-size:.95rem;color:var(--ink);margin:0 0 .1rem;display:inline-block}
+.tw{font-size:.75rem;color:var(--faint);margin-left:.4rem}
+.sumline{display:flex;flex-wrap:wrap;gap:.35rem;margin:.3rem 0 .65rem}
+.chip.good{background:rgba(31,162,148,.13);color:#127264;font-weight:600}
+.chip.bad{background:rgba(196,87,78,.12);color:#9C3B33;font-weight:600}
+.sumline .chip{font-size:.72rem}
+details.cust>summary{list-style:none;cursor:default;padding:.8rem 1rem;display:flex;flex-wrap:wrap;gap:.45rem .7rem;align-items:center}
+details.cust>summary::-webkit-details-marker{display:none}
+details.cust>summary .nm{font-family:'Instrument Sans';font-weight:700;font-size:1.05rem;color:var(--brand-navy)}
+details.cust[open]>summary{border-bottom:1px solid var(--hair)}
+.cbody{padding:1rem 1.1rem}
+.chip{font-size:.74rem;background:var(--paper);border-radius:99px;padding:.2rem .6rem;color:var(--slate);white-space:nowrap}
+.chip b{color:var(--ink)}
+.badge-ch{font-size:.7rem;font-weight:700;background:#F7E3E1;color:#8A1F1B;border-radius:99px;padding:.2rem .6rem}
+.badge-lt{font-size:.7rem;font-weight:700;border-radius:99px;padding:.2rem .6rem;color:#fff}
+.badge-ag{font-size:.7rem;font-weight:600;border-radius:99px;padding:.2rem .6rem;background:#EFE7DA;color:#7A5A18}
+.badge-di{font-size:.7rem;font-weight:600;border-radius:99px;padding:.2rem .6rem;background:#E7EDF1;color:#3D5A6C}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin:1rem 0}
+.statgrid .sg{background:var(--paper);border-radius:12px;padding:.55rem .8rem}
+.statgrid .sg .l{font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--slate)}
+.statgrid .sg .v{font-family:'Instrument Sans';font-weight:700;font-size:1.05rem}
+.story{background:linear-gradient(135deg,#14506C 0%,#1FA294 130%);color:#fff;border-radius:14px;padding:.9rem 1.1rem;font-size:.9rem;line-height:1.55;margin-bottom:.4rem}
+.story .pl{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:#CDEBE6;margin-bottom:.25rem}
+.lg-dot{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;padding:.18rem .55rem;border-radius:99px;cursor:pointer;user-select:none}
+.lg-dot:hover{background:var(--paper)}
+.lg-dot.off{opacity:.35;text-decoration:line-through}
+.lg-dot .d{width:.6rem;height:.6rem;border-radius:99px;display:inline-block}
+</style></head><body>
+<div class="wrap">
+  <div id="shell"></div>
+  <div class="filters card" style="display:flex;flex-wrap:wrap;gap:.6rem;align-items:center">
+    <div class="msel" id="f-icp" data-label="ICP"><button type="button" class="msel-btn">ICP: all</button><div class="msel-dd"></div></div>
+    <div class="msel" id="f-pain" data-label="Pain"><button type="button" class="msel-btn">Pain: all</button><div class="msel-dd"></div></div>
+    <div class="msel" id="f-region" data-label="Region"><button type="button" class="msel-btn">Region: all</button><div class="msel-dd"></div></div>
+    <select id="f-sort">
+      <option value="close_desc" selected>Sort: newest close</option>
+      <option value="close_asc">Oldest close</option>
+      <option value="ft_desc">Newest first touch</option>
+      <option value="cycle_desc">Longest deal cycle</option>
+      <option value="cycle_asc">Shortest deal cycle</option>
+      <option value="journey_desc">Longest journey</option>
+      <option value="journey_asc">Shortest journey</option>
+    </select>
+    <input id="f-search" type="search" placeholder="Search company…" style="margin-left:auto">
+  </div>
+  <div class="metrics" id="metrics"></div>
+  <div id="list" class="state">Loading…</div>
+  <footer>Journey timeline shows all touches up to the close · big icon in the header = first touch · deal cycle = won-deal create → close · journey = first touch → close · counts (📧 emails · 📞 calls · ✅ connected · 📅 meetings) until close only.</footer>
+</div>
+<script src="../assets/config.js?v=24"></script><script src="../assets/app.js?v=24"></script>
+<script>
+R.shell('journeys','Customer Journeys','Every closed customer, from first touch to signature — and what happened in between.');
+const ICP_LABELS={news_publishers:'News publishers',vertical_or_niche_publishers:'Vertical publishers',radio:'Radio',
+  'Finance & banking':'Banking & Finance',tv__broadcasters:'TV & broadcasters',utility_sites:'Utility sites',
+  owned__operated:'Owned & operated media',retail_media:'Retail media',not_a_publisher:'Not a publisher',
+  'E-Commerce':'E-Commerce','SaaS / Software':'SaaS / Software','Agency & services':'Agency & services',
+  'Other / Unclassified':'Other / Unclassified','Partner – Business':'Partner – Solution',
+  'Partner – Implementation':'Partner – Implementation','Partner – Developer':'Partner – Technology',
+  'Sensitive data organizations':'Sensitive data organizations'};
+const KINDS=[
+  ['conn','Connected call','#5E93B5'],['call','Call attempt','#C2CBD3'],['email','Outreach','#9AA4AD'],
+  ['reply','Reply','#1FA294'],['download','Download','#D9A441'],['form','Form','#E98862'],
+  ['event','Event','#B08BAD'],['meeting','Meeting','#14506C'],['deal','Deal created','#7FB3CE'],
+  ['won','Deal won','#127264'],['lost','Deal lost','#C4574E'],['stage','Stage change','#97A5AF']];
+KINDS[0].push('📞');KINDS[1].push('📴');KINDS[2].push('✉️');KINDS[3].push('↩️');
+KINDS[4].push('📄');KINDS[5].push('📝');KINDS[6].push('🎪');KINDS[7].push('📅');
+KINDS[8].push('💼');KINDS[9].push('🏆');KINDS[10].push('❌');KINDS[11].push('🚩');
+KINDS.push(['created','Created','#8FA98F','🌱']);
+const LT_COLORS={'Full License':'#14506C','JENTIS Light':'#1FA294','POC':'#D9A441','Renewal':'#5E93B5'};
+const KMAP=Object.fromEntries(KINDS.map(k=>[k[0],k]));
+let rows=null, DEALS=[];
+const MSEL_SEL={};
+function mselSummary(box){
+  const lab=box.dataset.label, sel=MSEL_SEL[box.id]||new Set();
+  box.querySelector('.msel-btn').textContent=sel.size?lab+': '+(sel.size===1?[...sel].map(x=>box._labels[x]||x)[0]:sel.size+' selected'):lab+': all';
+  box.classList.toggle('on',sel.size>0);
+}
+function msel(id,vals,labels){
+  const box=document.getElementById(id); box._labels=labels||{};
+  MSEL_SEL[id]=MSEL_SEL[id]||new Set();
+  const dd=box.querySelector('.msel-dd');
+  dd.innerHTML='<button type="button" class="msel-clear">✕ Clear</button>'+
+    [...vals].sort((a,b)=>String((labels||{})[a]||a).localeCompare(String((labels||{})[b]||b))).map(v=>
+      '<label><input type="checkbox" value="'+R.esc(v)+'"'+(MSEL_SEL[id].has(v)?' checked':'')+'> '+R.esc((labels||{})[v]||v)+'</label>').join('');
+  mselSummary(box);
+  if(!box._wired){box._wired=true;
+    box.querySelector('.msel-btn').addEventListener('click',e=>{e.stopPropagation();
+      document.querySelectorAll('.msel.open').forEach(m=>m!==box&&m.classList.remove('open'));
+      box.classList.toggle('open');});
+    dd.addEventListener('click',e=>e.stopPropagation());
+    dd.addEventListener('change',e=>{const cb=e.target;if(cb.type!=='checkbox')return;
+      cb.checked?MSEL_SEL[id].add(cb.value):MSEL_SEL[id].delete(cb.value);mselSummary(box);render();});
+    dd.querySelector('.msel-clear').addEventListener('click',()=>{MSEL_SEL[id].clear();
+      dd.querySelectorAll('input').forEach(c=>c.checked=false);mselSummary(box);render();});}
+}
+document.addEventListener('click',()=>document.querySelectorAll('.msel.open').forEach(m=>m.classList.remove('open')));
+const TL_HIDDEN={};
+function tlChart(el,r){
+  const hid=TL_HIDDEN[r.company_id]=TL_HIDDEN[r.company_id]||new Set();
+  const ev=(r.events||[]).filter(e=>KMAP[e.kind]
+    &&!(e.kind==='stage'&&/lead|subscriber|engaged/i.test(e.label||''))
+    &&(!r.close_date||String(e.ts).slice(0,10)<=r.close_date));
+  if(!ev.length){el.innerHTML='<div class="mini">No timeline events recorded.</div>';return;}
+  const present=KINDS.filter(k=>ev.some(e=>e.kind===k[0]));
+  const vis=ev.filter(e=>!hid.has(e.kind)).sort((a,b)=>a.ts<b.ts?-1:1);
+  const t0=Date.parse(r.first_touch||vis[0]&&vis[0].ts||ev[0].ts);
+  const t1=Date.parse(r.close_date||ev[ev.length-1].ts)+86400000;
+  const span=Math.max(1,t1-t0);
+  const W=920,H=120,padL=16,midY=52;
+  const x=ts=>padL+(Math.min(Math.max(Date.parse(ts)-t0,0),span)/span)*(W-padL-20);
+  let svg='<svg viewBox="0 0 '+W+' '+H+'" class="chart">';
+  const months=[];
+  for(let d=new Date(t0);d.getTime()<t1;d.setMonth(d.getMonth()+1,1)){
+    const ts=d.toISOString().slice(0,10);
+    if(Date.parse(ts)>=t0) months.push(ts);
+    if(months.length>30) break;
+  }
+  const showM=Math.ceil(months.length/10);
+  months.forEach((m,i2)=>{const mx=x(m);
+    svg+='<line x1="'+mx+'" y1="12" x2="'+mx+'" y2="'+(H-26)+'" stroke="var(--hair)" stroke-width="1"/>'+
+      (i2%showM===0?'<text x="'+mx+'" y="'+(H-10)+'" text-anchor="middle">'+m.slice(2,7)+'</text>':'');});
+  months.forEach((m,i2)=>{ if(i2%2) return;
+    const a=x(m), b=x(months[i2+1]||new Date(t1).toISOString().slice(0,10));
+    svg+='<rect x="'+a+'" y="12" width="'+Math.max(0,b-a)+'" height="'+(H-38)+'" fill="rgba(20,80,108,.035)"/>';});
+  svg+='<line x1="'+padL+'" y1="'+midY+'" x2="'+(W-16)+'" y2="'+midY+'" stroke="#C9D2D8" stroke-width="1.6"/>';
+  svg+='<text x="'+x(new Date(t0).toISOString().slice(0,10))+'" y="'+(midY-26)+'" text-anchor="middle" style="font-size:13px">\ud83d\ude80<title>First touch</title></text>';
+  if(r.close_date) svg+='<text x="'+x(r.close_date)+'" y="'+(midY-26)+'" text-anchor="middle" style="font-size:13px">\ud83c\udfc1<title>Became customer '+r.close_date+'</title></text>';
+  vis.forEach((e,i2)=>{
+    const k=KMAP[e.kind];
+    const y=midY+([0,-18,18][i2%3])+5;
+    svg+='<text x="'+x(e.ts)+'" y="'+y+'" text-anchor="middle" style="font-size:14px">'+k[3]+
+      '<title>'+R.esc(String(e.ts).slice(0,10)+' · '+(e.label||k[1])+(e.who?' · '+e.who:''))+'</title></text>';
+  });
+  svg+='</svg>';
+  el.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:.25rem;margin-bottom:.35rem">'+
+    present.map(k=>'<span class="lg-dot'+(hid.has(k[0])?' off':'')+'" data-k="'+k[0]+'"><span class="d" style="background:'+k[2]+'"></span>'+k[3]+' '+k[1]+'</span>').join('')+
+    '</div>'+svg;
+  el.querySelectorAll('.lg-dot').forEach(dot=>dot.addEventListener('click',()=>{
+    hid.has(dot.dataset.k)?hid.delete(dot.dataset.k):hid.add(dot.dataset.k);
+    tlChart(el,r);
+  }));
+}
+function journeyOf(r){
+  const seen=new Set(), t=[];
+  for(const e of (r.events||[])){
+    const k=e.kind==='conn'?'call':e.kind;
+    if(['call','email','download','form','event','reply'].includes(k)&&!seen.has(k)){seen.add(k);t.push({kind:k,ts:e.ts});}
+  }
+  if(!t.length&&r.source_type){const sk=R.srcKind(r.source_type);if(sk)t.push({kind:sk,ts:null});}
+  return t;
+}
+function d(v){return v==null?'—':v+'d';}
+function median(a){const s=a.filter(x=>x!=null).sort((x,y)=>x-y);return s.length?s[Math.floor(s.length/2)]:null;}
+function isFL(t){t=String(t||'');return /full|new/i.test(t)&&!/renewal|light|poc|existing|bestand|upsell/i.test(t);}
+function avg(a){const v=a.filter(x=>x!=null&&!isNaN(x));return v.length?Math.round(v.reduce((p,c)=>p+c,0)/v.length):null;}
+function eur(n){return n==null?'\u2014':'\u20ac'+Math.round(n).toLocaleString('de-AT');}
+function periodSummary(custs,pKey,gran){
+  const fl=DEALS.filter(d=>isFL(d.dealtype)&&d.create_date&&R.periodOf(d.create_date,gran).key===pKey);
+  const won=fl.filter(d=>d.is_won), lost=fl.filter(d=>d.is_closed&&!d.is_won), open=fl.filter(d=>!d.is_closed);
+  const wr=(won.length+lost.length)?Math.round(100*won.length/(won.length+lost.length)):null;
+  const mrrs=won.map(d=>d.mrr).filter(v=>v!=null&&!isNaN(Number(v))).map(Number);
+  const touch=custs.map(r=>(r.emails||0)+(r.calls||0)+(r.meetings||0));
+  const parts=[
+    '\ud83d\udcbc <b>'+fl.length+'</b> FL deals','\ud83c\udfc6 <b>'+won.length+'</b> won','\u274c <b>'+lost.length+'</b> lost','\u23f3 <b>'+open.length+'</b> open',
+    wr!=null?'<span class="'+(wr>=60?'good':wr<40?'bad':'')+'" style="border-radius:99px;padding:0 .1rem">win rate <b>'+wr+'%</b></span>':null,
+    mrrs.length?'MRR \u03a3 <b>'+eur(mrrs.reduce((a,b)=>a+b,0))+'</b> \u00b7 \u2300 <b>'+eur(avg(mrrs))+'</b>':null,
+    custs.length?'\u2300 deal cycle <b>'+(avg(custs.map(r=>r.cycle_days))??'\u2014')+'d</b>':null,
+    custs.length?'\u2300 journey <b>'+(avg(custs.map(r=>r.journey_days))??'\u2014')+'d</b>':null,
+    custs.length?'\u2300 <b>'+(avg(touch)??'\u2014')+'</b> touchpoints':null
+  ].filter(Boolean);
+  return '<div class="sumline">'+parts.map(p=>'<span class="chip">'+p+'</span>').join('')+'</div>';
+}
+function custCard(r){
+  const chips=[
+    r.cycle_days!=null?'<span class="chip">deal cycle <b>'+r.cycle_days+'d</b></span>':'',
+    r.journey_days!=null?'<span class="chip">journey <b>'+r.journey_days+'d</b></span>':'',
+    '<span class="chip">\ud83d\udce7 <b>'+(r.emails==null?'\u2014':r.emails)+'</b> \ud83d\udcde <b>'+(r.calls==null?'\u2014':r.calls)+'</b> \u2705 <b>'+(r.connected==null?'\u2014':r.connected)+'</b> \ud83d\udcc5 <b>'+(r.meetings==null?'\u2014':r.meetings)+'</b></span>',
+    r.mrr!=null?'<span class="chip">MRR <b>\u20ac'+Math.round(Number(r.mrr)).toLocaleString('de-AT')+'</b></span>':'',
+    r.pain?'<span class="chip">\ud83d\udcac '+R.esc(r.pain)+'</span>':''
+  ].filter(Boolean).join('');
+  const fe=journeyOf(r)[0];
+  return '<details class="cust'+(r.status==='churned'?' ch':'')+'" data-id="'+r.company_id+'"><summary>'+
+    '<button type="button" class="exp-btn" title="Show journey">\u25b8</button>'+
+    (r.partner_name?'<span class="agslot" title="'+R.esc(r.partner_name)+'">\ud83e\udd1d '+R.esc(r.partner_name)+'</span>':'<span class="agslot none">No agency/partner</span>')+
+    '<span class="nm"><a href="'+R.hs('0-2',r.company_id)+'" target="_blank" rel="noopener">'+R.esc(r.name||'\u2014')+'</a>'+(r.owner_name?' <span class="mini">\ud83d\udc64 '+R.esc(String(r.owner_name).split(' ')[0])+'</span>':'')+'</span>'+(r.license_type==='POC'?'<span class="badge-lt" style="background:#D9A441">POC</span>':'')+
+    (r.status==='churned'?'<span class="badge-ch">churned'+(r.churn_date?' '+R.fmtDate(r.churn_date):'')+'</span>':'')+
+    (journeyOf(r).length?R.journeyHTML(journeyOf(r)):'')+chips+
+    '<span class="mini" style="margin-left:auto">closed '+R.fmtDate(r.close_date)+'</span></summary>'+
+    '<div class="cbody">'+
+    (r.ai_story?'<div class="story"><div class="pl">The story'+(r.pain?' \u00b7 '+R.esc(r.pain):'')+'</div>'+R.esc(r.ai_story)+'</div>':'')+
+    '<div class="statgrid">'+
+      [['First touch',fe?(KMAP[fe.kind==='conn'?'conn':fe.kind]||KMAP.call)[3]+' '+R.fmtDate(r.first_touch):R.fmtDate(r.first_touch)],
+       ['First discovery',R.fmtDate(r.first_disc)+(r.tt_disc!=null?' \u00b7 '+r.tt_disc+'d':'')],
+       ['First deal',R.fmtDate(r.first_deal)+(r.tt_deal!=null?' \u00b7 '+r.tt_deal+'d':'')],
+       ['Won deal created',R.fmtDate(r.deal_create)],['Closed (became customer)',R.fmtDate(r.close_date)],
+       ['Deal cycle',d(r.cycle_days)],['Total journey',d(r.journey_days)]]
+      .map(sg=>'<div class="sg"><div class="l">'+sg[0]+'</div><div class="v" style="font-size:.9rem">'+(sg[1]||'\u2014')+'</div></div>').join('')+
+    '</div><div class="tl"></div></div></details>';
+}
+function render(){
+  const fi=MSEL_SEL['f-icp']||new Set(), fp=MSEL_SEL['f-pain']||new Set(), fr=MSEL_SEL['f-region']||new Set();
+  const q=(document.getElementById('f-search').value||'').trim().toLowerCase();
+  let list=rows.filter(r=>
+    (!fi.size||fi.has(r.icp||'Unknown'))
+    &&(!fp.size||fp.has(r.pain||'Unknown'))
+    &&(!fr.size||fr.has(r.region||'Unknown'))
+    &&(!q||(r.name||'').toLowerCase().includes(q)));
+  const sort=document.getElementById('f-sort').value;
+  const key={close_desc:['close_date',-1],close_asc:['close_date',1],ft_desc:['first_touch',-1],
+    cycle_desc:['cycle_days',-1],cycle_asc:['cycle_days',1],journey_desc:['journey_days',-1],journey_asc:['journey_days',1]}[sort];
+  list.sort((a,b)=>{const va=a[key[0]],vb=b[key[0]];
+    if(va==null)return 1;if(vb==null)return -1;return (va<vb?-1:va>vb?1:0)*key[1];});
+  const churned=list.filter(r=>r.status==='churned');
+  document.getElementById('metrics').innerHTML=[
+    ['Customers',list.length],['Churned',churned.length],
+    ['Median deal cycle',d(median(list.map(r=>r.cycle_days)))],
+    ['Median journey',d(median(list.map(r=>r.journey_days)))]
+  ].map(m=>'<div class="metric"><div class="label">'+m[0]+'</div><div class="val">'+m[1]+'</div></div>').join('');
+  const el=document.getElementById('list');
+  if(!list.length){el.className='empty';el.textContent='No customers match. The customers-sync workflow fills this page.';return;}
+  el.className='';
+  const years={};
+  for(const r of list){
+    const y=(r.close_date||'').slice(0,4)||'Unknown';
+    const qk=r.close_date?R.periodOf(r.close_date,'quarterly'):{key:'?',label:'Unknown'};
+    (years[y]=years[y]||{}); (years[y][qk.key]=years[y][qk.key]||{label:qk.label,rows:[]}).rows.push(r);
+  }
+  const yKeys=Object.keys(years).sort().reverse();
+  el.innerHTML=yKeys.map((y,yi)=>{
+    const yCusts=Object.values(years[y]).flatMap(o=>o.rows);
+    return '<details class="yrcard"'+(yi===0?' open':'')+'><summary><h2>'+y+' \u00b7 '+yCusts.length+' customers</h2><span class="tw">\u25be expand/collapse</span>'+periodSummary(yCusts,y,'yearly')+'</summary>'+
+      Object.keys(years[y]).sort().reverse().map(qk=>{
+        const o=years[y][qk];
+        return '<details class="qsec" open><summary><h3>'+R.esc(o.label)+' \u00b7 '+o.rows.length+'</h3>'+periodSummary(o.rows,qk,'quarterly')+'</summary>'+
+          o.rows.map(custCard).join('')+'</details>';
+      }).join('')+'</details>';
+  }).join('');
+  el.querySelectorAll('details.cust').forEach(dt=>{
+    dt.querySelector('summary').addEventListener('click',e=>{
+      if(e.target.closest('a')) return;
+      e.preventDefault();
+      if(e.target.closest('.exp-btn')){
+        dt.open=!dt.open;
+        dt.querySelector('.exp-btn').textContent=dt.open?'\u25be':'\u25b8';
+      }
+    });
+    dt.addEventListener('toggle',()=>{
+      if(dt.open){const r=list.find(x=>String(x.company_id)===dt.dataset.id);
+        const tl=dt.querySelector('.tl'); if(tl&&!tl.dataset.done){tl.dataset.done='1';tlChart(tl,r);}}
+    });
+  });
+}
+(async function init(){
+  const c=document.getElementById('list');
+  rows=await R.loadViewOrPending('v_customer_journeys?select=*',c,{
+    pending:'No customer journeys yet — run the reporting-customers-sync workflow once (it backfills customers closed since 2026).'});
+  if(!rows) return;
+  DEALS=await R.fetchAll('v_deals?select=deal_id,dealtype,create_date,close_date,is_won,is_closed,mrr').catch(()=>[]);
+  msel('f-icp',new Set(rows.map(r=>r.icp||'Unknown')),ICP_LABELS);
+  msel('f-pain',new Set(rows.map(r=>r.pain||'Unknown')));
+  msel('f-region',new Set(rows.map(r=>r.region||'Unknown')));
+  for(const id of ['f-sort']) document.getElementById(id).addEventListener('change',()=>rows&&render());
+  document.getElementById('f-search').addEventListener('input',()=>rows&&render());
+  render();
+})();
+</script></body></html>

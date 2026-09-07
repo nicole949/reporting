@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deals · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?v=24">
+</head>
+<body>
+<div class="wrap">
+  <div id="shell"></div>
+  <div class="filters">
+    <select id="f-owner"><option value="">Owner: all</option></select>
+    <select id="f-status"><option value="open">Open</option><option value="won">Won</option>
+      <option value="lost">Lost</option><option value="">All</option></select>
+    <select id="f-partner"><option value="">Partner: all</option></select>
+    <input type="search" id="f-search" placeholder="Find deal or company…">
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+  <div id="groups"><div class="card"><div id="content" class="empty">Loading…</div></div></div>
+
+  <div class="winners-hero" style="margin-top:1.3rem"><h2>🏆 Closed won <span id="won-n"></span></h2>
+    <div class="sub" id="won-sub"></div><div id="won-board"></div></div>
+  <footer>Journey under each deal: big icon = first touch before the deal (📞 call · ✉️ email · 📄 download · 📝 form · 🎪 event · 🌐 website), hover for details · Amounts marked <strong>/mo</strong> use the quote's monthly subscription value (a quote overrides the amount field, which includes one-off fees) · Status &amp; TODO are AI-condensed from the deal's Next Step and activity · Health: 🟢 on track (&lt;14d), 🟡 stale (14–30d), 🔴 at risk (30d+ without activity).</footer>
+</div>
+<script src="../assets/config.js?v=24"></script>
+<script src="../assets/app.js?v=24"></script>
+<script>
+R.shell('deals', { title: 'Deals', subtitle: 'Pipeline by deal type — health, status and what to do next' });
+let rows=null, CALLS=[], SEQCO=[];
+const convKind=n=>/download|whitepaper|guide|report|checklist|studie|ebook/i.test(n||'')?'download'
+  :/event|webinar|einladung|invite|dmexco|omr|konferenz|summit|afterwork|stammtisch/i.test(n||'')?'event'
+  :/kontakt|contact|demo|meeting|termin|beratung|sales|form/i.test(n||'')?'form':null;
+function touchesFor(r){
+  const before=r.create_date;
+  if(!before) return [];
+  const cid=String(r.company_id||'');
+  const t=[];
+  const myCalls=CALLS.filter(c=>String(c.company_id)===cid&&String(c.ts).slice(0,10)<=before);
+  const conn=myCalls.filter(c=>c.bucket==='connected').sort((a,b)=>a.ts<b.ts?-1:1)[0];
+  const anyC=myCalls.sort((a,b)=>a.ts<b.ts?-1:1)[0];
+  if(conn||anyC) t.push({kind:'call',ts:(conn||anyC).ts});
+  const sq=SEQCO.filter(c=>String(c.company_id)===cid&&c.first_sent&&c.first_sent<=before).sort((a,b)=>a.first_sent<b.first_sent?-1:1)[0];
+  if(sq) t.push({kind:'email',ts:sq.first_sent});
+  const dk=convKind(r.source_detail);
+  if(dk) t.push({kind:dk,ts:null,note:r.source_detail});
+  else{const sk=R.srcKind(r.source_type); if(sk) t.push({kind:sk,ts:null,note:r.source_detail||r.source_type});}
+  return t;
+}
+function typeRank(t){
+  if(/new\s*business/i.test(t)) return 0;
+  if(/poc/i.test(t)) return 1;
+  if(/light/i.test(t)) return 2;
+  return 3;
+}
+function typeEmoji(t){
+  if(/renewal|existing|bestand/i.test(t)) return '🔄';
+  if(/new|neu/i.test(t)) return '🚀';
+  if(/poc/i.test(t)) return '🧪';
+  if(/light/i.test(t)) return '💡';
+  if(/upsell|expansion/i.test(t)) return '📈';
+  return '⭐';
+}
+function amountCell(r){
+  const v=r.amount_display!=null?r.amount_display:r.amount;
+  return R.eur(v)+(r.amount_is_monthly?' <span class="permo">/mo</span>':'');
+}
+function health(r){
+  if(r.is_closed) return '';
+  const ref=r.last_activity||r.create_date;
+  const sd=ref?Math.round((Date.now()-Date.parse(ref))/86400000):null;
+  if(sd===null) return '';
+  const ph=r.partner_name?'<span title="Partner associated ('+R.esc(r.partner_name)+') — activity may include partner communication">🤝</span> ':'';
+  if(sd<14) return ph+'<span class="health h-ok">🟢 on track</span>';
+  if(sd<=30) return ph+'<span class="health h-stale">🟡 stale '+sd+'d</span>';
+  return ph+'<span class="health h-risk">🔴 at risk '+sd+'d</span>';
+}
+async function init(){
+  const c=document.getElementById('content');
+  [CALLS,SEQCO]=await Promise.all([
+    R.fetchAll('v_calls?select=company_id,ts,bucket').catch(()=>[]),
+    R.fetchAll('v_sequence_companies?select=company_id,first_sent').catch(()=>[])]);
+  rows=await R.loadViewOrPending('v_deals?select=*&order=create_date.desc', c, {
+    title:'Deals pipeline not connected yet',
+    text:'Import and run reporting-deals-sync.json — it mirrors HubSpot deals incl. quotes and AI status notes.',
+    view:'v_deals'});
+  if(!rows) return;
+  const el=document.getElementById('f-owner');
+  [...new Set(rows.map(r=>r.owner_name||'Unknown'))].sort().forEach(v=>{
+    const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o);});
+  const pf=document.getElementById('f-partner');
+  [...new Set(rows.map(r=>r.partner_name).filter(Boolean))].sort().forEach(v=>{
+    const o=document.createElement('option');o.value=v;o.textContent=v;pf.appendChild(o);});
+  render();
+}
+function render(){
+  const gv=id=>document.getElementById(id).value;
+  const ow=gv('f-owner'), st=gv('f-status'), pn=gv('f-partner'), q=gv('f-search').trim().toLowerCase();
+  const list=rows.filter(r=>(!ow||(r.owner_name||'Unknown')===ow)
+    &&(st===''||(st==='open'&&!r.is_closed)||(st==='won'&&r.is_won)||(st==='lost'&&r.is_closed&&!r.is_won))
+    &&(!pn||r.partner_name===pn)
+    &&(!q||((r.deal_name||'')+' '+(r.company_name||'')).toLowerCase().includes(q)));
+  // winners board: all closed-won, clustered by quarter, then New Business / Renewal / Rest
+  const won=rows.filter(r=>r.is_won&&r.close_date).sort((a,b)=>a.close_date<b.close_date?1:-1);
+  const y0=new Date().getFullYear()+'-01-01';
+  document.getElementById('won-n').textContent='· '+won.filter(r=>r.close_date>=y0).length+' this year';
+  document.getElementById('won-sub').textContent=won.length
+    ?'What a lineup. Every logo here is earned 💪'
+    :'The first win is always the sweetest — go get it 💪';
+  const qOf=d=>{const [y,m]=d.split('-').map(Number);return y+'-Q'+(Math.floor((m-1)/3)+1);};
+  const wonCluster=t=>/renewal|existing|bestand/i.test(t)?'🔄 Renewals':(/new|neu/i.test(t)?'🚀 New Business':'⭐ Other');
+  const byQ={};
+  for(const r of won){const q=qOf(r.close_date);(byQ[q]=byQ[q]||{}) ; const c=wonCluster(r.dealtype||''); (byQ[q][c]=byQ[q][c]||[]).push(r);}
+  const CL=['🚀 New Business','🔄 Renewals','⭐ Other'];
+  document.getElementById('won-board').innerHTML=Object.keys(byQ).sort().reverse().map(q=>{
+    const qs=byQ[q];
+    const qSum=CL.flatMap(c=>qs[c]||[]).reduce((s,r)=>s+(Number(r.amount_display!=null?r.amount_display:r.amount)||0),0);
+    return '<div style="margin-top:.9rem"><div style="font-weight:700;font-size:.92rem;margin-bottom:.4rem">'+q+
+      ' <span style="font-weight:400;color:#CDEBE6">· '+CL.flatMap(c=>qs[c]||[]).length+' deals · '+R.eur(qSum)+'</span></div>'+
+      CL.filter(c=>qs[c]&&qs[c].length).map(c=>
+        '<div style="font-size:.76rem;color:#CDEBE6;margin:.35rem 0 .25rem">'+c+' · '+qs[c].length+' · '+R.eur(qs[c].reduce((s2,r2)=>s2+(Number(r2.amount_display!=null?r2.amount_display:r2.amount)||0),0))+'</div><div class="winners">'+
+        qs[c].map(r=>'<span class="winner">'+R.esc(r.company_name||r.deal_name)+
+          '<span class="d">'+amountCell(r).replace(/<[^>]+>/g,'/mo')+' · '+R.fmtDate(r.close_date)+'</span></span>').join('')+'</div>').join('')+'</div>';
+  }).join('');
+  const open=list.filter(r=>!r.is_closed);
+  const risky=open.filter(r=>{const ref=r.last_activity||r.create_date;
+    return ref&&Math.round((Date.now()-Date.parse(ref))/86400000)>30;}).length;
+  const qStart=new Date(); qStart.setMonth(Math.floor(qStart.getMonth()/3)*3,1);
+  const wonQ=rows.filter(r=>r.is_won&&r.close_date&&Date.parse(r.close_date)>=qStart.getTime());
+  R.metrics(document.getElementById('metrics'),[
+    {label:'Deals in view', val:R.num(list.length)},
+    {label:'Open value (in view)', val:R.eur(open.reduce((s,r)=>s+(Number(r.amount_display!=null?r.amount_display:r.amount)||0),0))},
+    {label:'Won this quarter (all)', val:R.eur(wonQ.reduce((s,r)=>s+(Number(r.amount_display!=null?r.amount_display:r.amount)||0),0)), good:wonQ.length>0},
+    {label:'🔴 At risk', val:risky, warn:risky>0}
+  ]);
+  const types=[...new Set(list.map(r=>r.dealtype||'Unknown'))].sort((a,b)=>typeRank(a)-typeRank(b)||a.localeCompare(b));
+  const box=document.getElementById('groups');
+  box.innerHTML=types.map((t,i)=>'<div class="card"><h2>'+typeEmoji(t)+' '+R.esc(t)+' <span>· <span id="tn-'+i+'"></span></span></h2><div id="tg-'+i+'"></div></div>').join('')
+    ||'<div class="card"><div class="empty">Nothing matches the current filters.</div></div>';
+  types.forEach((t,i)=>{
+    const sub=list.filter(r=>(r.dealtype||'Unknown')===t);
+    document.getElementById('tn-'+i).textContent=sub.length+' · '+R.eur(sub.reduce((s,r)=>s+(Number(r.amount_display!=null?r.amount_display:r.amount)||0),0));
+    R.table(document.getElementById('tg-'+i),[
+      {key:'deal_name',label:'Deal',cell:r=>{
+        const dn=String(r.deal_name||''), cn=String(r.company_name||'');
+        const dup=cn&&dn.toLowerCase().startsWith(cn.toLowerCase().slice(0,Math.min(cn.length,12)));
+        return '<a href="'+R.hs('0-3',r.deal_id)+'" target="_blank" rel="noopener">'+R.esc(dn||'—')+'</a>'+
+          (cn&&!dup?'<div class="mini">'+R.esc(cn)+'</div>':'')+
+          '<div style="margin-top:.15rem">'+R.journeyHTML(touchesFor(r))+'</div>';
+      }},
+      {key:'stage_label',label:'Stage',cell:r=>r.is_won?R.badge(r.stage_label||'won','b-good'):(r.is_closed?R.badge(r.stage_label||'lost','b-bad'):R.esc(r.stage_label||'—'))},
+      {key:'health',label:'Health',sortVal:r=>{const ref=r.last_activity||r.create_date;return ref?Math.round((Date.now()-Date.parse(ref))/86400000):0;},cell:health},
+      {key:'partner_name',label:'Partner',cell:r=>r.partner_name?('🤝 '+R.esc(r.partner_name)):'—'},
+      {key:'status_note',label:'Status',cell:r=>r.status_note?R.esc(r.status_note):(r.is_closed?'—':'<span class="mini">in '+R.esc(r.stage_label||'pipeline')+'</span>')},
+      {key:'todo',label:'TODO',cell:r=>r.todo?('<strong>'+R.esc(r.todo)+'</strong>'):'—'},
+      {key:'amount',label:'Amount',num:true,sortVal:r=>Number(r.amount_display!=null?r.amount_display:r.amount)||0,cell:amountCell},
+      {key:'owner_name',label:'Owner',cell:r=>R.esc(r.owner_name||'—')},
+      {key:'create_date',label:'Created',cell:r=>R.fmtDate(r.create_date)},
+      {key:'age_days',label:'Age',num:true,cell:r=>r.age_days!=null?r.age_days+'d':'—'}
+    ],sub,{sort:{key:'create_date',dir:-1}});
+    const openSub=sub.filter(r=>!r.is_closed);
+    const sum=a=>a.reduce((s2,r2)=>s2+(Number(r2.amount_display!=null?r2.amount_display:r2.amount)||0),0);
+    document.getElementById('tg-'+i).insertAdjacentHTML('beforeend',
+      '<div class="mini" style="margin-top:.5rem;text-align:right;font-weight:600">Σ '+sub.length+' deals · '+R.eur(sum(sub))+
+      (openSub.length&&openSub.length!==sub.length?' <span style="font-weight:400">(open: '+openSub.length+' · '+R.eur(sum(openSub))+')</span>':'')+'</div>');
+  });
+}
+for(const id of ['f-owner','f-status','f-partner']) document.getElementById(id).addEventListener('change',()=>rows&&render());
+document.getElementById('f-search').addEventListener('input',()=>rows&&render());
+init();
+</script>
+</body>
+</html>
