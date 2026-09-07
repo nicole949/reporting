@@ -108,6 +108,18 @@ CREATE TABLE IF NOT EXISTS report_notes (
 CREATE TABLE IF NOT EXISTS email_replies (
   email_id bigint PRIMARY KEY, date date, contact_id bigint, contact_name text, company_id bigint);
 
+-- LinkedIn replies from La Growth Machine, written by reporting-lgm-sync.
+-- Mirrors email_replies so the Responded page treats both channels alike.
+CREATE TABLE IF NOT EXISTS linkedin_replies (
+  note_id bigint PRIMARY KEY, date date, contact_id bigint, contact_name text, company_id bigint, message text);
+ALTER TABLE linkedin_replies ADD COLUMN IF NOT EXISTS reply_snippet text;
+ALTER TABLE linkedin_replies ADD COLUMN IF NOT EXISTS campaign_name text;
+ALTER TABLE linkedin_replies ADD COLUMN IF NOT EXISTS lgm_event_id text;
+-- LGM retries a webhook until it gets a 2xx; this is what makes a retry a no-op
+-- instead of a second note. Partial so pre-existing rows without an id are fine.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_linkedin_replies_lgm_event
+  ON linkedin_replies (lgm_event_id) WHERE lgm_event_id IS NOT NULL;
+
 -- ---------- Views (final definitions; drop+create is always safe) ----------
 DROP VIEW IF EXISTS v_discoveries;
 CREATE VIEW v_discoveries AS
@@ -193,11 +205,16 @@ DROP VIEW IF EXISTS v_email_replies;
 CREATE VIEW v_email_replies AS
   SELECT email_id, date, contact_id, contact_name, company_id FROM email_replies;
 
+DROP VIEW IF EXISTS v_linkedin_replies;
+CREATE VIEW v_linkedin_replies AS
+  SELECT note_id, date, contact_id, contact_name, company_id, message, reply_snippet, campaign_name
+  FROM linkedin_replies;
+
 -- ---------- Read-only access for the site (anon key) ----------
 DO $$ DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['discoveries','calls','deals_mirror','sequence_stats','sequence_engagers',
-    'subject_stats','subject_recipients','subject_segments','goals','email_daily','email_replies','sequence_steps','sequence_companies','report_notes','customer_journeys'] LOOP
+    'subject_stats','subject_recipients','subject_segments','goals','email_daily','email_replies','linkedin_replies','sequence_steps','sequence_companies','report_notes','customer_journeys'] LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = t AND policyname = 'anon_read') THEN
       EXECUTE format('CREATE POLICY anon_read ON %I FOR SELECT TO anon USING (true)', t);

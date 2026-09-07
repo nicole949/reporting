@@ -1,0 +1,620 @@
+{
+  "name": "Reporting — LGM Sync (LinkedIn replies)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lgm-response",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "lgm-response-hook"
+    },
+    {
+      "parameters": {},
+      "id": "manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== LGM SYNC CONFIG (La Growth Machine -> HubSpot -> Supabase) =====\n// The LinkedIn URL lives on linkedin_profile__c in this portal. hs_linkedin_url\n// does NOT exist here, and HubSpot answers an unknown property name with silently\n// empty results instead of an error — verify any change via MCP search_properties.\nconst LINKEDIN_PROP = 'linkedin_profile__c';\nconst NOTE_MARKER   = 'LGM Response';  // first line of every note; HubSpot workflows key on it\nconst SNIPPET_LEN   = 240;             // reply_snippet length, matches the Responded page\nconst TEXT_PROP_LEN = 2000;            // cap for lgm_last_response_text\n\n// LGM lets you shape the webhook body per campaign, so there is no one schema.\n// Every field is resolved against candidate paths, first hit wins. Once you have\n// captured a real payload, cut each list down to the single path that matched.\nconst FIELD_PATHS = {\n  event_id:  ['event_id','id','message.id','message_id','reply.id'],\n  text:      ['message.text','message.body','reply.text','reply.body','text','body','content'],\n  date:      ['message.date','message.created_at','reply.date','responded_at','date','timestamp'],\n  channel:   ['channel','message.channel','reply.channel','type','source'],\n  email:     ['lead.email','contact.email','email','lead.emails.0'],\n  firstname: ['lead.firstname','lead.first_name','contact.firstname','firstname','first_name'],\n  lastname:  ['lead.lastname','lead.last_name','contact.lastname','lastname','last_name'],\n  linkedin:  ['lead.linkedin_url','lead.linkedin','lead.profile_url','linkedin_url'],\n  lead_id:   ['lead.id','lead_id'],\n  campaign:  ['campaign.name','campaign_name','campaign'],\n  identity:  ['identity.name','identity','sender.name'],\n  lead_url:  ['lead.url','lead.lgm_url','lead_url']\n};\n\nconst src = $input.first().json || {};\n// The Webhook node nests the posted body under .body; a manual/pinned run passes it flat.\nconst payload = (src.body && typeof src.body === 'object') ? src.body : src;\n\nreturn [{ json: { LINKEDIN_PROP, NOTE_MARKER, SNIPPET_LEN, TEXT_PROP_LEN, FIELD_PATHS, payload } }];\n"
+      },
+      "id": "config",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $input.first().json;\nconst p = cfg.payload || {};\n\nconst dig = (o, path) => path.split('.').reduce((cur, part) => {\n  if (cur == null) return null;\n  if (Array.isArray(cur)) return /^\\d+$/.test(part) ? cur[Number(part)] : null;\n  return typeof cur === 'object' ? cur[part] : null;\n}, o);\nconst pick = (paths) => {\n  for (const path of paths) {\n    const v = dig(p, path);\n    if (v == null) continue;\n    if (typeof v === 'string' && !v.trim()) continue;\n    return v;\n  }\n  return null;\n};\nconst str = (v) => (v == null ? null : (String(v).trim() || null));\n\n// The same URL can receive a campaign's whole event feed; only replies become notes.\nconst markers = [pick(['event','event_type','type','action','trigger']), dig(p, 'message.direction')]\n  .filter(v => v != null).map(v => String(v).toLowerCase());\nconst isReply = markers.length === 0 || markers.some(m => /repl|respon|inbound|received|answer/.test(m));\n\nconst text = str(pick(cfg.FIELD_PATHS.text));\nif (!isReply || !text) {\n  return [{ json: { skip: true, reason: !isReply ? 'not a reply event' : 'no response text in payload' } }];\n}\n\n// Timestamps arrive as ISO strings, seconds, or milliseconds.\nconst rawDate = pick(cfg.FIELD_PATHS.date);\nlet ts = new Date();\nif (rawDate != null) {\n  if (typeof rawDate === 'number' || /^\\d+$/.test(String(rawDate))) {\n    const n = Number(rawDate);\n    ts = new Date(n > 1e12 ? n : n * 1000);\n  } else {\n    const parsed = new Date(String(rawDate));\n    if (!isNaN(parsed.getTime())) ts = parsed;\n  }\n}\n\nconst ALIAS = { linkedin_message:'linkedin', linkedin_dm:'linkedin', li:'linkedin', inmail:'linkedin', mail:'email', 'e-mail':'email' };\nlet channel = (str(pick(cfg.FIELD_PATHS.channel)) || 'linkedin').toLowerCase();\nchannel = ALIAS[channel] || channel;\n\nconst email = (str(pick(cfg.FIELD_PATHS.email)) || '').toLowerCase() || null;\nconst linkedin = str(pick(cfg.FIELD_PATHS.linkedin));\nconst name = [str(pick(cfg.FIELD_PATHS.firstname)), str(pick(cfg.FIELD_PATHS.lastname))].filter(Boolean).join(' ') || null;\n\n// Idempotency key. Hashing text and timestamp collapses webhook retries while\n// still letting a genuine second reply from the same lead through as its own event.\nlet eventId = str(pick(cfg.FIELD_PATHS.event_id));\nif (!eventId) {\n  const basis = [str(pick(cfg.FIELD_PATHS.lead_id)), email, ts.toISOString(), text].join('|');\n  let h = 5381;\n  for (let i = 0; i < basis.length; i++) h = ((h * 33) ^ basis.charCodeAt(i)) >>> 0;\n  eventId = 'lgm-' + h.toString(16);\n}\n\nif (!email && !linkedin) {\n  return [{ json: { skip: true, eventId, reason: 'payload carries no email or LinkedIn URL to match a contact on' } }];\n}\n\n// One search with two filterGroups — HubSpot ORs the groups: email OR LinkedIn handle.\nconst groups = [];\nif (email) groups.push({ filters: [{ propertyName: 'email', operator: 'EQ', value: email }] });\nif (linkedin) {\n  const handle = String(linkedin).replace(/\\/+$/, '').split('/').pop();\n  if (handle) groups.push({ filters: [{ propertyName: cfg.LINKEDIN_PROP, operator: 'CONTAINS_TOKEN', value: handle }] });\n}\n\nreturn [{ json: {\n  skip: false, eventId, text, channel, email, linkedin, name,\n  respondedAt: ts.toISOString(),\n  leadId: str(pick(cfg.FIELD_PATHS.lead_id)),\n  campaign: str(pick(cfg.FIELD_PATHS.campaign)),\n  identity: str(pick(cfg.FIELD_PATHS.identity)),\n  leadUrl: str(pick(cfg.FIELD_PATHS.lead_url)),\n  searchBody: { filterGroups: groups, properties: ['email','lgm_response_count','lgm_last_response_date'], limit: 1 }\n} }];\n"
+      },
+      "id": "normalize",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.skip !== true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "is-reply",
+      "name": "Is Reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 300
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.searchBody) }}"
+      },
+      "id": "find-contact",
+      "name": "Find Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        -120
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Uv4k2RMMsWPZCuS2",
+          "name": "Hubspot Admin"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg  = $('Config').first().json;\nconst ev   = $('Normalize').first().json;\nconst res  = $input.first().json || {};\nconst hit  = (res.results || [])[0] || null;\n\nif (!hit) {\n  return [{ json: Object.assign({}, ev, { found: false,\n    reason: 'no matching HubSpot contact for ' + (ev.email || ev.linkedin || 'this lead') }) }];\n}\n\nconst props = hit.properties || {};\nconst esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');\n\nconst meta = [];\nif (ev.campaign) meta.push('Campaign: ' + esc(ev.campaign));\nif (ev.name)     meta.push('Lead: ' + esc(ev.name));\nif (ev.identity) meta.push('Identity: ' + esc(ev.identity));\nmeta.push('Received: ' + ev.respondedAt.slice(0, 16).replace('T', ' ') + ' UTC');\n\nconst footer = ['Source: La Growth Machine'];\nif (ev.leadUrl)  footer.push('<a href=\"' + esc(ev.leadUrl) + '\">Open lead in LGM</a>');\nif (ev.linkedin) footer.push('<a href=\"' + esc(ev.linkedin) + '\">LinkedIn profile</a>');\n\n// The marker is the first thing in the body so the note is unmistakable both in\n// the timeline and to anything filtering note bodies over the API.\nconst noteBody = '<b>' + esc(cfg.NOTE_MARKER) + '</b> &mdash; ' + esc(ev.channel) + '<br>' +\n  meta.join('<br>') + '<hr>' + esc(ev.text).replace(/\\n/g, '<br>') + '<hr>' +\n  '<i>' + footer.join(' &middot; ') + '</i>';\n\nconst ms = Date.parse(ev.respondedAt);\n\nlet count = parseInt(props.lgm_response_count, 10);\nif (!isFinite(count)) count = 0;\nconst patch = { lgm_responded: 'true', lgm_response_count: count + 1 };\n\n// HubSpot returns datetime properties as ISO strings, older exports as epoch ms.\n// Only move the \"last response\" fields forward, so a replay of an older reply\n// never overwrites a newer one.\nconst prevRaw = props.lgm_last_response_date;\nlet prev = NaN;\nif (prevRaw != null && prevRaw !== '') {\n  prev = /^\\d+$/.test(String(prevRaw)) ? Number(prevRaw) : Date.parse(String(prevRaw));\n}\nif (!isFinite(prev) || ms >= prev) {\n  patch.lgm_last_response_date = ms;\n  patch.lgm_last_response_channel = ev.channel;\n  if (ev.campaign) patch.lgm_last_response_campaign = ev.campaign;\n  patch.lgm_last_response_text = ev.text.slice(0, cfg.TEXT_PROP_LEN);\n}\n\nconst sqlStr = (v) => (v == null || v === '' ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\");\n\nreturn [{ json: Object.assign({}, ev, {\n  found: true,\n  contactId: String(hit.id),\n  // Asked before we write anything: LGM retries a webhook until it gets a 2xx,\n  // and without this guard every retry would mint a second note.\n  seenSql: 'SELECT count(*)::int AS seen FROM linkedin_replies WHERE lgm_event_id = ' + sqlStr(ev.eventId) + ';',\n  notePayload: {\n    properties: { hs_timestamp: ms, hs_note_body: noteBody },\n    associations: [{ to: { id: String(hit.id) },\n      types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 202 }] }]\n  },\n  contactPatch: { properties: patch }\n}) }];\n"
+      },
+      "id": "resolve",
+      "name": "Resolve Contact",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.found === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "found",
+      "name": "Contact Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.seenSql }}",
+        "options": {}
+      },
+      "id": "check-seen",
+      "name": "Check Seen",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1540,
+        -240
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "nvtjRzdnFqttOZDI",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.seen === 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "is-new",
+      "name": "New Reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/notes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 300
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Resolve Contact').first().json.notePayload) }}"
+      },
+      "id": "create-note",
+      "name": "Create Note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        -360
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Uv4k2RMMsWPZCuS2",
+          "name": "Hubspot Admin"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.hubapi.com/crm/v3/objects/contacts/{{ $('Resolve Contact').first().json.contactId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 300
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Resolve Contact').first().json.contactPatch) }}"
+      },
+      "id": "update-contact",
+      "name": "Update Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2200,
+        -360
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Uv4k2RMMsWPZCuS2",
+          "name": "Hubspot Admin"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.hubapi.com/crm/v4/objects/contacts/{{ $('Resolve Contact').first().json.contactId }}/associations/companies?limit=1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 300
+            }
+          }
+        }
+      },
+      "id": "read-company",
+      "name": "Read Company",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        -360
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Uv4k2RMMsWPZCuS2",
+          "name": "Hubspot Admin"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg   = $('Config').first().json;\nconst ev    = $('Resolve Contact').first().json;\nconst note  = $('Create Note').first().json || {};\nconst assoc = $input.first().json || {};\n\n// The company association drives the Responded page, which groups by company.\nconst target = (assoc.results || [])[0] || {};\nconst companyId = target.toObjectId || target.id || null;\n\nconst esc = (v) => (v == null || v === '' ? 'NULL' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\");\nconst num = (v) => { const n = Number(v); return (v != null && v !== '' && isFinite(n)) ? String(Math.trunc(n)) : 'NULL'; };\n\nconst noteId = note.id || null;\nif (!noteId) throw new Error('HubSpot returned no note id — refusing to write a reply row with no note_id');\n\nconst snippet = ev.text.replace(/\\s+/g, ' ').trim().slice(0, cfg.SNIPPET_LEN);\n\nconst cols = 'note_id,date,contact_id,contact_name,company_id,message,reply_snippet,campaign_name,lgm_event_id';\nconst vals = [num(noteId), esc(ev.respondedAt.slice(0, 10)), num(ev.contactId), esc(ev.name),\n              num(companyId), esc(ev.text), esc(snippet), esc(ev.campaign), esc(ev.eventId)].join(',');\n\nconst sql = [\n  'BEGIN;',\n  'INSERT INTO linkedin_replies (' + cols + ') VALUES (' + vals + ')',\n  'ON CONFLICT (note_id) DO UPDATE SET date=EXCLUDED.date, contact_id=EXCLUDED.contact_id,',\n  '  contact_name=EXCLUDED.contact_name, company_id=EXCLUDED.company_id, message=EXCLUDED.message,',\n  '  reply_snippet=EXCLUDED.reply_snippet, campaign_name=EXCLUDED.campaign_name,',\n  '  lgm_event_id=EXCLUDED.lgm_event_id;',\n  'COMMIT;'\n].join('\\n');\n\nreturn [{ json: { sql, noteId: String(noteId), companyId: companyId ? String(companyId) : null,\n                  contactId: ev.contactId, eventId: ev.eventId, status: 'synced' } }];\n"
+      },
+      "id": "build-sql",
+      "name": "Build SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "write-db",
+      "name": "Write DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2860,
+        -360
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "nvtjRzdnFqttOZDI",
+          "name": "Postgres account"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'synced', event_id: $('Build SQL').first().json.eventId, note_id: $('Build SQL').first().json.noteId, contact_id: $('Build SQL').first().json.contactId, company_id: $('Build SQL').first().json.companyId }) }}",
+        "options": {}
+      },
+      "id": "respond-ok",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3080,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'skipped', reason: $json.reason || ($json.seen > 0 ? 'already synced - duplicate delivery' : 'not a reply we sync') }) }}",
+        "options": {}
+      },
+      "id": "respond-skip",
+      "name": "Respond Skipped",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize": {
+      "main": [
+        [
+          {
+            "node": "Is Reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Reply?": {
+      "main": [
+        [
+          {
+            "node": "Find Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Contact": {
+      "main": [
+        [
+          {
+            "node": "Resolve Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Contact": {
+      "main": [
+        [
+          {
+            "node": "Contact Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contact Found?": {
+      "main": [
+        [
+          {
+            "node": "Check Seen",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Seen": {
+      "main": [
+        [
+          {
+            "node": "New Reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Reply?": {
+      "main": [
+        [
+          {
+            "node": "Create Note",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Note": {
+      "main": [
+        [
+          {
+            "node": "Update Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Contact": {
+      "main": [
+        [
+          {
+            "node": "Read Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Company": {
+      "main": [
+        [
+          {
+            "node": "Build SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build SQL": {
+      "main": [
+        [
+          {
+            "node": "Write DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write DB": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Manual Trigger": [
+      {
+        "json": {
+          "event": "lead_replied",
+          "campaign": {
+            "id": "c-1",
+            "name": "Q3 Outbound DACH"
+          },
+          "identity": {
+            "name": "Nicole"
+          },
+          "lead": {
+            "id": "lead-9",
+            "email": "lead@example.com",
+            "firstname": "Ada",
+            "lastname": "Lovelace",
+            "linkedin_url": "https://www.linkedin.com/in/ada-lovelace/"
+          },
+          "message": {
+            "id": "msg-42",
+            "channel": "LINKEDIN",
+            "text": "Sounds interesting - can you send pricing?",
+            "date": "2026-09-01T10:30:00Z"
+          }
+        }
+      }
+    ]
+  },
+  "settings": {
+    "timezone": "Europe/Vienna",
+    "executionOrder": "v1"
+  }
+}

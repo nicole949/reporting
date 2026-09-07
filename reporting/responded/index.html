@@ -3,7 +3,7 @@
 <title>JENTIS · Responded</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/app.css?v=24">
+<link rel="stylesheet" href="../assets/app.css?v=25">
 <style>
 .resp-snip{font-size:.8rem;color:var(--slate);background:var(--paper);border-left:3px solid #1FA294;border-radius:8px;padding:.4rem .6rem;margin:.25rem 0 .1rem;font-style:italic}
 .ch-ic{font-size:1rem;margin-right:.2rem}
@@ -17,12 +17,12 @@
   <div class="metrics" id="metrics"></div>
   <div class="card"><h2>Responses <span>· company level, with who responded and how</span></h2>
     <div id="list" class="state">Loading…</div></div>
-  <footer>Channels: ✉️ email reply (with the reply text where synced) · 📞 connected call. LinkedIn responses aren't in the synced HubSpot data — if they get logged in HubSpot (e.g. via Sales Navigator), they can be added.</footer>
+  <footer>Channels: ✉️ email reply · 🔗 LinkedIn reply via La Growth Machine · 📞 connected call — each with the reply text where synced.</footer>
 </div>
-<script src="../assets/config.js?v=24"></script><script src="../assets/app.js?v=24"></script>
+<script src="../assets/config.js?v=25"></script><script src="../assets/app.js?v=25"></script>
 <script>
 R.shell('responded','Responded','Who answered — and what they said');
-let entries=null,dims={},replies=[],calls=[];
+let entries=null,dims={},replies=[],calls=[],lreplies=[];
 function render(){
   const days=Number(document.getElementById('f-range').value);
   const cut=days?new Date(Date.now()-days*86400000).toISOString().slice(0,10):'';
@@ -36,21 +36,25 @@ function render(){
     const win=(ts,ref)=>Math.abs(Date.parse(ts)-Date.parse(ref))<=21*86400000;
     const rep=replies.filter(r=>String(r.company_id)===String(cid)&&win(r.date,d0));
     const con=calls.filter(c=>String(c.company_id)===String(cid)&&c.bucket==='connected'&&win(c.ts,d0));
-    return {cid,name,date:d0,rep,con};
-  }).filter(r=>!q||r.name.toLowerCase().includes(q)||r.rep.some(x=>(x.contact_name||'').toLowerCase().includes(q)))
+    const lin=lreplies.filter(l=>String(l.company_id)===String(cid)&&win(l.date,d0));
+    return {cid,name,date:d0,rep,con,lin};
+  }).filter(r=>!q||r.name.toLowerCase().includes(q)||r.rep.some(x=>(x.contact_name||'').toLowerCase().includes(q))||r.lin.some(x=>(x.contact_name||'').toLowerCase().includes(q)))
     .sort((a,b)=>a.date<b.date?1:-1);
   document.getElementById('metrics').innerHTML=[
     ['Companies responded',rows.length],
     ['Email replies',rows.reduce((s,r)=>s+r.rep.length,0)],
+    ['LinkedIn replies',rows.reduce((s,r)=>s+r.lin.length,0)],
     ['Connected calls',rows.reduce((s,r)=>s+r.con.length,0)]
   ].map(m=>'<div class="metric"><div class="label">'+m[0]+'</div><div class="val">'+m[1]+'</div></div>').join('');
   const el=document.getElementById('list');
   if(!rows.length){el.className='empty';el.textContent='No responses in this timeframe.';return;}
   el.className='';
   el.innerHTML=rows.map(r=>{
-    const ch=[r.rep.length?'<span class="ch-ic">✉️</span>':'',r.con.length?'<span class="ch-ic">📞</span>':''].join('');
+    const ch=[r.rep.length?'<span class="ch-ic">✉️</span>':'',r.lin.length?'<span class="ch-ic">🔗</span>':'',r.con.length?'<span class="ch-ic">📞</span>':''].join('');
     const contacts=[
       ...r.rep.map(x=>'<div class="mini">✉️ '+R.esc(x.contact_name||'Unknown')+' · '+R.fmtDate(x.date)+'</div>'+
+        (x.reply_snippet?'<div class="resp-snip">“'+R.esc(x.reply_snippet)+'”</div>':'')),
+      ...r.lin.map(x=>'<div class="mini">🔗 '+R.esc(x.contact_name||'Unknown')+' · '+R.fmtDate(x.date)+'</div>'+
         (x.reply_snippet?'<div class="resp-snip">“'+R.esc(x.reply_snippet)+'”</div>':'')),
       ...r.con.map(x=>'<div class="mini">📞 '+R.esc(x.contact_name||'')+' · '+R.fmtDate(x.ts)+(x.disposition_label?' · '+R.esc(x.disposition_label):'')+'</div>')
     ].join('');
@@ -63,12 +67,13 @@ function render(){
 (async function init(){
   const c=document.getElementById('list');
   try{
-    const [en,dm,rp,cl]=await Promise.all([
+    const [en,dm,rp,lr,cl]=await Promise.all([
       R.fetchAll('company_stage_entries?suppressed=eq.false&stage=eq.responded&select=company_id,stage,effective_date'),
       R.fetchAll('company_dimensions?select=company_id,name'),
       R.fetchAll('email_replies?select=company_id,contact_name,date,reply_snippet').catch(()=>[]),
+      R.fetchAll('linkedin_replies?select=company_id,contact_name,date,reply_snippet').catch(()=>[]),
       R.fetchAll('v_calls?select=company_id,contact_name,ts,bucket,disposition_label').catch(()=>[])]);
-    entries=en; for(const d of dm) dims[d.company_id]=d; replies=rp; calls=cl;
+    entries=en; for(const d of dm) dims[d.company_id]=d; replies=rp; lreplies=lr; calls=cl;
   }catch(e){c.className='empty';c.textContent='Could not load: '+e.message;return;}
   for(const id of ['f-range']) document.getElementById(id).addEventListener('change',()=>entries&&render());
   document.getElementById('f-search').addEventListener('input',()=>entries&&render());
