@@ -12,53 +12,92 @@
   // status: 'live' = v2 page in this repo · 'v1' = still served by v1 (opens there) · 'planned' = not built yet · 'embed' = v2 page wrapping v1 pages
   R.NAV = [
     { key: 'me', label: 'My page', color: '#FFFFFF', items: [
-      { key: 'me', label: 'Hello', href: BASE + 'me/', ic: '☺', status: 'live', dynamic: 'hello' } ] },
+      { key: 'me', label: 'Hello', href: BASE + 'me/', ic: 'user', status: 'live', dynamic: 'hello' } ] },
     { key: 'overview', label: 'Overview', color: '#D5DEE6', items: [
-      { key: 'overview', label: 'Commercial overview', href: BASE, ic: '◎', status: 'live' },
-      { key: 'funnel', label: 'Full funnel', href: BASE + 'funnel/', ic: '▽', status: 'embed' },
-      { key: 'changes', label: 'Change notes', href: BASE + 'changes/', ic: '★', status: 'live' } ] },
+      { key: 'overview', label: 'Commercial overview', href: BASE, ic: 'grid', status: 'live' },
+      { key: 'funnel', label: 'Full funnel', href: BASE + 'funnel/', ic: 'funnel', status: 'embed' },
+      { key: 'changes', label: 'Change notes', href: BASE + 'changes/', ic: 'list', status: 'live' } ] },
     { key: 'marketing', label: 'Marketing', color: '#9DDCFF', items: [
-      { key: 'mkt-overview', label: 'Overview', href: BASE + 'marketing/', ic: '◎', status: 'live' },
-      { key: 'leads', label: 'Leads', href: V1 + '/leads/', ic: '◔', status: 'v1' },
-      { key: 'email', label: 'Email outreach', href: BASE + 'email-outreach/', ic: '✉', status: 'embed' },
-      { key: 'linkedin', label: 'LinkedIn outreach', href: '#', ic: '⌂', status: 'planned' },
-      { key: 'social', label: 'Social posts', href: '#', ic: '◈', status: 'planned' },
-      { key: 'campaigns', label: 'Campaigns & ads', href: '#', ic: '◆', status: 'planned' },
-      { key: 'responses', label: 'Responses', href: V1 + '/responded/', ic: '↩', status: 'v1' } ] },
+      { key: 'mkt-overview', label: 'Overview', href: BASE + 'marketing/', ic: 'grid', status: 'live' },
+      { key: 'leads', label: 'Leads', href: V1 + '/leads/', ic: 'users', status: 'v1' },
+      { key: 'email', label: 'Email outreach', href: BASE + 'email-outreach/', ic: 'mail', status: 'embed' },
+      { key: 'linkedin', label: 'LinkedIn outreach', href: '#', ic: 'linkedin', status: 'planned' },
+      { key: 'social', label: 'Social posts', href: '#', ic: 'chat', status: 'planned' },
+      { key: 'campaigns', label: 'Campaigns & ads', href: '#', ic: 'megaphone', status: 'planned' },
+      { key: 'responses', label: 'Responses', href: V1 + '/responded/', ic: 'reply', status: 'v1' } ] },
     { key: 'bd', label: 'Business Development', color: '#F38C62', items: [
-      { key: 'bd-overview', label: 'Overview', href: BASE + 'bd/', ic: '◎', status: 'live' },
-      { key: 'calls', label: 'Calls', href: V1 + '/calls/', ic: '☏', status: 'v1' },
-      { key: 'discoveries', label: 'Discoveries', href: V1 + '/discoveries/', ic: '◷', status: 'v1' },
-      { key: 'journeys', label: 'Journeys', href: V1 + '/journeys/', ic: '⇅', status: 'v1' },
-      { key: 'celebrations', label: 'Celebration board', href: BASE + 'bd/celebrations/', ic: '✶', status: 'live' } ] },
+      { key: 'bd-overview', label: 'Overview', href: BASE + 'bd/', ic: 'grid', status: 'live' },
+      { key: 'calls', label: 'Calls', href: V1 + '/calls/', ic: 'phone', status: 'v1' },
+      { key: 'discoveries', label: 'Discoveries', href: V1 + '/discoveries/', ic: 'calendar', status: 'v1' },
+      { key: 'journeys', label: 'Journeys', href: V1 + '/journeys/', ic: 'route', status: 'v1' },
+      { key: 'celebrations', label: 'Celebration board', href: BASE + 'bd/celebrations/', ic: 'star', status: 'live' } ] },
     { key: 'sales', label: 'Sales pipeline', color: '#C4B5F0', items: [
-      { key: 'sales-overview', label: 'Overview', href: BASE + 'sales/', ic: '◎', status: 'live' },
-      { key: 'qualification', label: 'Qualification', href: '#', ic: '✓', status: 'planned' },
-      { key: 'deals', label: 'Deals', href: V1 + '/deals/', ic: '▤', status: 'v1' },
-      { key: 'forecast', label: 'Forecast', href: '#', ic: '◭', status: 'planned' },
-      { key: 'opp-meetings', label: 'Meetings', href: '#', ic: '◷', status: 'planned' },
-      { key: 'quotes', label: 'Quote checker', href: V1 + '/cs-quote-checker/', ic: '✎', status: 'v1' },
-      { key: 'sales-celebrations', label: 'Celebration board', href: BASE + 'sales/celebrations/', ic: '✶', status: 'live' } ] },
+      { key: 'sales-overview', label: 'Overview', href: BASE + 'sales/', ic: 'grid', status: 'live' },
+      { key: 'qualification', label: 'Qualification', href: '#', ic: 'check', status: 'planned' },
+      { key: 'deals', label: 'Deals', href: V1 + '/deals/', ic: 'briefcase', status: 'v1' },
+      { key: 'forecast', label: 'Forecast', href: '#', ic: 'trend', status: 'planned' },
+      { key: 'opp-meetings', label: 'Meetings', href: '#', ic: 'calendar', status: 'planned' },
+      { key: 'quotes', label: 'Quote checker', href: V1 + '/cs-quote-checker/', ic: 'filecheck', status: 'v1' },
+      { key: 'sales-celebrations', label: 'Celebration board', href: BASE + 'sales/celebrations/', ic: 'star', status: 'live' } ] },
     { key: 'cs', label: 'Customer Success', color: '#8ED1B5', items: [
-      { key: 'cs-overview', label: 'Overview', href: BASE + 'cs/', ic: '◎', status: 'live' },
-      { key: 'customers', label: 'Customers', href: V1 + '/cs-customers/', ic: '☺', status: 'v1' },
-      { key: 'renewals', label: 'Renewals & expansion', href: V1 + '/cs-renewals/', ic: '↻', status: 'v1' },
-      { key: 'tickets', label: 'Tickets', href: V1 + '/cs-tickets/', ic: '⚑', status: 'v1' },
-      { key: 'projects', label: 'Projects', href: '#', ic: '▣', status: 'planned' },
-      { key: 'pocs', label: 'POCs & free trials', href: '#', ic: '◐', status: 'planned' },
-      { key: 'ps', label: 'Professional services', href: BASE + 'cs/professional-services/', ic: '▦', status: 'embed' },
-      { key: 'cs-celebrations', label: 'Celebration board', href: BASE + 'cs/celebrations/', ic: '✶', status: 'live' } ] },
+      { key: 'cs-overview', label: 'Overview', href: BASE + 'cs/', ic: 'grid', status: 'live' },
+      { key: 'customers', label: 'Customers', href: V1 + '/cs-customers/', ic: 'building', status: 'v1' },
+      { key: 'renewals', label: 'Renewals & expansion', href: V1 + '/cs-renewals/', ic: 'refresh', status: 'v1' },
+      { key: 'tickets', label: 'Tickets', href: V1 + '/cs-tickets/', ic: 'ticket', status: 'v1' },
+      { key: 'projects', label: 'Projects', href: '#', ic: 'folder', status: 'planned' },
+      { key: 'pocs', label: 'POCs & free trials', href: '#', ic: 'flask', status: 'planned' },
+      { key: 'ps', label: 'Professional services', href: BASE + 'cs/professional-services/', ic: 'clock', status: 'embed' },
+      { key: 'cs-celebrations', label: 'Celebration board', href: BASE + 'cs/celebrations/', ic: 'star', status: 'live' } ] },
     { key: 'partners', label: 'Partners', color: '#E8C9A0', items: [
-      { key: 'partner-overview', label: 'Overview', href: '#', ic: '◎', status: 'planned' },
-      { key: 'partner-ps', label: 'Services at partners', href: '#', ic: '▦', status: 'planned' },
-      { key: 'partner-pipeline', label: 'Partner-sourced pipeline', href: '#', ic: '▤', status: 'planned' } ] },
+      { key: 'partner-overview', label: 'Overview', href: '#', ic: 'grid', status: 'planned' },
+      { key: 'partner-ps', label: 'Services at partners', href: '#', ic: 'clock', status: 'planned' },
+      { key: 'partner-pipeline', label: 'Partner-sourced pipeline', href: '#', ic: 'layers', status: 'planned' } ] },
     { key: 'knowledge', label: 'Knowledge', color: '#C9CFE8', items: [
-      { key: 'library', label: 'Library', href: '#', ic: '▣', status: 'planned' },
-      { key: 'assistant', label: 'Ask the docs', href: '#', ic: '✦', status: 'planned' } ] },
+      { key: 'library', label: 'Library', href: '#', ic: 'book', status: 'planned' },
+      { key: 'assistant', label: 'Ask the docs', href: '#', ic: 'sparkle', status: 'planned' } ] },
     { key: 'data', label: 'Data & AI', color: '#A9B6C2', items: [
-      { key: 'ai-spend', label: 'AI spend', href: '#', ic: '✦', status: 'planned' },
-      { key: 'sync', label: 'Sync status', href: '#', ic: '⟳', status: 'planned' } ] },
+      { key: 'ai-spend', label: 'AI spend', href: '#', ic: 'coin', status: 'planned' },
+      { key: 'sync', label: 'Sync status', href: '#', ic: 'sync', status: 'planned' } ] },
   ];
+
+  // ---------- icons (one line set, 24×24, stroke = currentColor) ----------
+  const ICONS = {
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>',
+    grid: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
+    funnel: '<path d="M3.5 5h17l-6.5 7.5V18l-4 2v-7.5z"/>',
+    list: '<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
+    users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.3-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.6a3.3 3.3 0 0 1 0 6.6M21.5 20c-.5-2.6-1.9-4.4-4-5.2"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/>',
+    linkedin: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10.5V17M8 7.2v.01M12 17v-6.5M12 13.5a2.5 2.5 0 0 1 5 0V17"/>',
+    chat: '<path d="M20.5 12a8.5 8.5 0 0 1-12.6 7.4L3.5 20.5l1.1-4.2A8.5 8.5 0 1 1 20.5 12z"/>',
+    megaphone: '<path d="M3.5 10v4l11 5V5zM14.5 8.5a3.5 3.5 0 0 1 0 7M7 15.5V20h3v-3.2"/>',
+    reply: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5V20"/>',
+    phone: '<path d="M5 3.5h3.5l2 5-2.5 1.6a11 11 0 0 0 5.9 5.9l1.6-2.5 5 2V19a2 2 0 0 1-2 2A16.5 16.5 0 0 1 3 5.5a2 2 0 0 1 2-2z"/>',
+    calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+    route: '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16"/>',
+    star: '<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/>',
+    check: '<circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.2 2.4 2.3 4.6-4.8"/>',
+    briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8.5 7V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2V7M3 12.5h18"/>',
+    trend: '<path d="m3.5 17 6-6 4 4 7-7.5"/><path d="M15 7.5h5.5V13"/>',
+    filecheck: '<path d="M14 3H6.5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8.5z"/><path d="M14 3v5.5h5.5M9 15l2 2 4-4"/>',
+    building: '<rect x="4.5" y="3" width="15" height="18" rx="1.5"/><path d="M9 7.5h.01M15 7.5h.01M9 11.5h.01M15 11.5h.01M9 15.5h.01M15 15.5h.01M10.5 21v-2.5h3V21"/>',
+    refresh: '<path d="M19.5 10.5A7.8 7.8 0 0 0 5.3 7.5M4.5 3.5v4h4M4.5 13.5a7.8 7.8 0 0 0 14.2 3M19.5 20.5v-4h-4"/>',
+    ticket: '<path d="M3.5 7.5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2V10a2 2 0 0 0 0 4v2.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V14a2 2 0 0 0 0-4z"/><path d="M14 5.5v13" stroke-dasharray="2 2.2"/>',
+    folder: '<path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>',
+    flask: '<path d="M9.5 3h5M10.5 3v6L5 18.3A1.8 1.8 0 0 0 6.6 21h10.8a1.8 1.8 0 0 0 1.6-2.7L13.5 9V3M7.5 15h9"/>',
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    layers: '<path d="m12 3.5-8.5 4.8 8.5 4.8 8.5-4.8z"/><path d="m3.5 12.6 8.5 4.8 8.5-4.8"/>',
+    book: '<path d="M4.5 5.5a2.5 2.5 0 0 1 2.5-2.5h12.5v15H7a2.5 2.5 0 0 0-2.5 2.5zM4.5 20.5A2.5 2.5 0 0 1 7 18h12.5v3H7"/>',
+    sparkle: '<path d="m12 3.5 1.9 5.1 5.1 1.9-5.1 1.9-1.9 5.1-1.9-5.1L5 10.5l5.1-1.9z"/><path d="M18.5 16v4M16.5 18h4"/>',
+    coin: '<circle cx="12" cy="12" r="8.5"/><path d="M15 9.2a3.5 3.5 0 1 0 0 5.6M7.8 11h5M7.8 13h5"/>',
+    sync: '<path d="M20.5 12a8.5 8.5 0 1 1-2.5-6l2.5 2.5"/><path d="M20.5 3.5v5h-5"/>',
+    out: '<path d="M8 16 16 8M9.5 8H16v6.5"/>',
+    chev: '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
+    moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>'
+  };
+  R.icon = (name, cls) => '<svg class="i' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
+
   R.DEPT_COLOR = Object.fromEntries(R.NAV.map(s => [s.key, s.color]));
   R.userName = v => v === undefined ? LS.get('user.name', '') : LS.set('user.name', v);
   R.navItem = key => { for (const s of R.NAV) { const it = s.items.find(i => i.key === key); if (it) return { ...it, section: s }; } return null; };
@@ -69,7 +108,7 @@
   R.pref = (k, v) => v === undefined ? LS.get(k) : LS.set(k, v);
   const applyTheme = t => { if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); else document.documentElement.removeAttribute('data-theme'); };
   applyTheme(LS.get('theme', window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
-  R.toggleTheme = () => { const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; LS.set('theme', t); applyTheme(t); };
+  R.toggleTheme = () => { const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; LS.set('theme', t); applyTheme(t); renderNav(); };
 
   // ---------- change notes ----------
   // docs/changelog.json: [{ version, date, title, items: [{ section, page, summary, details, departments: [...] }] }], newest first.
@@ -105,19 +144,29 @@
     const side = document.getElementById('side'); if (!side) return;
     const closed = LS.get('closedSections', []);
     const n = R.changes.unread().length;
-    side.innerHTML = '<div class="brand"><img src="' + C.ASSET_BASE + 'jentis-logo-white.png" alt=""><span class="name">Reporting</span><span class="env ' + (C.ENV || '') + '">' + esc(C.ENV || '') + '</span></div><nav class="nav">' +
-      R.NAV.map(s => {
+    const nm = R.userName(), first = nm ? nm.split(' ')[0] : '';
+    const initials = nm ? nm.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() : '';
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const me = R.NAV.find(s => s.key === 'me').items[0];
+    side.innerHTML =
+      '<div class="brand"><img src="' + C.ASSET_BASE + 'jentis-logo-white.png" alt="JENTIS"><span class="name">Reporting</span></div>' +
+      '<a class="me' + (CUR.page === 'me' ? ' active' : '') + '" href="' + me.href + '"><span class="av">' + (initials ? esc(initials) : R.icon('user')) + '</span><span class="who"><b>' + (first ? 'Hello ' + esc(first) : 'Hello') + '</b><small>My page</small></span></a>' +
+      '<nav class="nav">' +
+      R.NAV.filter(s => s.key !== 'me').map(s => {
         const secNew = unreadFor(s.key).length;
-        if (s.key === 'me') { const it = s.items[0], nm = R.userName(); return '<div class="sec me"><a href="' + it.href + '" class="hello' + (CUR.page === 'me' ? ' active' : '') + '"><span class="ic">☺</span>' + (nm ? 'Hello ' + esc(nm.split(' ')[0]) : 'Hello 👋') + '<span class="chip v1" style="margin-left:auto">my page</span></a></div>'; }
-        return '<div class="sec' + (closed.includes(s.key) ? ' closed' : '') + (secNew ? ' has-new' : '') + '" style="--dept:' + s.color + '"><button class="hd" onclick="R._toggleSec(\'' + s.key + '\')"><span class="sw"></span>' + esc(s.label) + '<span class="dot"></span><span class="car">▾</span></button><div class="items">' +
+        return '<div class="sec' + (closed.includes(s.key) ? ' closed' : '') + '"><button class="hd" onclick="R._toggleSec(\'' + s.key + '\')">' + esc(s.label) + (secNew ? '<span class="dot" title="new"></span>' : '') + R.icon('chev', 'car') + '</button><div class="items">' +
           s.items.map(it => {
             const hints = unreadFor(s.key, it.key);
             const active = CUR.page === it.key;
-            const isChanges = it.key === 'changes';
-            const chip = isChanges && n ? '<span class="chip new">' + n + '</span>' : hints.length ? '<span class="chip new">new</span>' : it.status === 'v1' ? '<span class="chip v1">v1</span>' : it.status === 'planned' ? '<span class="chip soon">soon</span>' : '';
-            return '<a href="' + it.href + '" class="' + (active ? 'active ' : '') + (it.status === 'planned' ? 'planned ' : '') + (hints.length ? 'hint-new' : '') + '"' + (hints.length ? ' data-hint="' + esc(hints.join(' · ')) + '"' : '') + (it.status === 'v1' ? ' target="_blank" rel="noopener"' : '') + '><span class="ic">' + it.ic + '</span>' + esc(it.label) + chip + '</a>';
+            const planned = it.status === 'planned';
+            const tail = it.key === 'changes' && n ? '<span class="count">' + n + '</span>'
+              : hints.length ? '<span class="dot" title="new"></span>'
+              : it.status === 'v1' ? '<span class="tail" title="Opens the current dashboard (v1) in a new tab">v1' + R.icon('out') + '</span>'
+              : planned ? '<span class="tail">soon</span>' : '';
+            const title = planned ? ' title="Coming soon"' : hints.length ? ' data-hint="' + esc(hints.join(' · ')) + '"' : '';
+            return '<a href="' + (planned ? 'javascript:void 0' : it.href) + '" class="' + (active ? 'active ' : '') + (planned ? 'planned ' : '') + (hints.length ? 'hint-new' : '') + '"' + title + (it.status === 'v1' ? ' target="_blank" rel="noopener"' : '') + '>' + R.icon(it.ic) + '<span class="lb">' + esc(it.label) + '</span>' + tail + '</a>';
           }).join('') + '</div></div>';
-      }).join('') + '</nav><div class="foot"><span>' + esc(C.BUILD || 'dev') + '</span><button onclick="R.toggleTheme()" title="light / dark">◐</button></div>';
+      }).join('') + '</nav><div class="foot"><span>' + esc(C.BUILD || 'dev') + (C.ENV && C.ENV !== 'live' ? ' <span class="env">' + esc(C.ENV) + '</span>' : '') + '</span><button onclick="R.toggleTheme()" title="Light / dark">' + R.icon(dark ? 'sun' : 'moon') + '</button></div>';
   }
   R._toggleSec = key => { const c = LS.get('closedSections', []); LS.set('closedSections', c.includes(key) ? c.filter(k => k !== key) : [...c, key]); renderNav(); };
 
@@ -212,10 +261,13 @@
   // ---------- data (PostgREST / Supabase) ----------
   R.apiBase = (C.API_URL || '').replace(/\/+$/, '') + '/';
   R.apiHeaders = () => C.API_KEY ? { Authorization: 'Bearer ' + C.API_KEY, apikey: C.API_KEY } : {};
+  // New v2 views live in schema "api": call R.fetchAll('api/<view>?…'). Old Supabase views (public) stay plain '<view>?…'.
   R.fetchAll = async function (pathQuery) {
     const out = []; const page = 1000; let from = 0;
+    const schema = /^api\//.test(pathQuery) ? { 'Accept-Profile': 'api' } : {};
+    pathQuery = pathQuery.replace(/^api\//, '');
     for (;;) {
-      const r = await fetch(R.apiBase + pathQuery, { headers: { ...R.apiHeaders(), Range: from + '-' + (from + page - 1), Prefer: 'count=none' } });
+      const r = await fetch(R.apiBase + pathQuery, { headers: { ...R.apiHeaders(), ...schema, Range: from + '-' + (from + page - 1), Prefer: 'count=none' } });
       if (!r.ok) { const e = new Error(r.status + ' on ' + pathQuery.split('?')[0]); e.status = r.status; throw e; }
       const rows = await r.json(); out.push(...rows);
       if (rows.length < page) return out;

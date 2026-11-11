@@ -1,5 +1,21 @@
 [
   {
+    "version": "2026.11.11-4",
+    "date": "2026-11-11",
+    "title": "Calmer, cleaner menu",
+    "items": [
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "Menu redesigned: one consistent line-icon set, no department colours, quieter labels.",
+        "details": "Your name and initials sit at the top (Hello … / My page). Pages that still open the current dashboard show a small v1 ↗ on hover; pages that aren't built yet are dimmed. New pages get a small orange dot instead of a badge. Environment and build moved to the bottom of the menu, next to the light/dark switch.",
+        "departments": [
+          "all"
+        ]
+      }
+    ]
+  },
+  {
     "version": "2026.11.11-3",
     "date": "2026-11-11",
     "title": "Department colours, personal page, Sales & CS overviews, celebration boards",

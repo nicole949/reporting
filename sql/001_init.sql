@@ -1,4 +1,5 @@
 -- 001_init.sql — Reporting v2 database layout. Idempotent. Run as the owner role (reporting_app).
+-- Applied to Supabase on 2026-11-11 (interim home until the self-hosted DB is ready; move = pg_dump -n hs -n ext -n core -n api -n app).
 -- Schemas:  hs   = HubSpot mirror (HubSpot property names, one row per object)
 --           ext  = other sources (LGM, Instantly, DCP usage, Confluence)
 --           core = derived facts the dashboard is about (stage entries, corrections, responses, AI outputs, aggregates)
