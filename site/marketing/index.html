@@ -9,9 +9,9 @@
 <link rel="stylesheet" href="../assets/legacy.css?b=__BUILD__">
 <style>
 /* goal overachievement */
-.gstat.done{color:#1FA294;background:rgba(31,162,148,.12)}
-.gplus{display:inline-block;margin-left:.4rem;padding:.05rem .45rem;border-radius:999px;font-size:.72rem;font-weight:700;color:#fff;background:#1FA294;vertical-align:middle}
-.goal.over .fill{background:linear-gradient(90deg,#1FA294,#14506C)}
+.gstat.done{color:#4FA3D8;background:rgba(31,162,148,.12)}
+.gplus{display:inline-block;margin-left:.4rem;padding:.05rem .45rem;border-radius:999px;font-size:.72rem;font-weight:700;color:#fff;background:#4FA3D8;vertical-align:middle}
+.goal.over .fill{background:linear-gradient(90deg,#4FA3D8,#004771)}
 /* quarter picker + former-quarter (closed) view */
 .qpick{display:inline-flex;align-items:center;gap:.5rem;margin-top:.35rem}
 .qpick select{font:inherit;font-size:.8rem;font-weight:600;padding:.25rem .5rem;border:1px solid var(--hair);border-radius:8px;background:var(--panel);color:var(--ink,#1E2A33);cursor:pointer}
@@ -37,7 +37,7 @@
 .trend-drill .dclose:hover{background:var(--paper)}
 /* small page links under each chart */
 .clinks{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem;padding-top:.55rem;border-top:1px solid var(--hair)}
-.clink{display:inline-flex;align-items:center;gap:.35rem;font-size:.74rem;font-weight:600;color:#14506C;background:rgba(20,80,108,.08);border-radius:999px;padding:.2rem .65rem;text-decoration:none}
+.clink{display:inline-flex;align-items:center;gap:.35rem;font-size:.74rem;font-weight:600;color:#004771;background:rgba(20,80,108,.08);border-radius:999px;padding:.2rem .65rem;text-decoration:none}
 .clink:hover{background:rgba(20,80,108,.16)}
 .clink span{font-weight:400;color:var(--slate)}
 </style>
@@ -279,7 +279,7 @@ const ORDER_M = ['emails','calls','responded','disc','deals','cust'];
 const OUT_CH = [
   { key:'email',              group:'email', label:'Sequence emails (HubSpot)', icon:'✉️', color:'#E98862' },
   { key:'instantly',          group:'email', label:'Other sequences (Instantly)', icon:'📨', color:'#3F8FBF' },
-  { key:'linkedin_message',   group:'li',    label:'LinkedIn messages',        icon:'🔗', color:'#14506C' },
+  { key:'linkedin_message',   group:'li',    label:'LinkedIn messages',        icon:'🔗', color:'#004771' },
   { key:'connection_request', group:'li',    label:'Connection requests',      icon:'🤝', color:'#7FB3CE' },
   { key:'follow',             group:'li',    label:'Follows (LGM)',            icon:'👣', color:'#A9C7D8' }
 ];
@@ -300,7 +300,7 @@ function outreachMetric(weekKeys, pOf, group){
 // several channels; the number on top of the bar is the unique contacts across channels.
 const RESP_CH = [
   { key:'email',    label:'Email replies',    icon:'✉️', color:'#7FB3CE' },
-  { key:'linkedin', label:'LinkedIn replies', icon:'🔗', color:'#14506C' },
+  { key:'linkedin', label:'LinkedIn replies', icon:'🔗', color:'#004771' },
   { key:'call',     label:'Connected calls',  icon:'📞', color:'#E98862' }
 ];
 const contactKey = r => r.contact_id ? 'c' + r.contact_id : 'n' + (r.contact_name || Math.random());
@@ -359,10 +359,10 @@ const L = {
   cs:    { label: 'Customer Success', sub: 'book of business',              href: 'cs-customers/index.html' }
 };
 const CHARTS = [
-  { id:'outreach_email', color:'#E98862', click:true, links:[L.seq, L.subj] }, { id:'outreach_li', color:'#14506C', click:true, links:[L.resp] },
-  { id:'calls', color:'#14506C', links:[L.calls] },
-  { id:'resp', color:'#14506C', click:true, links:[L.resp, L.leads] },
-  { id:'disc', color:'#1FA294', click:true, links:[L.disc, L.leads] }, { id:'deals', color:'#E98862', click:true, links:[L.deals] },
+  { id:'outreach_email', color:'#E98862', click:true, links:[L.seq, L.subj] }, { id:'outreach_li', color:'#004771', click:true, links:[L.resp] },
+  { id:'calls', color:'#004771', links:[L.calls] },
+  { id:'resp', color:'#004771', click:true, links:[L.resp, L.leads] },
+  { id:'disc', color:'#4FA3D8', click:true, links:[L.disc, L.leads] }, { id:'deals', color:'#E98862', click:true, links:[L.deals] },
   { id:'cust', color:'#C4574E', click:true, wide:true, links:[L.cs, L.deals] }
 ];
 const chartLinks = c => (c.links || []).length ? '<div class="clinks">' + c.links.map(l =>
@@ -382,7 +382,7 @@ function renderCharts(){
     ({weekly:'weeks',monthly:'months',quarterly:'quarters',yearly:'years'}[gran]);
   const pOf = d => R.periodOf(String(d).slice(0, 10), gran).key;
   const BUCKETS = ['New Business','POC'];
-  const BCOLORS = ['#14506C','#7FB3CE'];
+  const BCOLORS = ['#004771','#7FB3CE'];
   const dealStacks = (D.deals || []).length ? {
     labels: BUCKETS, colors: BCOLORS,
     data: BUCKETS.map(b => weeks.map(w => (D.deals || []).filter(r => bucketOf(r.dealtype) === b && pOf(r.create_date) === w.key).length))
@@ -448,7 +448,7 @@ function miniChart(m, weeks, c, stacks, width){
   if (m.rate) {
     const pts = m.rate.map((r, i) => r === null ? null :
       (6 + i * ((W - 12) / weeks.length) + bw / 2) + ',' + (padT + (H - padT - padB) * (1 - r / 100))).filter(Boolean);
-    if (pts.length > 1) svg += '<polyline fill="none" stroke="#1FA294" stroke-width="1.8" stroke-dasharray="4 3" points="' + pts.join(' ') + '"><title>connect rate</title></polyline>';
+    if (pts.length > 1) svg += '<polyline fill="none" stroke="#4FA3D8" stroke-width="1.8" stroke-dasharray="4 3" points="' + pts.join(' ') + '"><title>connect rate</title></polyline>';
   }
   return svg + '</svg>';
 }

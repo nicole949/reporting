@@ -96,7 +96,7 @@
     const side = document.getElementById('side'); if (!side) return;
     const closed = LS.get('closedSections', []);
     const n = R.changes.unread().length;
-    side.innerHTML = '<div class="brand"><img src="' + C.ASSET_BASE + 'jentis-logo.svg" alt=""><span class="name">Reporting</span><span class="env ' + (C.ENV || '') + '">' + esc(C.ENV || '') + '</span></div><nav class="nav">' +
+    side.innerHTML = '<div class="brand"><img src="' + C.ASSET_BASE + 'jentis-logo-white.png" alt=""><span class="name">Reporting</span><span class="env ' + (C.ENV || '') + '">' + esc(C.ENV || '') + '</span></div><nav class="nav">' +
       R.NAV.map(s => {
         const secNew = unreadFor(s.key).length;
         return '<div class="sec' + (closed.includes(s.key) ? ' closed' : '') + (secNew ? ' has-new' : '') + '"><button class="hd" onclick="R._toggleSec(\'' + s.key + '\')">' + esc(s.label) + '<span class="dot"></span><span class="car">▾</span></button><div class="items">' +

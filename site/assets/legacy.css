@@ -103,13 +103,13 @@ footer{margin-top:2rem;font-size:.75rem;color:var(--faint)}
 
 /* Overview hero (deep navy section like the jentis.com diagonals) */
 .hero{background:var(--dark);color:#fff;border-radius:18px;padding:1.6rem 1.6rem 1.4rem;margin-bottom:1.3rem}
-.hero .eyebrow{font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9DC3D6;margin-bottom:.3rem}
+.hero .eyebrow{font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9DDCFF;margin-bottom:.3rem}
 .hero .top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap}
 .hero h2{font-size:1.35rem;font-weight:700;letter-spacing:-.01em;color:#fff;margin-bottom:.2rem}
-.hero .qsub{color:#9DC3D6;font-size:.85rem}
+.hero .qsub{color:#9DDCFF;font-size:.85rem}
 .hero .count{text-align:right}
 .hero .count .n{font-size:2.1rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
-.hero .count .l{font-size:.75rem;color:#9DC3D6}
+.hero .count .l{font-size:.75rem;color:#9DDCFF}
 .goals{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem;margin-top:1.2rem}
 .goal .gl{display:flex;justify-content:space-between;font-size:.8rem;color:#D9E4EA;margin-bottom:.35rem}
 .goal .gl strong{color:#fff;font-variant-numeric:tabular-nums}
@@ -149,7 +149,7 @@ footer{margin-top:2rem;font-size:.75rem;color:var(--faint)}
 /* v9 */
 .goals{grid-template-columns:1fr;gap:.75rem}
 .elapsed{margin-top:1.1rem;padding-bottom:.9rem;border-bottom:1px dashed rgba(255,255,255,.25)}
-.elapsed .gl{display:flex;justify-content:space-between;font-size:.78rem;color:#9DC3D6;margin-bottom:.35rem}
+.elapsed .gl{display:flex;justify-content:space-between;font-size:.78rem;color:#9DDCFF;margin-bottom:.35rem}
 .elapsed .track{height:6px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden}
 .elapsed .fill{height:100%;background:rgba(255,255,255,.85);border-radius:99px}
 .gstat{font-size:.68rem;font-weight:700;padding:.1rem .5rem;border-radius:99px;margin-left:.5rem;vertical-align:1px}
@@ -173,7 +173,7 @@ tr.row-cust td{background:rgba(31,162,148,.16)}
 .winner .d{color:#5BA79D;font-weight:400;margin-left:.35rem}
 
 /* v10 */
-.winners-hero{background:linear-gradient(120deg,#14506C,#1FA294);color:#fff;border-radius:18px;padding:1.3rem 1.4rem;margin-bottom:1.1rem}
+.winners-hero{background:linear-gradient(120deg,#004771,#4FA3D8);color:#fff;border-radius:18px;padding:1.3rem 1.4rem;margin-bottom:1.1rem}
 .winners-hero h2{color:#fff;font-size:1.1rem;margin-bottom:.2rem}
 .winners-hero .sub{color:#CDEBE6;font-size:.85rem;margin-bottom:.8rem}
 .winners-hero .winner{background:rgba(255,255,255,.16);color:#fff}
