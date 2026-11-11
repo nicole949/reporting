@@ -1,0 +1,4 @@
+.DS_Store
+node_modules/
+site/assets/changelog.json
+*.local.*

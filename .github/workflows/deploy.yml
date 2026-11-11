@@ -1,0 +1,47 @@
+# Deploys the static site to ALL-INKL over FTP.
+#   push to "staging" -> /v2-staging/   (password-protected via deploy/staging.htaccess)
+#   push to "main"    -> /v2/           (live)
+# Secrets (GitHub -> Settings -> Secrets and variables -> Actions): FTP_HOST, FTP_USER, FTP_PASSWORD
+name: Deploy site
+on:
+  push:
+    branches: [main, staging]
+    paths: ['site/**', 'docs/changelog.json', 'deploy/**', '.github/workflows/deploy.yml']
+  workflow_dispatch:
+concurrency: deploy-${{ github.ref_name }}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stamp build + copy changelog
+        run: |
+          BUILD="$(date -u +%Y%m%d-%H%M)-${GITHUB_SHA::7}"
+          cp docs/changelog.json site/assets/changelog.json
+          sed -i "s/__BUILD__/${BUILD}/g; s/__ENV__/${{ github.ref_name == 'main' && 'live' || 'staging' }}/g" site/assets/config.js
+          find site -name '*.html' -exec sed -i "s/__BUILD__/${BUILD}/g" {} +
+          if [ "${{ github.ref_name }}" = "staging" ]; then cp deploy/staging.htaccess site/.htaccess; cp deploy/staging.htpasswd site/.htpasswd; fi
+          echo "build=${BUILD}" >> "$GITHUB_OUTPUT"
+      - name: Upload (staging)
+        if: github.ref_name == 'staging'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: site/
+          server-dir: /v2-staging/
+      - name: Upload (live)
+        if: github.ref_name == 'main'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: site/
+          server-dir: /v2/
+          exclude: |
+            .htaccess
+            .htpasswd

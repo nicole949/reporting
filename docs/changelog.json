@@ -1,0 +1,11 @@
+[
+  {
+    "version": "2026.11.11-1",
+    "date": "2026-11-11",
+    "title": "Reporting v2 — first shell",
+    "items": [
+      { "section": "overview", "page": "overview", "text": "New sidebar navigation along the commercial journey; v1 pages linked until ported." },
+      { "section": "data", "page": "changes", "text": "Change notes with unread badges per section and page; theme toggle (light/dark)." }
+    ]
+  }
+]

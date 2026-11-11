@@ -1,0 +1,4 @@
+AuthType Basic
+AuthName "JENTIS Reporting - staging"
+AuthUserFile /www/htdocs/w01c03ff/v2-staging/.htpasswd
+Require valid-user
