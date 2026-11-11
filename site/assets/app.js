@@ -1,37 +1,46 @@
-/* JENTIS Reporting v2 — shared shell. Pages call R.shell({ page, title, subtitle }) then use R.fetchAll / R.ai / R.fmt*.
-   Navigation, change notes, theme and the API client live here; nothing page-specific. */
+/* JENTIS Reporting v2 — shared shell. Pages call R.shell({ page, title, subtitle }) then use R.filters / R.fetchAll / R.ai / R.fmt*.
+   Navigation, filters, change notes, feedback, theme and the API client live here; nothing page-specific. */
 (function () {
   const C = window.RCONFIG || {};
   const R = (window.R = { C });
-
-  // ---------- navigation (sections follow the commercial journey) ----------
-  // status: 'live' = v2 page in this repo · 'v1' = still served by the v1 dashboard (opens there) · 'planned' = not built yet
+  const BASE = C.SITE_BASE || '/';                       // '/v2/' or '/v2-staging/' or '/'
   const V1 = C.V1_URL || 'https://vibe-reports.jentis.info';
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  R.esc = esc;
+
+  // ---------- navigation: one section per owner of the commercial journey ----------
+  // status: 'live' = v2 page in this repo · 'v1' = still served by v1 (opens there) · 'planned' = not built yet · 'embed' = v2 page wrapping v1 pages
   R.NAV = [
     { key: 'overview', label: 'Overview', items: [
-      { key: 'overview', label: 'Overview', href: '/', ic: '◎', status: 'live' } ] },
+      { key: 'overview', label: 'Commercial overview', href: BASE, ic: '◎', status: 'live' },
+      { key: 'changes', label: 'Change notes', href: BASE + 'changes/', ic: '★', status: 'live' } ] },
     { key: 'marketing', label: 'Marketing', items: [
-      { key: 'leads', label: 'Leads & cohorts', href: V1 + '/leads/', ic: '◔', status: 'v1' },
-      { key: 'sequences', label: 'Sequences', href: V1 + '/sequences/', ic: '✉', status: 'v1' },
-      { key: 'subjects', label: 'Subject lines', href: V1 + '/subjects/', ic: '✎', status: 'v1' },
+      { key: 'mkt-overview', label: 'Overview', href: BASE + 'marketing/', ic: '◎', status: 'live' },
+      { key: 'leads', label: 'Leads', href: V1 + '/leads/', ic: '◔', status: 'v1' },
+      { key: 'email', label: 'Email outreach', href: BASE + 'email-outreach/', ic: '✉', status: 'embed' },
       { key: 'linkedin', label: 'LinkedIn outreach', href: '#', ic: '⌂', status: 'planned' },
-      { key: 'campaigns', label: 'Campaigns & ads', href: '#', ic: '◈', status: 'planned' } ] },
+      { key: 'social', label: 'Social posts', href: '#', ic: '◈', status: 'planned' },
+      { key: 'campaigns', label: 'Campaigns & ads', href: '#', ic: '◆', status: 'planned' },
+      { key: 'responses', label: 'Responses', href: V1 + '/responded/', ic: '↩', status: 'v1' } ] },
     { key: 'bd', label: 'Business Development', items: [
-      { key: 'responses', label: 'Responses', href: V1 + '/responded/', ic: '↩', status: 'v1' },
+      { key: 'bd-overview', label: 'Overview', href: BASE + 'bd/', ic: '◎', status: 'live' },
       { key: 'calls', label: 'Calls', href: V1 + '/calls/', ic: '☏', status: 'v1' },
       { key: 'discoveries', label: 'Discoveries', href: V1 + '/discoveries/', ic: '◷', status: 'v1' },
-      { key: 'journeys', label: 'Journeys & funnel', href: V1 + '/journeys/', ic: '⇅', status: 'v1' } ] },
+      { key: 'journeys', label: 'Journeys', href: V1 + '/journeys/', ic: '⇅', status: 'v1' },
+      { key: 'celebrations', label: 'Celebration board', href: BASE + 'bd/celebrations/', ic: '✶', status: 'live' } ] },
     { key: 'sales', label: 'Sales pipeline', items: [
+      { key: 'qualification', label: 'Qualification', href: '#', ic: '✓', status: 'planned' },
       { key: 'deals', label: 'Deals', href: V1 + '/deals/', ic: '▤', status: 'v1' },
-      { key: 'stages', label: 'Stage report', href: '#', ic: '▥', status: 'planned' },
-      { key: 'quotes', label: 'Quote checker', href: V1 + '/cs-quote-checker/', ic: '✓', status: 'v1' },
-      { key: 'forecast', label: 'Forecast', href: '#', ic: '◭', status: 'planned' } ] },
+      { key: 'forecast', label: 'Forecast', href: '#', ic: '◭', status: 'planned' },
+      { key: 'opp-meetings', label: 'Meetings', href: '#', ic: '◷', status: 'planned' },
+      { key: 'quotes', label: 'Quote checker', href: V1 + '/cs-quote-checker/', ic: '✎', status: 'v1' } ] },
     { key: 'cs', label: 'Customer Success', items: [
       { key: 'customers', label: 'Customers', href: V1 + '/cs-customers/', ic: '☺', status: 'v1' },
       { key: 'renewals', label: 'Renewals & expansion', href: V1 + '/cs-renewals/', ic: '↻', status: 'v1' },
       { key: 'tickets', label: 'Tickets', href: V1 + '/cs-tickets/', ic: '⚑', status: 'v1' },
-      { key: 'meetings', label: 'Meetings', href: V1 + '/cs-meetings/', ic: '◷', status: 'v1' },
-      { key: 'capacity', label: 'Capacity', href: V1 + '/cs-capacity/', ic: '▦', status: 'v1' } ] },
+      { key: 'projects', label: 'Projects', href: '#', ic: '▣', status: 'planned' },
+      { key: 'pocs', label: 'POCs & free trials', href: '#', ic: '◐', status: 'planned' },
+      { key: 'ps', label: 'Professional services', href: BASE + 'cs/professional-services/', ic: '▦', status: 'embed' } ] },
     { key: 'partners', label: 'Partners', items: [
       { key: 'partner-overview', label: 'Partner overview', href: '#', ic: '◉', status: 'planned' },
       { key: 'partner-ps', label: 'Services at partners', href: '#', ic: '▦', status: 'planned' },
@@ -41,26 +50,30 @@
       { key: 'assistant', label: 'Ask the docs', href: '#', ic: '✦', status: 'planned' } ] },
     { key: 'data', label: 'Data & AI', items: [
       { key: 'ai-spend', label: 'AI spend', href: '#', ic: '✦', status: 'planned' },
-      { key: 'sync', label: 'Sync status', href: '#', ic: '⟳', status: 'planned' },
-      { key: 'changes', label: 'Change notes', href: '#whatsnew', ic: '★', status: 'live' } ] },
+      { key: 'sync', label: 'Sync status', href: '#', ic: '⟳', status: 'planned' } ] },
   ];
+  R.navItem = key => { for (const s of R.NAV) { const it = s.items.find(i => i.key === key); if (it) return { ...it, section: s }; } return null; };
 
   // ---------- per-user state (localStorage until SSO + app.settings) ----------
   const LS = { get: (k, d) => { try { const v = localStorage.getItem('r2.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
                set: (k, v) => { try { localStorage.setItem('r2.' + k, JSON.stringify(v)); } catch (e) {} } };
   R.pref = (k, v) => v === undefined ? LS.get(k) : LS.set(k, v);
-
-  // theme
   const applyTheme = t => { if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); else document.documentElement.removeAttribute('data-theme'); };
   applyTheme(LS.get('theme', window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
   R.toggleTheme = () => { const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; LS.set('theme', t); applyTheme(t); };
 
   // ---------- change notes ----------
-  // docs/changelog.json: [{ version, date, title, items: [{ section, page, text }] }], newest first. Copied to assets/ by the deploy.
+  // docs/changelog.json: [{ version, date, title, items: [{ section, page, summary, details, departments: [...] }] }], newest first.
   let CHANGES = [];
-  R.changes = { seen: () => LS.get('seenVersion', ''), markSeen: () => { if (CHANGES[0]) LS.set('seenVersion', CHANGES[0].version); render(); } };
-  const unread = () => { const s = R.changes.seen(); return CHANGES.filter(r => !s || r.version > s); };
-  const unreadFor = (section, page) => unread().flatMap(r => r.items.filter(i => i.section === section && (!page || i.page === page)).map(i => i.text));
+  R.changes = {
+    list: () => CHANGES,
+    seen: () => LS.get('seenVersion', ''),
+    isUnread: r => { const s = R.changes.seen(); return !s || r.version > s; },
+    unread: () => CHANGES.filter(r => R.changes.isUnread(r)),
+    markSeen: () => { if (CHANGES[0]) LS.set('seenVersion', CHANGES[0].version); renderNav(); },
+    load: () => fetch(C.ASSET_BASE + 'changelog.json?b=' + encodeURIComponent(C.BUILD || '')).then(r => r.ok ? r.json() : []).then(j => { CHANGES = Array.isArray(j) ? j : []; return CHANGES; }).catch(() => CHANGES)
+  };
+  const unreadFor = (section, page) => R.changes.unread().flatMap(r => r.items.filter(i => i.section === section && (!page || i.page === page)).map(i => i.summary || i.text));
 
   // ---------- shell ----------
   let CUR = {};
@@ -68,51 +81,122 @@
     CUR = opts || {};
     document.title = (CUR.title ? CUR.title + ' · ' : '') + 'JENTIS Reporting';
     const app = document.createElement('div'); app.className = 'app';
-    app.innerHTML = '<aside class="side" id="side"></aside><main class="main"><div class="topbar"><button class="burger" onclick="document.getElementById(\'side\').classList.toggle(\'open\')">☰</button><div class="ttl"><h1>' + esc(CUR.title || '') + '</h1>' + (CUR.subtitle ? '<div class="sub">' + esc(CUR.subtitle) + '</div>' : '') + '</div><div class="spacer"></div><div id="topbar-right"></div></div><div id="page"></div></main><aside class="wn" id="wn"></aside>';
-    const host = document.getElementById('shell'); host.replaceWith(app);
-    fetch((C.ASSET_BASE || 'assets/') + 'changelog.json?b=' + encodeURIComponent(C.BUILD || '')).then(r => r.ok ? r.json() : []).then(j => { CHANGES = Array.isArray(j) ? j : []; render(); }).catch(() => render());
-    render();
+    app.innerHTML = '<aside class="side" id="side"></aside><main class="main"><div class="topbar"><button class="burger" onclick="document.getElementById(\'side\').classList.toggle(\'open\')">☰</button><div class="ttl"><h1>' + esc(CUR.title || '') + '</h1>' + (CUR.subtitle ? '<div class="sub">' + esc(CUR.subtitle) + '</div>' : '') + '</div><div class="spacer"></div><div class="tools" id="tools"><button class="tool" onclick="R.feedback.open()" title="Feedback, bug, idea…">✎ Feedback</button></div></div><div class="filters" id="filters" hidden></div><div id="page"></div></main>';
+    document.getElementById('shell').replaceWith(app);
+    document.body.insertAdjacentHTML('beforeend', '<div class="modal" id="fb-modal"></div>');
+    renderNav();
+    R.changes.load().then(renderNav);
     const page = document.getElementById('page');
     const pc = document.getElementById('page-content');          // ported v1 pages ship their own markup
     if (pc) { pc.hidden = false; page.appendChild(pc); }
     return page;
   };
 
-  function render() {
+  function renderNav() {
     const side = document.getElementById('side'); if (!side) return;
     const closed = LS.get('closedSections', []);
-    const n = unread().length;
-    side.innerHTML = '<div class="brand"><img src="' + (C.ASSET_BASE || 'assets/') + 'logo.svg" alt=""><span class="name">Reporting</span><span class="env ' + (C.ENV || '') + '">' + esc(C.ENV || '') + '</span></div><nav class="nav">' +
+    const n = R.changes.unread().length;
+    side.innerHTML = '<div class="brand"><img src="' + C.ASSET_BASE + 'jentis-logo.svg" alt=""><span class="name">Reporting</span><span class="env ' + (C.ENV || '') + '">' + esc(C.ENV || '') + '</span></div><nav class="nav">' +
       R.NAV.map(s => {
         const secNew = unreadFor(s.key).length;
-        return '<div class="sec' + (closed.includes(s.key) ? ' closed' : '') + (secNew ? ' has-new' : '') + '" data-sec="' + s.key + '"><button class="hd" onclick="R._toggleSec(\'' + s.key + '\')">' + esc(s.label) + '<span class="dot"></span><span class="car">▾</span></button><div class="items">' +
+        return '<div class="sec' + (closed.includes(s.key) ? ' closed' : '') + (secNew ? ' has-new' : '') + '"><button class="hd" onclick="R._toggleSec(\'' + s.key + '\')">' + esc(s.label) + '<span class="dot"></span><span class="car">▾</span></button><div class="items">' +
           s.items.map(it => {
             const hints = unreadFor(s.key, it.key);
             const active = CUR.page === it.key;
-            const chip = hints.length ? '<span class="chip new">new</span>' : it.status === 'v1' ? '<span class="chip v1">v1</span>' : it.status === 'planned' ? '<span class="chip soon">soon</span>' : '';
-            const href = it.href === '#whatsnew' ? 'javascript:R._openWn()' : it.href;
-            return '<a href="' + href + '" class="' + (active ? 'active ' : '') + (it.status === 'planned' ? 'planned ' : '') + (hints.length ? 'hint-new' : '') + '"' + (hints.length ? ' data-hint="' + esc(hints.join(' · ')) + '"' : '') + (it.status === 'v1' ? ' target="_blank" rel="noopener"' : '') + '><span class="ic">' + it.ic + '</span>' + esc(it.label) + chip + '</a>';
+            const isChanges = it.key === 'changes';
+            const chip = isChanges && n ? '<span class="chip new">' + n + '</span>' : hints.length ? '<span class="chip new">new</span>' : it.status === 'v1' ? '<span class="chip v1">v1</span>' : it.status === 'planned' ? '<span class="chip soon">soon</span>' : '';
+            return '<a href="' + it.href + '" class="' + (active ? 'active ' : '') + (it.status === 'planned' ? 'planned ' : '') + (hints.length ? 'hint-new' : '') + '"' + (hints.length ? ' data-hint="' + esc(hints.join(' · ')) + '"' : '') + (it.status === 'v1' ? ' target="_blank" rel="noopener"' : '') + '><span class="ic">' + it.ic + '</span>' + esc(it.label) + chip + '</a>';
           }).join('') + '</div></div>';
-      }).join('') + '</nav><div class="foot"><span>' + esc(C.BUILD || 'dev') + '</span><button onclick="R.toggleTheme()" title="light / dark">◐</button><button onclick="R._openWn()" title="change notes">★' + (n ? ' ' + n : '') + '</button></div>';
-    renderWn();
+      }).join('') + '</nav><div class="foot"><span>' + esc(C.BUILD || 'dev') + '</span><button onclick="R.toggleTheme()" title="light / dark">◐</button></div>';
   }
-  R._toggleSec = key => { const c = LS.get('closedSections', []); LS.set('closedSections', c.includes(key) ? c.filter(k => k !== key) : [...c, key]); render(); };
-  R._openWn = () => { document.getElementById('wn').classList.add('open'); };
-  R._closeWn = () => { document.getElementById('wn').classList.remove('open'); R.changes.markSeen(); };
-  function renderWn() {
-    const el = document.getElementById('wn'); if (!el) return;
-    const seen = R.changes.seen();
-    el.innerHTML = '<h3>What\'s new <button onclick="R._closeWn()" title="close (marks everything as read)">✕</button></h3>' +
-      (CHANGES.length ? CHANGES.map(r => '<div class="rel' + (!seen || r.version > seen ? ' unread' : '') + '"><div class="d">' + esc(r.date) + ' · ' + esc(r.version) + '</div><div class="t">' + esc(r.title) + '</div><ul>' +
-        r.items.map(i => '<li><span class="where">' + esc(secLabel(i.section)) + (i.page ? ' › ' + esc(pageLabel(i.section, i.page)) : '') + '</span>' + esc(i.text) + '</li>').join('') + '</ul></div>').join('') : '<div class="state">No change notes yet.</div>');
-  }
-  const secLabel = k => (R.NAV.find(s => s.key === k) || {}).label || k;
-  const pageLabel = (s, p) => ((R.NAV.find(x => x.key === s) || { items: [] }).items.find(i => i.key === p) || {}).label || p;
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { const w = document.getElementById('wn'); if (w && w.classList.contains('open')) R._closeWn(); } });
+  R._toggleSec = key => { const c = LS.get('closedSections', []); LS.set('closedSections', c.includes(key) ? c.filter(k => k !== key) : [...c, key]); renderNav(); };
 
-  // ---------- data (PostgREST) ----------
+  // ---------- filters (same bar on every page: time range first, then page-specific controls) ----------
+  // R.filters({ time: true, controls: [{ key, label, type: 'select'|'multi', options: [[value,label]…], value }], onChange(state) })
+  const TIME_OPTS = [['custom', 'Custom…'], ['week', 'This week'], ['lastweek', 'Last week'], ['month', 'This month'], ['lastmonth', 'Last month'], ['quarter', 'This quarter'], ['lastquarter', 'Last quarter'], ['90d', 'Last 90 days'], ['year', 'This year'], ['12m', 'Last 12 months']];
+  const iso = d => d.toISOString().slice(0, 10);
+  const utc = (y, m, d) => new Date(Date.UTC(y, m, d));
+  R.timeRange = function (key, custom) {
+    const now = new Date(), y = now.getUTCFullYear(), m = now.getUTCMonth(), q = Math.floor(m / 3);
+    const dow = (now.getUTCDay() + 6) % 7, mon = utc(y, m, now.getUTCDate() - dow);
+    const r = (a, b, label) => ({ from: iso(a), to: iso(b), label });                     // to = exclusive
+    switch (key) {
+      case 'week': return r(mon, utc(y, m, mon.getUTCDate() + 7), 'This week');
+      case 'lastweek': return r(utc(y, m, mon.getUTCDate() - 7), mon, 'Last week');
+      case 'month': return r(utc(y, m, 1), utc(y, m + 1, 1), 'This month');
+      case 'lastmonth': return r(utc(y, m - 1, 1), utc(y, m, 1), 'Last month');
+      case 'quarter': return r(utc(y, q * 3, 1), utc(y, q * 3 + 3, 1), 'Q' + (q + 1) + ' ' + y);
+      case 'lastquarter': { const a = utc(y, q * 3 - 3, 1); return r(a, utc(y, q * 3, 1), 'Q' + (Math.floor(a.getUTCMonth() / 3) + 1) + ' ' + a.getUTCFullYear()); }
+      case '90d': return r(utc(y, m, now.getUTCDate() - 90), utc(y, m, now.getUTCDate() + 1), 'Last 90 days');
+      case 'year': return r(utc(y, 0, 1), utc(y + 1, 0, 1), String(y));
+      case '12m': return r(utc(y, m - 12, now.getUTCDate()), utc(y, m, now.getUTCDate() + 1), 'Last 12 months');
+      default: { const a = custom && custom.from ? custom.from : iso(utc(y, m, 1)), b = custom && custom.to ? custom.to : iso(now); return { from: a, to: iso(utc(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10) + 1)), label: R.fmtDate(a) + ' – ' + R.fmtDate(b), custom: true }; }
+    }
+  };
+  R.filters = function (spec) {
+    const bar = document.getElementById('filters'); if (!bar) return {};
+    const key = 'filters.' + (CUR.page || 'x');
+    const st = Object.assign({ time: spec.defaultTime || 'quarter', custom: { from: '', to: '' } }, LS.get(key, {}));
+    (spec.controls || []).forEach(c => { if (st[c.key] === undefined) st[c.key] = c.value !== undefined ? c.value : (c.type === 'multi' ? [] : ''); });
+    const emit = () => { LS.set(key, st); st.range = R.timeRange(st.time, st.custom); spec.onChange && spec.onChange(st); };
+    const draw = () => {
+      bar.hidden = false;
+      bar.innerHTML = (spec.time === false ? '' : '<label class="f"><span>Period</span><select id="f-time">' + TIME_OPTS.map(o => '<option value="' + o[0] + '"' + (st.time === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></label>' +
+        '<span class="f dates" id="f-dates"' + (st.time === 'custom' ? '' : ' hidden') + '><input type="date" id="f-from" value="' + esc(st.custom.from) + '"><span>→</span><input type="date" id="f-to" value="' + esc(st.custom.to) + '"></span>') +
+        (spec.controls || []).map(c => c.type === 'multi'
+          ? '<span class="f"><span>' + esc(c.label) + '</span><span class="msel" data-k="' + c.key + '"><button type="button" class="msel-btn">' + mselLabel(c, st[c.key]) + '</button><div class="msel-dd">' + c.options.map(o => '<label><input type="checkbox" value="' + esc(o[0]) + '"' + (st[c.key].includes(o[0]) ? ' checked' : '') + '> ' + esc(o[1]) + '</label>').join('') + '</div></span></span>'
+          : '<label class="f"><span>' + esc(c.label) + '</span><select data-k="' + c.key + '">' + c.options.map(o => '<option value="' + esc(o[0]) + '"' + (st[c.key] === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select></label>').join('') +
+        (spec.extraHtml || '');
+      const t = bar.querySelector('#f-time');
+      if (t) t.onchange = () => { st.time = t.value; bar.querySelector('#f-dates').hidden = st.time !== 'custom'; if (st.time !== 'custom' || (st.custom.from && st.custom.to)) emit(); };
+      bar.querySelectorAll('#f-from,#f-to').forEach(i => i.onchange = () => { st.custom = { from: bar.querySelector('#f-from').value, to: bar.querySelector('#f-to').value }; if (st.custom.from && st.custom.to) emit(); });
+      bar.querySelectorAll('select[data-k]').forEach(s => s.onchange = () => { st[s.dataset.k] = s.value; emit(); });
+      bar.querySelectorAll('.msel').forEach(m => {
+        const k = m.dataset.k, c = spec.controls.find(x => x.key === k);
+        m.querySelector('.msel-btn').onclick = e => { e.stopPropagation(); bar.querySelectorAll('.msel.open').forEach(x => x !== m && x.classList.remove('open')); m.classList.toggle('open'); };
+        m.querySelectorAll('input').forEach(cb => cb.onchange = () => { st[k] = [...m.querySelectorAll('input:checked')].map(x => x.value); m.querySelector('.msel-btn').textContent = mselLabel(c, st[k]); emit(); });
+      });
+    };
+    document.addEventListener('click', () => bar.querySelectorAll('.msel.open').forEach(x => x.classList.remove('open')));
+    draw(); st.range = R.timeRange(st.time, st.custom);
+    return st;
+  };
+  const mselLabel = (c, v) => c.label + ': ' + (!v.length ? 'all' : v.length === 1 ? (c.options.find(o => o[0] === v[0]) || [v[0], v[0]])[1] : v.length + ' selected');
+
+  // ---------- feedback (→ n8n webhook → Slack) ----------
+  const TOPICS = [['bug', '🐞 Bug / wrong number'], ['data', '🧮 Data question'], ['idea', '💡 Idea / suggestion'], ['request', '➕ Feature request'], ['praise', '🎉 Praise'], ['other', '… Other']];
+  R.feedback = {
+    open() {
+      const m = document.getElementById('fb-modal');
+      const who = LS.get('user.name', '');
+      m.innerHTML = '<div class="box"><h3>Feedback <button class="x" onclick="R.feedback.close()">✕</button></h3><p class="small muted">Goes to the reporting Slack channel with the page name. Problems, questions, ideas — all welcome.</p>' +
+        '<label>Topic<select id="fb-topic">' + TOPICS.map(t => '<option value="' + t[0] + '">' + t[1] + '</option>').join('') + '</select></label>' +
+        '<label>Your name<input id="fb-name" value="' + esc(who) + '" placeholder="so we know whom to ask back"></label>' +
+        '<label>Message<textarea id="fb-text" rows="5" placeholder="What happened, what would you expect, what would help?"></textarea></label>' +
+        '<div class="row"><span class="small muted">Page: ' + esc(CUR.title || CUR.page || '') + '</span><button class="btn primary" id="fb-send" onclick="R.feedback.send()">Send</button></div><div id="fb-msg" class="small"></div></div>';
+      m.classList.add('open'); setTimeout(() => document.getElementById('fb-text').focus(), 50);
+    },
+    close() { document.getElementById('fb-modal').classList.remove('open'); },
+    async send() {
+      const g = id => document.getElementById(id);
+      const payload = { topic: g('fb-topic').value, name: g('fb-name').value.trim(), text: g('fb-text').value.trim(), page: CUR.title || '', page_key: CUR.page || '', url: location.href, env: C.ENV || '', build: C.BUILD || '', theme: document.documentElement.getAttribute('data-theme') || 'light', ua: navigator.userAgent };
+      if (!payload.text) { g('fb-msg').textContent = 'Please write a message.'; return; }
+      if (!payload.name) { g('fb-msg').textContent = 'Please add your name.'; return; }
+      LS.set('user.name', payload.name);
+      g('fb-send').disabled = true; g('fb-msg').textContent = 'Sending…';
+      try {
+        if (!C.FEEDBACK_WEBHOOK) throw new Error('no FEEDBACK_WEBHOOK configured');
+        const r = await fetch(C.FEEDBACK_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        g('fb-msg').textContent = 'Thanks — posted to Slack.'; setTimeout(R.feedback.close, 1200);
+      } catch (e) { g('fb-msg').textContent = 'Could not send (' + e.message + ').'; g('fb-send').disabled = false; }
+    }
+  };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') R.feedback.close(); });
+
+  // ---------- data (PostgREST / Supabase) ----------
   R.apiBase = (C.API_URL || '').replace(/\/+$/, '') + '/';
-  R.apiHeaders = () => C.API_KEY ? { Authorization: 'Bearer ' + C.API_KEY, apikey: C.API_KEY } : {};   // apikey only matters for Supabase
+  R.apiHeaders = () => C.API_KEY ? { Authorization: 'Bearer ' + C.API_KEY, apikey: C.API_KEY } : {};
   R.fetchAll = async function (pathQuery) {
     const out = []; const page = 1000; let from = 0;
     for (;;) {
@@ -125,22 +209,21 @@
   };
 
   // ---------- AI marker ----------
-  // R.ai({ model, input_tokens, output_tokens, cost_eur, label }) -> '<span class="ai">✦ AI</span>' with cost on hover.
   R.ai = function (u) {
     u = u || {};
     const tok = (u.input_tokens || 0) + (u.output_tokens || 0);
-    const cost = u.cost_eur != null ? ' · ≈ € ' + (u.cost_eur < 0.01 ? '<0.01' : u.cost_eur.toFixed(2)) : '';
-    const tip = (u.model ? u.model : 'AI') + (tok ? ' · ≈ ' + R.fmtK(tok) + ' tokens' : '') + cost + (u.at ? ' · ' + R.fmtDate(u.at) : '');
+    const cost = u.cost_eur != null ? ' · ≈ € ' + (u.cost_eur < 0.01 ? '<0.01' : Number(u.cost_eur).toFixed(2)) : '';
+    const tip = (u.model || 'AI') + (tok ? ' · ≈ ' + R.fmtK(tok) + ' tokens' : '') + cost + (u.at ? ' · ' + R.fmtDate(u.at) : '');
     return '<span class="ai" data-cost="' + esc(tip) + '"><span class="spark">✦</span>' + esc(u.label || 'AI') + '</span>';
   };
 
-  // ---------- formatting ----------
-  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  R.esc = esc;
-  R.fmtDate = d => { if (!d) return ''; const x = new Date(d); return isNaN(x) ? String(d) : String(x.getDate()).padStart(2, '0') + '.' + String(x.getMonth() + 1).padStart(2, '0') + '.' + x.getFullYear(); };
+  // ---------- small ui bits ----------
+  R.kpi = (k, v, s, cls) => '<div class="tile"><div class="k">' + esc(k) + '</div><div class="v ' + (cls || '') + '">' + v + '</div>' + (s ? '<div class="s">' + s + '</div>' : '') + '</div>';
+  R.delta = (now, prev) => prev ? '<span class="' + (now >= prev ? 'up' : 'down') + '">' + (now >= prev ? '▲' : '▼') + ' ' + Math.round(100 * (now - prev) / prev) + '%</span>' : '<span class="muted">·</span>';
+  R.inRange = (d, range) => d && d.slice(0, 10) >= range.from && d.slice(0, 10) < range.to;
+  R.prevRange = range => { const a = Date.parse(range.from), b = Date.parse(range.to); return { from: iso(new Date(a - (b - a))), to: range.from }; };
+  R.fmtDate = d => { if (!d) return ''; const s = String(d); if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4); const x = new Date(d); return isNaN(x) ? s : String(x.getDate()).padStart(2, '0') + '.' + String(x.getMonth() + 1).padStart(2, '0') + '.' + x.getFullYear(); };
   R.fmtK = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + 'k' : String(n);
-  R.fmtNum = (n, d) => Number(n || 0).toLocaleString('de-AT', { maximumFractionDigits: d == null ? 0 : d });
-  R.hs = (type, id) => 'https://app.hubspot.com/contacts/' + (C.HUBSPOT_PORTAL || '') + '/record/' + type + '/' + id;
 
   // ---------- helpers carried over from v1 (time, metrics, tables, quarter filters, tiny charts) ----------
   // ---- time ----
@@ -167,12 +250,10 @@
     const lb = String(dt.getUTCDate()).padStart(2, '0') + '.' + String(dt.getUTCMonth() + 1).padStart(2, '0') + '.' + dt.getUTCFullYear();
     return { key: R.isoWeek(ds), label: lb };
   };
-  R.fmtDate = ds => { if (!ds) return ''; const [y, m, d] = ds.slice(0, 10).split('-'); return d + '.' + m + '.' + y; };
   R.daysAgoIso = n => new Date(Date.now() - n * DAY).toISOString().slice(0, 10);
   R.pct = (a, b) => b ? Math.round(1000 * a / b) / 10 + '%' : '—';
   R.num = n => (n === null || n === undefined || n === '') ? '—' : Number(n).toLocaleString('de-AT');
   R.eur = n => (n === null || n === undefined || n === '') ? '—' : '€ ' + Math.round(Number(n)).toLocaleString('de-AT');
-  R.esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   R.hs = (type, id) => 'https://app.hubspot.com/contacts/' + C.HUBSPOT_PORTAL + '/record/' + type + '/' + id;
   R.runMeta = function (runLogRow, onReload) {
     const el = document.getElementById('runmeta');

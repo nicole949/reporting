@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 64" role="img" aria-label="JENTIS">
+  <!-- Placeholder: replace with the official JENTIS logo SVG (dark text version), same filename. -->
+  <g>
+    <circle cx="10" cy="14" r="6" fill="#E4572E"/><circle cx="28" cy="14" r="6" fill="#F3A712"/>
+    <circle cx="10" cy="32" r="6" fill="#1FA294"/><circle cx="28" cy="32" r="6" fill="#14506C"/>
+    <circle cx="10" cy="50" r="6" fill="#A8C256"/><circle cx="28" cy="50" r="6" fill="#E4572E"/>
+  </g>
+  <text x="48" y="48" font-family="Noto Sans, Arial, sans-serif" font-size="44" font-weight="700" letter-spacing="2" fill="#FFFFFF">JENTIS</text>
+</svg>

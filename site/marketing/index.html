@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marketing overview · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700;800&family=Instrument+Sans:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?b=__BUILD__">
+<link rel="stylesheet" href="../assets/legacy.css?b=__BUILD__">
+<style>
+/* goal overachievement */
+.gstat.done{color:#1FA294;background:rgba(31,162,148,.12)}
+.gplus{display:inline-block;margin-left:.4rem;padding:.05rem .45rem;border-radius:999px;font-size:.72rem;font-weight:700;color:#fff;background:#1FA294;vertical-align:middle}
+.goal.over .fill{background:linear-gradient(90deg,#1FA294,#14506C)}
+/* quarter picker + former-quarter (closed) view */
+.qpick{display:inline-flex;align-items:center;gap:.5rem;margin-top:.35rem}
+.qpick select{font:inherit;font-size:.8rem;font-weight:600;padding:.25rem .5rem;border:1px solid var(--hair);border-radius:8px;background:var(--panel);color:var(--ink,#1E2A33);cursor:pointer}
+.qpick select option{color:var(--ink,#1E2A33);background:var(--panel,#fff)}
+.hero.past{background:#F1F4F6;border:1px dashed #C9D2DA;box-shadow:none}
+.hero.past .eyebrow::after{content:' · closed quarter';color:#7A8A96;font-weight:600}
+.hero.past .goal strong{color:#4A5B68}
+.hero.past .goal .fill{background:#9AA9B5 !important}
+.hero.past .goal .track{background:#E1E6EA}
+.hero.past .goal.over .fill{background:#6FA89A !important}
+.hero.past .elapsed{display:none}
+.hero.past .count .n{color:#7A8A96}
+.gstat.missed{color:#B3473C;background:rgba(179,71,60,.12)}
+.pastnote{font-size:.78rem;color:#7A8A96;margin-top:.5rem}
+.goal.gclick{cursor:pointer;border-radius:10px;transition:background .12s}
+.goal.gclick:hover{background:rgba(255,255,255,.08);outline:1px solid rgba(255,255,255,.18)}
+.hero.past .goal.gclick:hover{background:rgba(20,80,108,.06);outline-color:rgba(20,80,108,.2)}
+/* drilldown as a side panel (drawer) instead of a box at the bottom */
+.trend-drill{position:fixed;top:0;right:0;height:100vh;width:min(470px,94vw);overflow-y:auto;z-index:60;margin:0;border-radius:0;box-shadow:-10px 0 34px rgba(20,40,60,.18);animation:drillin .18s ease-out}
+@keyframes drillin{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+.trend-drill h2{padding-right:2.6rem}
+.trend-drill .dclose{position:absolute;top:.7rem;right:.8rem;width:30px;height:30px;border:1px solid var(--hair);background:var(--panel);border-radius:999px;cursor:pointer;font-size:.95rem;color:var(--slate);line-height:1}
+.trend-drill .dclose:hover{background:var(--paper)}
+/* small page links under each chart */
+.clinks{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem;padding-top:.55rem;border-top:1px solid var(--hair)}
+.clink{display:inline-flex;align-items:center;gap:.35rem;font-size:.74rem;font-weight:600;color:#14506C;background:rgba(20,80,108,.08);border-radius:999px;padding:.2rem .65rem;text-decoration:none}
+.clink:hover{background:rgba(20,80,108,.16)}
+.clink span{font-weight:400;color:var(--slate)}
+</style>
+</head>
+<body>
+<div id="shell"></div>
+<div id="page-content" hidden>
+  <div class="hero">
+    <div class="top">
+      <div><div class="eyebrow">Goals</div><h2 id="q-label">This quarter</h2><div class="qsub" id="q-sub">Loading…</div>
+        <div class="qpick" id="qpick" style="display:none"><select id="q-sel" title="Show the goals of a former quarter (final results, muted)"></select></div></div>
+      <div class="count"><div class="n" id="q-days">–</div><div class="l" id="q-days-l">days left in the quarter</div></div>
+    </div>
+    <div class="elapsed"><div class="gl"><span>Time elapsed in this quarter</span><strong id="el-pct"></strong></div>
+      <div class="track"><div class="fill" id="el-fill"></div></div></div>
+    <div class="goals" id="goals"></div>
+    <div class="nogoals" id="nogoals" style="display:none">
+      No goals set yet — add rows to the <strong>Goals</strong> tab in the reporting sheet
+      (metric · period · target · label); goals-sync brings them here daily.
+    </div>
+  </div>
+
+  <div class="sechead">This week</div>
+  <div class="metrics" id="m-this" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))"></div>
+  <div class="sechead">Last week · vs the week before</div>
+  <div class="metrics" id="m-last" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))"></div>
+
+  <div class="sechead" style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
+    <span id="ct-title">Trends · weekly</span>
+    <select id="f-cgran" style="font:inherit;font-size:.8rem;padding:.25rem .5rem;border:1px solid var(--hair);border-radius:8px;background:var(--panel)">
+      <option value="weekly" selected>Weekly</option><option value="monthly">Monthly</option>
+      <option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select>
+  </div>
+  <div class="grid2" id="charts"></div>
+  <div class="card trend-drill" id="trend-drill" style="display:none">
+    <button class="dclose" id="drill-close" title="Close (Esc)">✕</button>
+    <h2 id="drill-h"></h2><div id="drill-list"></div>
+  </div>
+
+  <footer>Data from the reporting database, filled by n8n workflows · goals maintained in the reporting sheet · Reload data re-fetches from the database without reloading the page · Build <span id="b"></span></footer>
+</div>
+<script src="../assets/config.js?b=__BUILD__"></script>
+<script src="../assets/app.js?b=__BUILD__"></script>
+<script>
+R.shell({ page: 'mkt-overview', title: 'Marketing overview', subtitle: 'Goals, the week at a glance, and 90-day trends across the funnel' });
+document.getElementById('b').textContent = R.C.BUILD;
+const GOAL_KIND = { responded:'entries', discovery:'entries', qualified:'chained', opportunity:'entries', customer:'newcust', calls:'calls', won_value:'deals' };
+
+// Qualified builds on Discoveries: a company counts as qualified in a period only if it entered
+// Qualified in that period AND had its discovery booked (Discovery stage entry) in the same period.
+function chainedQualified(entries, from, to){
+  const disc = new Set((entries || []).filter(e => e.stage === 'discovery' && e.effective_date >= from && e.effective_date < to).map(e => String(e.company_id)));
+  const seen = new Set();
+  return (entries || []).filter(e => e.stage === 'qualified' && e.effective_date >= from && e.effective_date < to && disc.has(String(e.company_id)))
+    .filter(e => { const k = String(e.company_id); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+
+// "Customers signed" = won deals of type "Full License (New Business)", dated by close date.
+// Renewals, upsells, Light licences, agency/partner-type deals and plain lifecycle-stage flips
+// (which used to be counted via company_stage_entries) are deliberately NOT new customers.
+// A company that churned and signs a new full licence later shows up again (new NB deal);
+// several NB deals of one company closed in the same week count once.
+const NEW_CUSTOMER_DEALTYPE = /^full license \(new business\)$/i;
+function newCustomers(won){
+  if (!won) return null;
+  const seen = new Set();
+  return won.filter(d => NEW_CUSTOMER_DEALTYPE.test(String(d.dealtype || '').trim()) && d.close_date)
+    .sort((a, b) => String(a.close_date).localeCompare(String(b.close_date)))
+    .filter(d => { const k = (d.company_id || d.company_name || d.deal_id) + '|' + R.periodOf(String(d.close_date).slice(0, 10), 'weekly').key;
+      if (seen.has(k)) return false; seen.add(k); return true; });
+}
+let D = {};
+
+async function init(){
+  const Q = R.quarter();
+  document.getElementById('q-label').textContent = Q.label.replace('-', ' · ');
+  document.getElementById('q-sub').textContent = Q.pctGone + '% of the quarter elapsed';
+  document.getElementById('q-days').textContent = Q.daysLeft;
+  const from90 = R.daysAgoIso(97);
+  // calls and won deals are loaded back to the start of last year so former quarters' goals can be re-computed
+  const histFrom = (new Date().getFullYear() - 1) + '-01-01';
+  const get = q => R.fetchAll(q).catch(() => null);
+  const [entries, dims, goals, calls, deals, discos, emailDaily, replies, wonQ, rl, lsr, respEv, outreach] = await Promise.all([
+    get('company_stage_entries?suppressed=eq.false&select=company_id,stage,effective_date'),
+    get('company_dimensions?select=company_id,name'),
+    get('v_goals?select=*'),
+    get('v_calls?select=ts,bucket,contact_id,contact_name,company_id,company_name,disposition_label&ts=gte.' + histFrom),
+    get('v_deals?select=deal_id,deal_name,company_name,create_date,amount,dealtype&create_date=gte.' + from90),
+    get('v_discoveries?select=meeting_id,company_id,company_name,contact_name,meeting_start,status&meeting_start=gte.' + histFrom),
+    get('v_email_daily?select=date,sends&date=gte.' + from90),
+    get('v_email_replies?select=date,contact_id&date=gte.' + from90),
+    get('v_deals?select=deal_id,deal_name,company_id,company_name,amount,dealtype,partner_name,is_won,close_date&is_won=eq.true&close_date=gte.' + histFrom),
+    get('run_log?order=run_ts.desc&limit=1'),
+    get('v_contact_responded?select=contact_id,contact_name,company_id,company_name,responded_at,source'),
+    get('v_responded_events?select=channel,contact_id,contact_name,company_id,company_name,ts,snippet&ts=gte.' + from90),
+    get('v_outreach_events?select=channel,ts,n,contact_name,company_name,snippet&ts=gte.' + from90)
+  ]);
+  D = { entries, dims: Object.fromEntries((dims || []).map(d => [d.company_id, d.name])),
+        goals, calls, deals, discos, emailDaily, replies, wonQ, Q, lsr, respEv, outreach,
+        newCust: newCustomers(wonQ) };
+  R.runMeta(rl && rl[0] ? rl[0] : null, init);
+  buildQuarterPicker();
+  renderGoals(); renderWeekRows(); renderCharts();
+}
+
+// ---- former quarters: goals of closed quarters stay viewable (muted) ----
+function quarterFromLabel(label){
+  const m = /^(\d{4})-Q([1-4])$/.exec(String(label || ''));
+  if (!m) return null;
+  const y = +m[1], q = +m[2] - 1;
+  const start = new Date(y, q * 3, 1), end = new Date(y, q * 3 + 3, 1), now = new Date();
+  const past = end <= now;
+  return { label, year: String(y), startIso: start.toISOString().slice(0, 10), endIso: end.toISOString().slice(0, 10),
+    daysLeft: past ? 0 : Math.max(0, Math.ceil((end - now) / 86400000)),
+    pctGone: past ? 100 : Math.min(100, Math.round(100 * (now - start) / (end - start))), past };
+}
+function buildQuarterPicker(){
+  const sel = document.getElementById('q-sel'), box = document.getElementById('qpick');
+  const cur = D.Q.label;
+  const former = [...new Set((D.goals || []).map(g => g.period).filter(p => /^\d{4}-Q[1-4]$/.test(p) && p < cur))].sort().reverse();
+  if (!former.length) { box.style.display = 'none'; return; }
+  sel.innerHTML = '<option value="' + cur + '">' + cur.replace('-', ' · ') + ' (current)</option>' +
+    former.map(p => '<option value="' + p + '">' + p.replace('-', ' · ') + ' · closed</option>').join('');
+  sel.value = (D.view && D.view.label) || cur;
+  box.style.display = '';
+  sel.onchange = () => { D.view = sel.value === cur ? null : quarterFromLabel(sel.value); renderGoals(); };
+}
+
+const wkOf = ds => R.isoWeek(String(ds).slice(0,10));
+function lastWeeks(n){
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) out.push(R.periodOf(new Date(Date.now() - i * 7 * 86400000).toISOString().slice(0,10), 'weekly'));
+  return out;
+}
+
+function renderGoals(){
+  const { goals, entries, calls, wonQ } = D;
+  const Q = D.view || D.Q;              // D.view = a former (closed) quarter chosen in the picker
+  const past = !!Q.past;
+  const wrap = document.getElementById('goals'), none = document.getElementById('nogoals');
+  const hero = document.querySelector('.hero');
+  if (hero) hero.classList.toggle('past', past);
+  document.getElementById('q-label').textContent = Q.label.replace('-', ' · ');
+  document.getElementById('q-sub').textContent = past ? 'closed quarter · final result' : Q.pctGone + '% of the quarter elapsed';
+  document.getElementById('q-days').textContent = past ? '✓' : Q.daysLeft;
+  document.getElementById('q-days-l').textContent = past ? 'quarter closed' : 'days left in the quarter';
+  document.getElementById('el-pct').textContent = Q.pctGone + '%';
+  document.getElementById('el-fill').style.width = Q.pctGone + '%';
+  const yearGone = Math.round(100 * (Date.now() - Date.parse(Q.year + '-01-01')) / (Date.parse((+Q.year + 1) + '-01-01') - Date.parse(Q.year + '-01-01')));
+  const active = (goals || []).filter(g => g.period === Q.label || (!past && g.period === Q.year));
+  if (!active.length) { none.style.display = ''; wrap.innerHTML = ''; return; }
+  none.style.display = 'none';
+  wrap.innerHTML = active.map((g, gi) => {
+    let actual = 0;
+    const from = g.period === Q.year ? Q.year + '-01-01' : Q.startIso;
+    const to = g.period === Q.year ? (+Q.year + 1) + '-01-01' : Q.endIso;
+    if (g.metric === 'responded' && D.lsr)
+      // unique contacts that entered lead status "Responded" in the period —
+      // responded_at is each contact's first entry, so every contact counts exactly once
+      actual = D.lsr.filter(x => { const d = String(x.responded_at || '').slice(0, 10);
+        return d >= from && d < to; }).length;
+    else if (GOAL_KIND[g.metric] === 'entries' && entries)
+      actual = entries.filter(e => e.stage === g.metric && e.effective_date >= from && e.effective_date < to).length;
+    else if (GOAL_KIND[g.metric] === 'chained' && entries)
+      actual = chainedQualified(entries, from, to).length;
+    else if (GOAL_KIND[g.metric] === 'newcust' && D.newCust)
+      actual = D.newCust.filter(d => { const c = String(d.close_date).slice(0, 10); return c >= from && c < to; }).length;
+    else if (g.metric === 'calls' && calls) actual = calls.filter(c => { const d = String(c.ts).slice(0,10); return d >= from && d < to; }).length;
+    else if (g.metric === 'won_value' && wonQ) actual = wonQ.filter(d => { const c = String(d.close_date || '').slice(0,10); return c >= from && c < to; }).reduce((s, d) => s + (Number(d.amount) || 0), 0);
+    const target = Number(g.target) || 0;
+    // pct is deliberately NOT capped: overachievement (e.g. 22 / 18 = 122 %) is shown as such;
+    // only the bar width is clamped to the track.
+    const pct = target ? Math.round(100 * actual / target) : 0;
+    const width = Math.min(100, pct);
+    const elapsed = g.period === Q.year ? yearGone : Q.pctGone;
+    const diff = pct - elapsed;
+    const over = pct >= 100;
+    const stat = over ? ['done','✓ ' + (pct > 100 ? 'overachieved' : 'reached')]
+      : past ? ['missed','✗ missed']
+      : diff >= 5 ? ['ahead','● ahead'] : diff <= -5 ? ['behind','● behind'] : ['ontrack','● on track'];
+    const surplus = over && actual > target ? ' <span class="gplus">+' + R.num(actual - target) + '</span>' : '';
+    return '<div class="goal gclick' + (over ? ' over' : '') + '" data-gi="' + gi + '" title="Click to list the companies / contacts behind this number"><div class="gl"><span>' + R.esc(g.label || g.metric) +
+      '<span class="gstat ' + stat[0] + '">' + stat[1] + '</span></span><strong>' +
+      R.num(actual) + ' / ' + R.num(target) + surplus + '</strong></div>' +
+      '<div class="track"><div class="fill' + (over ? ' done' : '') + '" style="width:' + width + '%"></div></div>' +
+      '<div class="pctl">' + pct + '% of goal · ' + (past ? 'final' : elapsed + '% of the period elapsed') + ' · ' + R.esc(g.period) +
+      (GOAL_KIND[g.metric] === 'chained' ? ' · <span title="Only companies whose discovery was booked in the same period count — the Qualified goal builds on the Discoveries goal.">of this period’s discoveries</span>' : '') +
+      (GOAL_KIND[g.metric] === 'newcust' ? ' · <span title="Won deals of type Full License (New Business); renewals, upsells and Light licences are not new customers.">new full licences</span>' : '') + '</div></div>';
+  }).join('') + (past ? '<div class="pastnote">Final numbers as the data stands today — stage entries and responded contacts are recomputed from HubSpot history, so late corrections in HubSpot are reflected here.</div>' : '');
+  wrap.querySelectorAll('.goal.gclick').forEach(el => el.addEventListener('click', () => goalDrill(active[Number(el.dataset.gi)], Q)));
+}
+
+// Per-week metric values. Responded is CONTACT-based: unique contacts with a
+// connected call or a reply to one of our emails in that week.
+function periodsBack(gran, n){
+  const seen = new Map();
+  for (let t = Date.now(); seen.size <= n + 1; t -= 86400000) {
+    const p = R.periodOf(new Date(t).toISOString().slice(0, 10), gran);
+    if (!seen.has(p.key)) seen.set(p.key, p.label);
+    if (t < Date.parse('2019-01-01')) break;
+  }
+  return [...seen.entries()].map(([key, label]) => ({ key, label })).sort((a, b) => a.key < b.key ? -1 : 1).slice(-n);
+}
+function weekVals(weekKeys, gran){
+  const pOf = d => R.periodOf(String(d).slice(0, 10), gran || 'weekly').key;
+  const { entries, calls, deals, discos, emailDaily, replies } = D;
+  const cnt = (rows, dateOf, pred) => weekKeys.map(w => (rows || []).filter(r => (!pred || pred(r)) && pOf(dateOf(r)) === w).length);
+  const stage = s => cnt(entries, r => r.effective_date, r => r.stage === s);
+  const callsAll = cnt(calls, r => r.ts);
+  const callsConn = cnt(calls, r => r.ts, r => r.bucket === 'connected' || r.bucket === 'rejected');
+  const responded = weekKeys.map(w => {
+    if (D.lsr && D.lsr.length)
+      return D.lsr.filter(x => x.responded_at && pOf(x.responded_at) === w).length;
+    const set = new Set();   // fallback (pre-sync): connected calls + email replies
+    for (const c of (calls || [])) if (c.bucket === 'connected' && pOf(c.ts) === w) set.add('c' + (c.contact_id || Math.random()));
+    for (const r of (replies || [])) if (r.date && pOf(r.date) === w) set.add('c' + (r.contact_id || Math.random()));
+    return set.size;
+  });
+  return {
+    emails: { label: 'Sequence emails sent', na: !emailDaily,
+      v: weekKeys.map(w => (emailDaily || []).filter(r => pOf(r.date) === w).reduce((s, r) => s + (Number(r.sends) || 0), 0)) },
+    calls: { label: 'Calls', na: !calls, v: callsAll,
+      rate: callsAll.map((n, i) => n ? Math.round(100 * callsConn[i] / n) : null) },
+    responded: { label: 'Contacts \u2192 lead status Responded', na: !D.lsr && !calls && !D.replies, v: responded },
+    resp: respMetric(weekKeys, pOf),
+    outreach_email: outreachMetric(weekKeys, pOf, 'email'),
+    outreach_li: outreachMetric(weekKeys, pOf, 'li'),
+    disc: { label: 'Discoveries entered', na: !entries, v: stage('discovery') },
+    deals: { label: 'Deals created (NB + POC)', na: !deals, v: cnt(deals, r => r.create_date, r => bucketOf(r.dealtype) !== 'Existing Business') },
+    cust: { label: 'Customers signed', na: !D.newCust, v: cnt(D.newCust, r => r.close_date) }
+  };
+}
+const ORDER_M = ['emails','calls','responded','disc','deals','cust'];
+
+// Outreach sent — volumes per channel (messages/emails, not unique contacts), split into two
+// charts because email volume (thousands/week) would flatten LinkedIn (tens/week) on one scale.
+// Sources: v_outreach_events (HubSpot sequence sends per day, LinkedIn messages we sent,
+// LGM connection requests, Instantly sends per day).
+const OUT_CH = [
+  { key:'email',              group:'email', label:'Sequence emails (HubSpot)', icon:'✉️', color:'#E98862' },
+  { key:'instantly',          group:'email', label:'Other sequences (Instantly)', icon:'📨', color:'#3F8FBF' },
+  { key:'linkedin_message',   group:'li',    label:'LinkedIn messages',        icon:'🔗', color:'#14506C' },
+  { key:'connection_request', group:'li',    label:'Connection requests',      icon:'🤝', color:'#7FB3CE' },
+  { key:'follow',             group:'li',    label:'Follows (LGM)',            icon:'👣', color:'#A9C7D8' }
+];
+function outreachMetric(weekKeys, pOf, group){
+  const ev = D.outreach;
+  const chs = OUT_CH.filter(c => c.group === group);
+  const label = group === 'email' ? 'Email outreach sent' : 'LinkedIn outreach sent';
+  if (!ev) return { label, na: true, v: weekKeys.map(() => 0) };
+  const sum = (rows) => weekKeys.map(w => rows.filter(r => pOf(r.ts) === w).reduce((s, r) => s + (Number(r.n) || 0), 0));
+  const perCh = chs.map(ch => sum(ev.filter(r => r.channel === ch.key)));
+  const tot = weekKeys.map((w, i) => perCh.reduce((s, serie) => s + serie[i], 0));
+  return { label, na: false, v: tot,
+    stacks: { labels: chs.map(c => c.label), colors: chs.map(c => c.color), keys: chs.map(c => c.key), data: perCh, showInside: true } };
+}
+
+// Responded by channel — positive email replies, positive LinkedIn replies, connected calls
+// (incl. meeting booked). A contact counts ONCE per channel per period, but may appear in
+// several channels; the number on top of the bar is the unique contacts across channels.
+const RESP_CH = [
+  { key:'email',    label:'Email replies',    icon:'✉️', color:'#7FB3CE' },
+  { key:'linkedin', label:'LinkedIn replies', icon:'🔗', color:'#14506C' },
+  { key:'call',     label:'Connected calls',  icon:'📞', color:'#E98862' }
+];
+const contactKey = r => r.contact_id ? 'c' + r.contact_id : 'n' + (r.contact_name || Math.random());
+function respMetric(weekKeys, pOf){
+  const ev = D.respEv;
+  if (!ev) return { label: 'Responded', na: true, v: weekKeys.map(() => 0) };
+  const uniq = weekKeys.map(w => new Set(ev.filter(r => pOf(r.ts) === w).map(contactKey)).size);
+  const perCh = RESP_CH.map(ch => weekKeys.map(w =>
+    new Set(ev.filter(r => r.channel === ch.key && pOf(r.ts) === w).map(contactKey)).size));
+  return { label: 'Responded', na: false, v: uniq,
+    stacks: { labels: RESP_CH.map(c => c.label), colors: RESP_CH.map(c => c.color), keys: RESP_CH.map(c => c.key), data: perCh, topIsUnique: true } };
+}
+
+function renderWeekRows(){
+  const wks = lastWeeks(3).map(w => w.key); // [before-last, last, this]
+  const M = weekVals(wks);
+  const card = (m, idx, sub) => {
+    if (m.na) return '<div class="metric"><div class="label">' + m.label + '</div><div class="val">—</div><div class="sub">pipeline pending</div></div>';
+    let extra = '';
+    if (m.rate && m.rate[idx] !== null && m.rate[idx] !== undefined)
+      extra = '<div class="sub">' + m.rate[idx] + '% connected</div>';
+    return '<div class="metric"><div class="label">' + m.label + '</div><div class="val">' + R.num(m.v[idx]) + '</div>' + extra + (sub || '') + '</div>';
+  };
+  const delta=(a,b)=>{ // b vs a
+    if(!(a>0||b>0)) return '<span class="arrow flat">·</span>';
+    const d=a===0?(b>0?100:0):Math.round(100*(b-a)/a);
+    return d>0?'<span class="arrow up">▲ +'+d+'%</span>':d<0?'<span class="arrow down">▼ '+d+'%</span>':'<span class="arrow flat">＝ 0%</span>';
+  };
+  document.getElementById('m-this').innerHTML = ORDER_M.map(k => {
+    const m = M[k];
+    if (m.na) return card(m, 2);
+    return card(m, 2, '<div class="sub">vs last week ' + delta(m.v[1], m.v[2]) + '</div>');
+  }).join('');
+  document.getElementById('m-last').innerHTML = ORDER_M.map(k => {
+    const m = M[k];
+    if (m.na) return card(m, 1);
+    const prev = m.v[0], last = m.v[1];
+    let arrow = '<span class="arrow flat">·</span>';
+    if (prev > 0 || last > 0) {
+      const d = prev === 0 ? (last > 0 ? 100 : 0) : Math.round(100 * (last - prev) / prev);
+      arrow = d > 0 ? '<span class="arrow up">▲ +' + d + '%</span>' : d < 0 ? '<span class="arrow down">▼ ' + d + '%</span>' : '<span class="arrow flat">＝ 0%</span>';
+    }
+    return card(m, 1, '<div class="sub">vs week before ' + arrow + '</div>');
+  }).join('');
+}
+
+// links: where to dig deeper (pages of this site, relative to the root)
+const L = {
+  seq:   { label: 'Sequences',        sub: 'per sequence & step',          href: 'sequences/index.html' },
+  subj:  { label: 'Subject lines',    sub: 'what earns opens & replies',    href: 'subjects/index.html' },
+  resp:  { label: 'Responses',        sub: 'who responded, by channel',     href: 'responded/index.html' },
+  calls: { label: 'Calls',            sub: 'call outcomes',                 href: 'calls/index.html' },
+  disc:  { label: 'Discoveries',      sub: 'meetings & outcomes',           href: 'discoveries/index.html' },
+  deals: { label: 'Deals',            sub: 'pipeline & won deals',          href: 'deals/index.html' },
+  leads: { label: 'Leads',            sub: 'lifecycle cohorts',             href: 'leads/index.html' },
+  cs:    { label: 'Customer Success', sub: 'book of business',              href: 'cs-customers/index.html' }
+};
+const CHARTS = [
+  { id:'outreach_email', color:'#E98862', click:true, links:[L.seq, L.subj] }, { id:'outreach_li', color:'#14506C', click:true, links:[L.resp] },
+  { id:'calls', color:'#14506C', links:[L.calls] },
+  { id:'resp', color:'#14506C', click:true, links:[L.resp, L.leads] },
+  { id:'disc', color:'#1FA294', click:true, links:[L.disc, L.leads] }, { id:'deals', color:'#E98862', click:true, links:[L.deals] },
+  { id:'cust', color:'#C4574E', click:true, wide:true, links:[L.cs, L.deals] }
+];
+const chartLinks = c => (c.links || []).length ? '<div class="clinks">' + c.links.map(l =>
+  '<a class="clink" href="' + l.href + '" title="' + R.esc(l.sub) + '">' + R.esc(l.label) + ' <span>→</span></a>').join('') + '</div>' : '';
+
+const CGRAN_N = { weekly: 13, monthly: 12, quarterly: 8, yearly: 6 };
+// Deal buckets for the Overview: only "Full License (New Business)" and POC deals are shown;
+// renewals, upsells, Professional Service, Light, Goodwill, Other … are 'Existing Business' (hidden).
+const bucketOf = t => /poc/i.test(t || '') ? 'POC'
+  : /new\s*business/i.test(t || '') ? 'New Business' : 'Existing Business';
+function renderCharts(){
+  const gran = document.getElementById('f-cgran').value;
+  const weeks = periodsBack(gran, CGRAN_N[gran]);
+  const M = weekVals(weeks.map(w => w.key), gran);
+  const box = document.getElementById('charts');
+  document.getElementById('ct-title').textContent = 'Trends · ' + gran + ' · last ' + weeks.length + ' ' +
+    ({weekly:'weeks',monthly:'months',quarterly:'quarters',yearly:'years'}[gran]);
+  const pOf = d => R.periodOf(String(d).slice(0, 10), gran).key;
+  const BUCKETS = ['New Business','POC'];
+  const BCOLORS = ['#14506C','#7FB3CE'];
+  const dealStacks = (D.deals || []).length ? {
+    labels: BUCKETS, colors: BCOLORS,
+    data: BUCKETS.map(b => weeks.map(w => (D.deals || []).filter(r => bucketOf(r.dealtype) === b && pOf(r.create_date) === w.key).length))
+  } : null;
+  box.innerHTML = CHARTS.map(c => {
+    const m = M[c.id];
+    let head = '<h2>' + m.label;
+    if (c.id === 'calls' && m.rate) {
+      const rs = m.rate.filter(x => x !== null);
+      if (rs.length) head += ' <span>· Ø ' + Math.round(rs.reduce((a, b) => a + b, 0) / rs.length) + '% connected</span>';
+    }
+    if (c.id === 'resp') head += ' <span>· unique contacts, by channel</span>';
+    if (c.id === 'outreach_email') head += ' <span>· HubSpot sequences + Instantly</span>';
+    if (c.id === 'outreach_li') head += ' <span>· messages + connection requests + follows (LGM)</span>';
+    head += '</h2>';
+    const cardOpen = '<div class="card"' + (c.wide ? ' style="grid-column:1 / -1"' : '') + '>';
+    if (m.na) return cardOpen + head + '<div class="pending" style="padding:1.4rem"><div class="pill">Data pipeline pending</div></div>' + chartLinks(c) + '</div>';
+    const stacks = c.id === 'deals' ? dealStacks : (c.id === 'resp' || c.id.startsWith('outreach') ? m.stacks : null);
+    let legend = '';
+    if (stacks) legend = '<div style="display:flex;flex-wrap:wrap;gap:.35rem 1.1rem;align-items:center;margin-top:.45rem;font-size:.76rem;color:var(--slate)">' +
+      stacks.labels.map((t, i) => '<span style="display:inline-flex;align-items:center;gap:.4rem"><span style="width:10px;height:10px;border-radius:3px;background:' + stacks.colors[i] + ';display:inline-block"></span>' + R.esc(t) + '</span>').join('') +
+      (stacks.topIsUnique ? '<span style="margin-left:auto;color:var(--faint)" title="A contact can appear in more than one stack; the number on top counts each contact once. Click a stack to list its responses.">click a stack for details</span>'
+        : (c.click ? '<span style="margin-left:auto;color:var(--faint)" title="Click a stack to list what went out in that period.">click a stack for details</span>' : '')) + '</div>';
+    return cardOpen + head + miniChart(m, weeks, c, stacks, c.wide ? 940 : 460) + legend + chartLinks(c) + '</div>';
+  }).join('');
+  box.querySelectorAll('.trend-pt').forEach(b => b.addEventListener('click', () => drill(b.dataset.s, b.dataset.w, b.dataset.l, b.dataset.ch)));
+}
+document.getElementById('f-cgran').addEventListener('change', () => D.entries !== undefined && renderCharts());
+
+function miniChart(m, weeks, c, stacks, width){
+  const W = width || 460, H = 170, padB = 22, padT = 20;
+  // stacked bars are sized by the stack sum (channels can overlap, so it may exceed the top number)
+  const tot = stacks ? weeks.map((w, i) => stacks.data.reduce((s, serie) => s + (serie[i] || 0), 0)) : m.v;
+  const max = Math.max(1, ...tot);
+  const bw = Math.max(8, (W - 10) / weeks.length - 6);
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="chart">';
+  if (stacks) svg += '<style>.trend-pt:hover{filter:brightness(1.12)}.stk-n{font-size:9px;font-weight:600;fill:#fff;pointer-events:none}</style>';
+  weeks.forEach((w, i) => {
+    const x = Math.round(6 + i * ((W - 12) / weeks.length));
+    if (i % 2 === 0) svg += '<text x="' + (x + bw / 2) + '" y="' + (H - 4) + '" text-anchor="middle">' + w.label.slice(0, 5) + '</text>';
+    const v = m.v[i];
+    const h = Math.round((H - padT - padB) * tot[i] / max);
+    const y = H - padB - h;
+    const clickBase = c.click && tot[i] > 0 ? ' class="trend-pt" style="cursor:pointer" data-s="' + c.id + '" data-w="' + w.key + '" data-l="' + w.label + '"' : '';
+    if (stacks) {
+      let yCur = H - padB;
+      stacks.data.forEach((serie, si) => {
+        const sv = serie[i];
+        if (!sv) return;
+        const sh = Math.round((H - padT - padB) * sv / max);
+        yCur -= sh;
+        const chAttr = stacks.keys ? ' data-ch="' + stacks.keys[si] + '"' : '';
+        svg += '<rect' + clickBase + chAttr + ' x="' + x + '" y="' + yCur + '" width="' + bw + '" height="' + Math.max(sh - 1, 1) + '" rx="2" fill="' + stacks.colors[si] + '"><title>' + w.label + ' · ' + stacks.labels[si] + ': ' + sv + (c.click ? ' — click to list' : '') + '</title></rect>';
+        if ((stacks.topIsUnique || stacks.showInside) && sh >= 13) svg += '<text class="stk-n" x="' + (x + bw / 2) + '" y="' + (yCur + sh / 2 + 3) + '" text-anchor="middle">' + sv + '</text>';
+      });
+      if (!tot[i]) svg += '<rect x="' + x + '" y="' + (H - padB - 1) + '" width="' + bw + '" height="1" fill="var(--hair)"/>';
+    } else {
+      svg += '<rect' + clickBase + ' x="' + x + '" y="' + y + '" width="' + bw + '" height="' + Math.max(h, 1) + '" rx="3" fill="' + c.color + '" opacity="' + (v ? '0.85' : '0.25') + '"><title>' + w.label + ': ' + v +
+        (m.rate && m.rate[i] !== null && m.rate[i] !== undefined ? ' (' + m.rate[i] + '% connected)' : '') + '</title></rect>';
+    }
+    svg += '<text x="' + (x + bw / 2) + '" y="' + (y - 4) + '" text-anchor="middle" style="font-weight:600;fill:' + (v ? (stacks ? 'var(--ink)' : c.color) : 'var(--faint)') + '">' + v + '</text>';
+  });
+  if (m.rate) {
+    const pts = m.rate.map((r, i) => r === null ? null :
+      (6 + i * ((W - 12) / weeks.length) + bw / 2) + ',' + (padT + (H - padT - padB) * (1 - r / 100))).filter(Boolean);
+    if (pts.length > 1) svg += '<polyline fill="none" stroke="#1FA294" stroke-width="1.8" stroke-dasharray="4 3" points="' + pts.join(' ') + '"><title>connect rate</title></polyline>';
+  }
+  return svg + '</svg>';
+}
+
+function drill(sid, wk, wl, ch){
+  const { entries, dims, deals, discos } = D;
+  const box = document.getElementById('trend-drill');
+  const h = document.getElementById('drill-h'), list = document.getElementById('drill-list');
+  let rows = [], title = '';
+  if (String(sid).startsWith('outreach') && D.outreach) {
+    const gran = document.getElementById('f-cgran').value;
+    const chDef = OUT_CH.find(x => x.key === ch) || OUT_CH[0];
+    const ev = D.outreach.filter(r => r.channel === chDef.key && R.periodOf(String(r.ts).slice(0, 10), gran).key === wk)
+      .sort((a, b) => a.ts < b.ts ? 1 : -1);
+    const total = ev.reduce((s, r) => s + (Number(r.n) || 0), 0);
+    h.textContent = chDef.icon + ' ' + chDef.label + ' · ' + wl + ' · ' + R.num(total);
+    const perDay = chDef.key === 'email' || chDef.key === 'instantly';
+    list.innerHTML = ev.length ? ev.map(r => {
+      if (perDay) return '<div class="co" style="display:block;padding:.4rem 0;border-bottom:1px solid var(--hair)"><div class="nm">' + R.fmtDate(String(r.ts)) + '</div><div class="meta">' + R.num(r.n) + ' sent</div></div>';
+      const who = R.esc(r.contact_name || 'Unknown') + (r.company_name ? ' · ' + R.esc(r.company_name) : '');
+      const snip = r.snippet ? '<div style="font-size:.8rem;color:var(--slate);font-style:italic;border-left:3px solid ' + chDef.color + ';padding:.3rem .55rem;margin-top:.25rem;border-radius:6px;background:var(--paper)">“' + R.esc(r.snippet) + '”</div>' : '';
+      return '<div class="co" style="display:block;padding:.5rem 0;border-bottom:1px solid var(--hair)"><div class="nm">' + who + '</div><div class="meta">' + R.fmtDate(String(r.ts)) + '</div>' + snip + '</div>';
+    }).join('') : '<div class="empty">Nothing in this period.</div>';
+    box.style.display = '';
+    box.scrollTop = 0;
+    return;
+  }
+  if (sid === 'resp' && D.respEv) {
+    // every response of the clicked channel in that period — one line per reply/call,
+    // so a contact who also responded elsewhere still shows up here
+    const gran = document.getElementById('f-cgran').value;
+    const chDef = RESP_CH.find(x => x.key === ch) || RESP_CH[0];
+    const ev = D.respEv.filter(r => r.channel === chDef.key && R.periodOf(String(r.ts).slice(0, 10), gran).key === wk)
+      .sort((a, b) => a.ts < b.ts ? 1 : -1);
+    const uniq = new Set(ev.map(contactKey)).size;
+    title = chDef.icon + ' ' + chDef.label + ' · ' + wl + ' · ' + uniq + ' contact' + (uniq === 1 ? '' : 's');
+    h.textContent = title;
+    list.innerHTML = ev.length ? ev.map(r => {
+      const who = r.contact_id ? '<a href="' + R.hs('0-1', r.contact_id) + '" target="_blank" rel="noopener">' + R.esc(r.contact_name || 'Contact ' + r.contact_id) + '</a>' : R.esc(r.contact_name || 'Unknown');
+      const co = r.company_id ? ' · <a href="' + R.hs('0-2', r.company_id) + '" target="_blank" rel="noopener">' + R.esc(r.company_name || dims[r.company_id] || '#' + r.company_id) + '</a>' : (r.company_name ? ' · ' + R.esc(r.company_name) : '');
+      const snip = r.snippet ? '<div style="font-size:.8rem;color:var(--slate);font-style:italic;border-left:3px solid ' + chDef.color + ';padding:.3rem .55rem;margin-top:.25rem;border-radius:6px;background:var(--paper)">“' + R.esc(r.snippet) + '”</div>' : '';
+      return '<div class="co" style="display:block;padding:.5rem 0;border-bottom:1px solid var(--hair)"><div class="nm">' + who + co + '</div><div class="meta">' + R.fmtDate(String(r.ts)) + '</div>' + snip + '</div>';
+    }).join('') : '<div class="empty">Nothing in this period.</div>';
+    box.style.display = '';
+    box.scrollTop = 0;
+    return;
+  }
+  if (sid === 'disc' && entries) {
+    // same source as the chart: companies that ENTERED the discovery stage this week
+    rows = entries.filter(r => r.stage === 'discovery' && wkOf(r.effective_date) === wk).map(r => {
+      const meet = (discos || []).find(d2 => String(d2.company_id || '') === String(r.company_id) );
+      return { n: dims[r.company_id] || (meet && meet.company_name) || ('#' + r.company_id),
+        m: ['entered ' + R.fmtDate(r.effective_date), meet ? 'meeting ' + R.fmtDate(meet.meeting_start) : null].filter(Boolean).join(' · ') };
+    });
+    title = 'Discoveries entered · week of ' + wl;
+  } else if (sid === 'deals' && deals) {
+    rows = deals.filter(r => bucketOf(r.dealtype) !== 'Existing Business' && wkOf(r.create_date) === wk).map(r => ({ n: r.deal_name || '—',
+      m: [r.company_name, r.dealtype, R.eur(r.amount)].filter(Boolean).join(' · ') }));
+    title = 'Deals created · week of ' + wl;
+  } else if (sid === 'cust' && D.newCust) {
+    rows = D.newCust.filter(r => wkOf(r.close_date) === wk)
+      .map(r => ({ n: r.company_name || D.dims[r.company_id] || r.deal_name || ('#' + r.company_id),
+        m: ['Full License (New Business)', R.eur(r.amount), 'closed ' + R.fmtDate(r.close_date), r.partner_name ? 'via ' + r.partner_name : null].filter(Boolean).join(' · ') }));
+    title = 'Customers signed · week of ' + wl;
+  }
+  h.textContent = title + ' · ' + rows.length;
+  list.innerHTML = rows.length ? rows.map(r => '<div class="co"><div style="min-width:0"><div class="nm">' +
+    R.esc(r.n) + '</div><div class="meta">' + R.esc(r.m) + '</div></div></div>').join('')
+    : '<div class="empty">Nothing in this week.</div>';
+  box.style.display = '';
+  box.scrollTop = 0;
+}
+// Goal drilldown: the companies / contacts / deals behind a goal number, for the goal's period
+function goalDrill(g, Q){
+  const from = g.period === Q.year ? Q.year + '-01-01' : Q.startIso;
+  const to = g.period === Q.year ? (+Q.year + 1) + '-01-01' : Q.endIso;
+  const inP = d => { const x = String(d || '').slice(0, 10); return x >= from && x < to; };
+  const { entries, dims, discos } = D;
+  const kind = GOAL_KIND[g.metric];
+  const co = (id, name) => id ? '<a href="' + R.hs('0-2', id) + '" target="_blank" rel="noopener">' + R.esc(name || dims[id] || ('#' + id)) + '</a>' : R.esc(name || '—');
+  const firstMeeting = cid => { const m = (discos || []).filter(d => String(d.company_id) === String(cid) && d.status !== 'canceled').sort((a, b) => a.meeting_start < b.meeting_start ? -1 : 1)[0]; return m ? m.meeting_start : null; };
+  let rows = [], sub = '';
+  if (g.metric === 'responded' && D.lsr) {
+    rows = D.lsr.filter(x => inP(x.responded_at)).sort((a, b) => a.responded_at < b.responded_at ? 1 : -1)
+      .map(x => ({ n: R.esc(x.contact_name || ('Contact ' + x.contact_id)) + (x.company_name || x.company_id ? ' · ' + co(x.company_id, x.company_name) : ''),
+        m: ['responded ' + R.fmtDate(x.responded_at), x.source].filter(Boolean).join(' · ') }));
+    sub = 'contacts that entered lead status Responded';
+  } else if (kind === 'chained' && entries) {
+    const discDate = {}; for (const e of entries) if (e.stage === 'discovery' && inP(e.effective_date)) discDate[e.company_id] = e.effective_date;
+    rows = chainedQualified(entries, from, to).sort((a, b) => a.effective_date < b.effective_date ? 1 : -1)
+      .map(e => { const mt = firstMeeting(e.company_id);
+        return { n: co(e.company_id), m: ['qualified ' + R.fmtDate(e.effective_date), 'discovery booked ' + R.fmtDate(discDate[e.company_id]), mt ? 'held ' + R.fmtDate(mt) : null].filter(Boolean).join(' · ') }; });
+    sub = 'qualified in the period, out of the period\u2019s discoveries';
+  } else if (kind === 'entries' && entries) {
+    rows = entries.filter(e => e.stage === g.metric && inP(e.effective_date)).sort((a, b) => a.effective_date < b.effective_date ? 1 : -1)
+      .map(e => { const mt = g.metric === 'discovery' ? firstMeeting(e.company_id) : null;
+        return { n: co(e.company_id), m: ['entered ' + R.fmtDate(e.effective_date), mt ? 'meeting ' + R.fmtDate(mt) : null].filter(Boolean).join(' · ') }; });
+    sub = 'companies that entered the stage';
+  } else if (kind === 'newcust' && D.newCust) {
+    rows = D.newCust.filter(d => inP(d.close_date)).sort((a, b) => a.close_date < b.close_date ? 1 : -1)
+      .map(d => ({ n: co(d.company_id, d.company_name || d.deal_name), m: ['Full License (New Business)', R.eur(d.amount), 'closed ' + R.fmtDate(d.close_date), d.partner_name ? 'via ' + d.partner_name : null].filter(Boolean).join(' · ') }));
+    sub = 'new full licences won';
+  } else if (g.metric === 'calls' && D.calls) {
+    const cs = D.calls.filter(c => inP(c.ts)).sort((a, b) => a.ts < b.ts ? 1 : -1);
+    rows = cs.slice(0, 400).map(c => ({ n: R.esc(c.contact_name || 'Unknown') + (c.company_name || c.company_id ? ' · ' + co(c.company_id, c.company_name) : ''),
+      m: [R.fmtDate(c.ts), c.disposition_label || c.bucket].filter(Boolean).join(' · ') }));
+    sub = 'calls made' + (cs.length > 400 ? ' · showing the latest 400 of ' + cs.length : '');
+  } else if (g.metric === 'won_value' && D.wonQ) {
+    const ws = D.wonQ.filter(d => inP(d.close_date)).sort((a, b) => a.close_date < b.close_date ? 1 : -1);
+    rows = ws.map(d => ({ n: R.esc(d.deal_name || '—') + (d.company_name || d.company_id ? ' · ' + co(d.company_id, d.company_name) : ''), m: [d.dealtype, R.eur(d.amount), 'closed ' + R.fmtDate(d.close_date)].filter(Boolean).join(' · ') }));
+    sub = 'won deals · ' + R.eur(ws.reduce((s, d) => s + (Number(d.amount) || 0), 0)) + ' in total';
+  }
+  const box = document.getElementById('trend-drill');
+  document.getElementById('drill-h').textContent = (g.label || g.metric) + ' · ' + g.period + ' · ' + rows.length;
+  document.getElementById('drill-list').innerHTML = (sub ? '<div class="mini" style="margin-bottom:.5rem;color:var(--slate)">' + sub + '</div>' : '') +
+    (rows.length ? rows.map(r => '<div class="co"><div style="min-width:0"><div class="nm">' + r.n + '</div><div class="meta">' + r.m + '</div></div></div>').join('')
+      : '<div class="empty">Nothing in this period.</div>');
+  box.style.display = ''; box.scrollTop = 0;
+}
+const closeDrill = () => { document.getElementById('trend-drill').style.display = 'none'; };
+document.getElementById('drill-close').addEventListener('click', closeDrill);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrill(); });
+init();
+</script>
+</body>
+</html>

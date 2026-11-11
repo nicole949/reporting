@@ -37,7 +37,7 @@ code { font-size: .85em; background: var(--paper); padding: .05em .35em; border-
 
 /* ---------- sidebar ---------- */
 .brand { display: flex; align-items: center; gap: .5rem; padding: 1rem .9rem .7rem; flex-wrap: wrap; }
-.brand img { height: 20px; width: auto; } .brand .name { font-family: var(--head); font-weight: 600; font-size: .95rem; letter-spacing: .02em; }
+.brand img { height: 22px; width: auto; } .brand .name { font-family: var(--head); font-weight: 600; font-size: .95rem; letter-spacing: .02em; }
 .brand .env { font-size: .62rem; text-transform: uppercase; letter-spacing: .08em; background: var(--amber); color: #1E2A33; border-radius: 999px; padding: .1rem .45rem; font-weight: 700; }
 .brand .env.live { display: none; }
 .nav { padding: .2rem .6rem 1rem; flex: 1; }
@@ -86,3 +86,63 @@ code { font-size: .85em; background: var(--paper); padding: .05em .35em; border-
 .wn .rel.unread .t::after { content: 'new'; margin-left: .4rem; font-size: .6rem; text-transform: uppercase; background: var(--amber); color: #1E2A33; border-radius: 999px; padding: .05rem .4rem; }
 .hint-new { position: relative; }
 .hint-new[data-hint]:hover::after { content: attr(data-hint); position: absolute; left: 0; top: 100%; background: var(--ink); color: #fff; font-size: .72rem; padding: .35rem .6rem; border-radius: 6px; width: max-content; max-width: 320px; z-index: 30; white-space: normal; }
+
+/* ---------- topbar tools ---------- */
+.tools { display: flex; gap: .4rem; }
+.tool { border: 1px solid var(--hair); background: var(--panel); color: var(--slate); border-radius: 999px; padding: .32rem .75rem; font: inherit; font-size: .78rem; cursor: pointer; }
+.tool:hover { color: var(--navy); border-color: var(--navy); }
+
+/* ---------- filter bar (identical on every page: period first, page-specific controls after) ---------- */
+.filters { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius); padding: .55rem .9rem; margin-bottom: 1rem; }
+.filters[hidden], .filters [hidden] { display: none !important; }
+.filters .f { display: inline-flex; align-items: center; gap: .4rem; font-size: .76rem; color: var(--slate); }
+.filters .f > span:first-child { text-transform: uppercase; letter-spacing: .05em; font-size: .64rem; font-weight: 700; color: var(--faint); }
+.filters select, .filters input[type=date] { border: 1px solid var(--hair); border-radius: 8px; padding: .3rem .5rem; font: inherit; font-size: .8rem; color: var(--text); background: var(--panel); }
+.filters .dates input { width: 140px; }
+.msel { position: relative; } .msel-btn { border: 1px solid var(--hair); border-radius: 8px; padding: .3rem .6rem; font: inherit; font-size: .8rem; background: var(--panel); color: var(--text); cursor: pointer; }
+.msel-dd { display: none; position: absolute; top: 110%; left: 0; z-index: 30; background: var(--panel); border: 1px solid var(--hair); border-radius: 10px; box-shadow: var(--shadow); padding: .4rem .6rem; min-width: 200px; max-height: 300px; overflow: auto; }
+.msel.open .msel-dd { display: block; } .msel-dd label { display: flex; gap: .4rem; align-items: center; font-size: .8rem; padding: .18rem 0; white-space: nowrap; }
+
+/* ---------- KPI groups (commercial overview) ---------- */
+.kgroups { display: grid; gap: 1rem; }
+.kgroup { background: var(--panel); border: 1px solid var(--hair); border-left: 5px solid var(--navy); border-radius: var(--radius); padding: .8rem 1rem .9rem; box-shadow: var(--shadow); }
+.kgroup.mkt { border-left-color: var(--sky); } .kgroup.bd { border-left-color: var(--navy); } .kgroup.sales { border-left-color: var(--magenta); } .kgroup.cs { border-left-color: var(--amber); }
+.kgroup .gh { display: flex; align-items: baseline; gap: .6rem; margin-bottom: .6rem; } .kgroup .gh h2 { font-size: .95rem; } .kgroup .gh .st { font-size: .7rem; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; }
+.kgroup .tiles { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.tile .v .up { color: var(--teal); font-size: .72rem; margin-left: .3rem; } .tile .v .down { color: var(--rust); font-size: .72rem; margin-left: .3rem; }
+.tile .s .up { color: var(--teal); } .tile .s .down { color: var(--rust); }
+.tile.soft .v { color: var(--slate); }
+
+/* ---------- modal (feedback) ---------- */
+.modal { display: none; position: fixed; inset: 0; background: rgba(10,25,35,.45); z-index: 60; align-items: center; justify-content: center; }
+.modal.open { display: flex; }
+.modal .box { background: var(--panel); border-radius: 14px; padding: 1.1rem 1.3rem; width: min(520px, 92vw); box-shadow: var(--shadow); }
+.modal h3 { display: flex; justify-content: space-between; align-items: center; } .modal h3 .x { border: 0; background: transparent; cursor: pointer; color: var(--faint); font-size: 1rem; }
+.modal label { display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); margin-top: .7rem; }
+.modal input, .modal select, .modal textarea { display: block; width: 100%; margin-top: .25rem; border: 1px solid var(--hair); border-radius: 8px; padding: .45rem .6rem; font: inherit; font-size: .86rem; color: var(--text); background: var(--bg); }
+.modal .row { display: flex; justify-content: space-between; align-items: center; margin-top: .8rem; }
+
+/* ---------- change notes page ---------- */
+.rel-card { background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: .9rem; overflow: hidden; }
+.rel-card .rh { display: flex; align-items: center; gap: .7rem; padding: .8rem 1rem; }
+.rel-card .rh .d { font-size: .72rem; color: var(--faint); min-width: 90px; } .rel-card .rh .t { font-weight: 700; font-family: var(--head); }
+.rel-card .rh .new { font-size: .6rem; text-transform: uppercase; background: var(--amber); color: #1E2A33; border-radius: 999px; padding: .08rem .45rem; font-weight: 700; }
+.chg { display: grid; grid-template-columns: 150px 1fr auto; gap: .6rem; align-items: start; padding: .55rem 1rem; border-top: 1px solid var(--hair); }
+.chg .where { font-size: .72rem; color: var(--navy); font-weight: 600; padding-top: .15rem; } :root[data-theme="dark"] .chg .where { color: #7FC4FF; }
+.chg .sum { font-size: .88rem; } .chg .sum .new { margin-left: .35rem; font-size: .58rem; text-transform: uppercase; background: var(--amber); color: #1E2A33; border-radius: 999px; padding: .05rem .4rem; font-weight: 700; vertical-align: middle; }
+.chg .more { border: 0; background: transparent; color: var(--faint); cursor: pointer; font-size: .9rem; padding: 0 .2rem; }
+.chg .det { grid-column: 2 / 4; font-size: .8rem; color: var(--slate); background: var(--paper); border-radius: 8px; padding: .55rem .75rem; display: none; }
+.chg.open .det { display: block; } .chg.open .more { color: var(--navy); }
+.chg .det .dep { display: inline-block; font-size: .64rem; text-transform: uppercase; letter-spacing: .05em; border-radius: 999px; padding: .05rem .45rem; margin: .1rem .25rem .3rem 0; background: var(--panel); border: 1px solid var(--hair); }
+
+/* ---------- tabs (pages that wrap several v1 pages) ---------- */
+.tabs { display: flex; gap: .3rem; border-bottom: 1px solid var(--hair); margin-bottom: 1rem; }
+.tabs a { padding: .45rem .9rem; border-radius: 8px 8px 0 0; text-decoration: none; color: var(--slate); font-size: .86rem; border: 1px solid transparent; border-bottom: 0; }
+.tabs a.on { background: var(--panel); border-color: var(--hair); color: var(--navy); font-weight: 600; }
+.embed { width: 100%; height: calc(100vh - 200px); border: 1px solid var(--hair); border-radius: var(--radius); background: #fff; }
+
+/* ---------- celebration board ---------- */
+.celebs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .9rem; }
+.celeb { background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius); padding: .9rem 1rem; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+.celeb .em { font-size: 1.6rem; } .celeb .t { font-weight: 700; font-family: var(--head); margin-top: .3rem; } .celeb .w { color: var(--slate); font-size: .82rem; } .celeb .d { color: var(--faint); font-size: .7rem; margin-top: .4rem; }
+.celeb.record { border-color: var(--amber); } .celeb.goal { border-color: var(--teal); }

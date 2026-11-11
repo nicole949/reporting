@@ -1,11 +1,25 @@
 [
   {
+    "version": "2026.11.11-2",
+    "date": "2026-11-11",
+    "title": "Commercial overview, change notes, feedback",
+    "items": [
+      { "section": "overview", "page": "overview", "summary": "New commercial overview: key numbers per department with the standard period filter.",
+        "details": "Marketing, Business Development, Sales pipeline and Customer Success each get a row of tiles; every tile compares the chosen period with the one before. The period filter (Custom… first, then week/month/quarter/year presets) is the same control on every page.", "departments": ["all"] },
+      { "section": "overview", "page": "changes", "summary": "Change notes moved to their own page with short summaries and expandable details.", "departments": ["all"] },
+      { "section": "marketing", "page": "mkt-overview", "summary": "The former overview (goals, this week, trends) is now the Marketing overview.", "departments": ["marketing"] },
+      { "section": "bd", "page": "bd-overview", "summary": "Business Development overview with an SDR filter (calls, connected calls, discoveries per person).", "departments": ["bd"] },
+      { "section": "bd", "page": "celebrations", "summary": "Celebration board: records and goals reached by the BD team, computed from calls and discoveries.", "departments": ["bd"] },
+      { "section": "overview", "page": "overview", "summary": "Feedback button on every page — bug, question, idea → Slack, with page and name.", "details": "Click “✎ Feedback” top right. The message goes to the reporting Slack channel together with the topic, the page you were on and your name.", "departments": ["all"] }
+    ]
+  },
+  {
     "version": "2026.11.11-1",
     "date": "2026-11-11",
     "title": "Reporting v2 — first shell",
     "items": [
-      { "section": "overview", "page": "overview", "text": "New sidebar navigation along the commercial journey; v1 pages linked until ported." },
-      { "section": "data", "page": "changes", "text": "Change notes with unread badges per section and page; theme toggle (light/dark)." }
+      { "section": "overview", "page": "overview", "summary": "New sidebar navigation along the commercial journey; v1 pages linked until ported.", "departments": ["all"] },
+      { "section": "overview", "page": "changes", "summary": "Change notes with unread badges per section and page; theme toggle (light/dark).", "departments": ["all"] }
     ]
   }
 ]

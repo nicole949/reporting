@@ -8,5 +8,7 @@ window.RCONFIG = {
   API_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2YWFxcG1vcm5qYmRmaXlkZHR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyNTEzMjMsImV4cCI6MjEwMzgyNzMyM30.BYUKI3B57ukEqo1pWH0wRdIrWjEIWAScPUOtNHG0jeo',
   V1_URL: 'https://vibe-reports.jentis.info',
   HUBSPOT_PORTAL: '144226702',
-  ASSET_BASE: (location.pathname.indexOf("/v2-staging/") === 0 ? "/v2-staging/" : location.pathname.indexOf("/v2/") === 0 ? "/v2/" : "/") + "assets/"
+  FEEDBACK_WEBHOOK: 'https://jentis.app.n8n.cloud/webhook/reporting-feedback',
+  SITE_BASE: location.pathname.indexOf('/v2-staging/') === 0 ? '/v2-staging/' : location.pathname.indexOf('/v2/') === 0 ? '/v2/' : '/'
 };
+window.RCONFIG.ASSET_BASE = window.RCONFIG.SITE_BASE + 'assets/';

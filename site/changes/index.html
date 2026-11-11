@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Change notes · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?b=__BUILD__">
+<link rel="stylesheet" href="../assets/legacy.css?b=__BUILD__">
+</head>
+<body>
+<div id="shell"></div>
+<script src="../assets/config.js?b=__BUILD__"></script>
+<script src="../assets/app.js?b=__BUILD__"></script>
+<script>
+const page = R.shell({ page: 'changes', title: 'Change notes', subtitle: 'What changed in the reporting, newest first — entries you have not seen yet are marked' });
+page.innerHTML = '<div id="rels"><div class="state">Loading…</div></div>';
+const DEPT = { marketing: 'Marketing', bd: 'Business Development', sales: 'Sales', cs: 'Customer Success', partners: 'Partners', all: 'Everyone' };
+R.changes.load().then(list => {
+  const seenAtOpen = R.changes.seen();          // remember what was unread when the page opened, then mark everything as seen
+  const unread = r => !seenAtOpen || r.version > seenAtOpen;
+  document.getElementById('rels').innerHTML = list.length ? list.map((r, ri) => '<div class="rel-card"><div class="rh"><span class="d">' + R.fmtDate(r.date) + '</span><span class="t">' + R.esc(r.title) + '</span>' + (unread(r) ? '<span class="new">new</span>' : '') + '<span class="muted small" style="margin-left:auto">' + R.esc(r.version) + '</span></div>' +
+    r.items.map((it, ii) => { const nav = R.navItem(it.page); const where = (nav ? nav.section.label + ' › ' + nav.label : it.section);
+      return '<div class="chg" id="c' + ri + '-' + ii + '"><span class="where">' + R.esc(where) + '</span><span class="sum">' + R.esc(it.summary || it.text || '') + (unread(r) ? '<span class="new">new</span>' : '') + '</span>' +
+        (it.details || (it.departments || []).length ? '<button class="more" title="details" onclick="this.closest(\'.chg\').classList.toggle(\'open\')">▾</button>' : '<span></span>') +
+        (it.details || (it.departments || []).length ? '<div class="det">' + (it.departments || []).map(d => '<span class="dep">' + R.esc(DEPT[d] || d) + '</span>').join('') + (it.details ? '<div>' + R.esc(it.details).replace(/\n/g, '<br>') + '</div>' : '') + '</div>' : '') + '</div>'; }).join('') + '</div>').join('') : '<div class="state">No change notes yet.</div>';
+  R.changes.markSeen();
+});
+</script>
+</body>
+</html>
