@@ -11,10 +11,13 @@
   // ---------- navigation: one section per owner of the commercial journey ----------
   // status: 'live' = v2 page in this repo · 'v1' = still served by v1 (opens there) · 'planned' = not built yet · 'embed' = v2 page wrapping v1 pages
   R.NAV = [
-    { key: 'overview', label: 'Overview', items: [
+    { key: 'me', label: 'My page', color: '#FFFFFF', items: [
+      { key: 'me', label: 'Hello', href: BASE + 'me/', ic: '☺', status: 'live', dynamic: 'hello' } ] },
+    { key: 'overview', label: 'Overview', color: '#D5DEE6', items: [
       { key: 'overview', label: 'Commercial overview', href: BASE, ic: '◎', status: 'live' },
+      { key: 'funnel', label: 'Full funnel', href: BASE + 'funnel/', ic: '▽', status: 'embed' },
       { key: 'changes', label: 'Change notes', href: BASE + 'changes/', ic: '★', status: 'live' } ] },
-    { key: 'marketing', label: 'Marketing', items: [
+    { key: 'marketing', label: 'Marketing', color: '#9DDCFF', items: [
       { key: 'mkt-overview', label: 'Overview', href: BASE + 'marketing/', ic: '◎', status: 'live' },
       { key: 'leads', label: 'Leads', href: V1 + '/leads/', ic: '◔', status: 'v1' },
       { key: 'email', label: 'Email outreach', href: BASE + 'email-outreach/', ic: '✉', status: 'embed' },
@@ -22,36 +25,42 @@
       { key: 'social', label: 'Social posts', href: '#', ic: '◈', status: 'planned' },
       { key: 'campaigns', label: 'Campaigns & ads', href: '#', ic: '◆', status: 'planned' },
       { key: 'responses', label: 'Responses', href: V1 + '/responded/', ic: '↩', status: 'v1' } ] },
-    { key: 'bd', label: 'Business Development', items: [
+    { key: 'bd', label: 'Business Development', color: '#F38C62', items: [
       { key: 'bd-overview', label: 'Overview', href: BASE + 'bd/', ic: '◎', status: 'live' },
       { key: 'calls', label: 'Calls', href: V1 + '/calls/', ic: '☏', status: 'v1' },
       { key: 'discoveries', label: 'Discoveries', href: V1 + '/discoveries/', ic: '◷', status: 'v1' },
       { key: 'journeys', label: 'Journeys', href: V1 + '/journeys/', ic: '⇅', status: 'v1' },
       { key: 'celebrations', label: 'Celebration board', href: BASE + 'bd/celebrations/', ic: '✶', status: 'live' } ] },
-    { key: 'sales', label: 'Sales pipeline', items: [
+    { key: 'sales', label: 'Sales pipeline', color: '#C4B5F0', items: [
+      { key: 'sales-overview', label: 'Overview', href: BASE + 'sales/', ic: '◎', status: 'live' },
       { key: 'qualification', label: 'Qualification', href: '#', ic: '✓', status: 'planned' },
       { key: 'deals', label: 'Deals', href: V1 + '/deals/', ic: '▤', status: 'v1' },
       { key: 'forecast', label: 'Forecast', href: '#', ic: '◭', status: 'planned' },
       { key: 'opp-meetings', label: 'Meetings', href: '#', ic: '◷', status: 'planned' },
-      { key: 'quotes', label: 'Quote checker', href: V1 + '/cs-quote-checker/', ic: '✎', status: 'v1' } ] },
-    { key: 'cs', label: 'Customer Success', items: [
+      { key: 'quotes', label: 'Quote checker', href: V1 + '/cs-quote-checker/', ic: '✎', status: 'v1' },
+      { key: 'sales-celebrations', label: 'Celebration board', href: BASE + 'sales/celebrations/', ic: '✶', status: 'live' } ] },
+    { key: 'cs', label: 'Customer Success', color: '#8ED1B5', items: [
+      { key: 'cs-overview', label: 'Overview', href: BASE + 'cs/', ic: '◎', status: 'live' },
       { key: 'customers', label: 'Customers', href: V1 + '/cs-customers/', ic: '☺', status: 'v1' },
       { key: 'renewals', label: 'Renewals & expansion', href: V1 + '/cs-renewals/', ic: '↻', status: 'v1' },
       { key: 'tickets', label: 'Tickets', href: V1 + '/cs-tickets/', ic: '⚑', status: 'v1' },
       { key: 'projects', label: 'Projects', href: '#', ic: '▣', status: 'planned' },
       { key: 'pocs', label: 'POCs & free trials', href: '#', ic: '◐', status: 'planned' },
-      { key: 'ps', label: 'Professional services', href: BASE + 'cs/professional-services/', ic: '▦', status: 'embed' } ] },
-    { key: 'partners', label: 'Partners', items: [
-      { key: 'partner-overview', label: 'Partner overview', href: '#', ic: '◉', status: 'planned' },
+      { key: 'ps', label: 'Professional services', href: BASE + 'cs/professional-services/', ic: '▦', status: 'embed' },
+      { key: 'cs-celebrations', label: 'Celebration board', href: BASE + 'cs/celebrations/', ic: '✶', status: 'live' } ] },
+    { key: 'partners', label: 'Partners', color: '#E8C9A0', items: [
+      { key: 'partner-overview', label: 'Overview', href: '#', ic: '◎', status: 'planned' },
       { key: 'partner-ps', label: 'Services at partners', href: '#', ic: '▦', status: 'planned' },
       { key: 'partner-pipeline', label: 'Partner-sourced pipeline', href: '#', ic: '▤', status: 'planned' } ] },
-    { key: 'knowledge', label: 'Knowledge', items: [
+    { key: 'knowledge', label: 'Knowledge', color: '#C9CFE8', items: [
       { key: 'library', label: 'Library', href: '#', ic: '▣', status: 'planned' },
       { key: 'assistant', label: 'Ask the docs', href: '#', ic: '✦', status: 'planned' } ] },
-    { key: 'data', label: 'Data & AI', items: [
+    { key: 'data', label: 'Data & AI', color: '#A9B6C2', items: [
       { key: 'ai-spend', label: 'AI spend', href: '#', ic: '✦', status: 'planned' },
       { key: 'sync', label: 'Sync status', href: '#', ic: '⟳', status: 'planned' } ] },
   ];
+  R.DEPT_COLOR = Object.fromEntries(R.NAV.map(s => [s.key, s.color]));
+  R.userName = v => v === undefined ? LS.get('user.name', '') : LS.set('user.name', v);
   R.navItem = key => { for (const s of R.NAV) { const it = s.items.find(i => i.key === key); if (it) return { ...it, section: s }; } return null; };
 
   // ---------- per-user state (localStorage until SSO + app.settings) ----------
@@ -99,7 +108,8 @@
     side.innerHTML = '<div class="brand"><img src="' + C.ASSET_BASE + 'jentis-logo-white.png" alt=""><span class="name">Reporting</span><span class="env ' + (C.ENV || '') + '">' + esc(C.ENV || '') + '</span></div><nav class="nav">' +
       R.NAV.map(s => {
         const secNew = unreadFor(s.key).length;
-        return '<div class="sec' + (closed.includes(s.key) ? ' closed' : '') + (secNew ? ' has-new' : '') + '"><button class="hd" onclick="R._toggleSec(\'' + s.key + '\')">' + esc(s.label) + '<span class="dot"></span><span class="car">▾</span></button><div class="items">' +
+        if (s.key === 'me') { const it = s.items[0], nm = R.userName(); return '<div class="sec me"><a href="' + it.href + '" class="hello' + (CUR.page === 'me' ? ' active' : '') + '"><span class="ic">☺</span>' + (nm ? 'Hello ' + esc(nm.split(' ')[0]) : 'Hello 👋') + '<span class="chip v1" style="margin-left:auto">my page</span></a></div>'; }
+        return '<div class="sec' + (closed.includes(s.key) ? ' closed' : '') + (secNew ? ' has-new' : '') + '" style="--dept:' + s.color + '"><button class="hd" onclick="R._toggleSec(\'' + s.key + '\')"><span class="sw"></span>' + esc(s.label) + '<span class="dot"></span><span class="car">▾</span></button><div class="items">' +
           s.items.map(it => {
             const hints = unreadFor(s.key, it.key);
             const active = CUR.page === it.key;
@@ -116,6 +126,7 @@
   const TIME_OPTS = [['custom', 'Custom…'], ['week', 'This week'], ['lastweek', 'Last week'], ['month', 'This month'], ['lastmonth', 'Last month'], ['quarter', 'This quarter'], ['lastquarter', 'Last quarter'], ['90d', 'Last 90 days'], ['year', 'This year'], ['12m', 'Last 12 months']];
   const iso = d => d.toISOString().slice(0, 10);
   const utc = (y, m, d) => new Date(Date.UTC(y, m, d));
+  R.TIME_OPTS = TIME_OPTS;
   R.timeRange = function (key, custom) {
     const now = new Date(), y = now.getUTCFullYear(), m = now.getUTCMonth(), q = Math.floor(m / 3);
     const dow = (now.getUTCDay() + 6) % 7, mon = utc(y, m, now.getUTCDate() - dow);
@@ -130,6 +141,10 @@
       case '90d': return r(utc(y, m, now.getUTCDate() - 90), utc(y, m, now.getUTCDate() + 1), 'Last 90 days');
       case 'year': return r(utc(y, 0, 1), utc(y + 1, 0, 1), String(y));
       case '12m': return r(utc(y, m - 12, now.getUTCDate()), utc(y, m, now.getUTCDate() + 1), 'Last 12 months');
+      case 'next7': return r(utc(y, m, now.getUTCDate()), utc(y, m, now.getUTCDate() + 7), 'Next 7 days');
+      case 'next30': return r(utc(y, m, now.getUTCDate()), utc(y, m, now.getUTCDate() + 30), 'Next 30 days');
+      case 'next90': return r(utc(y, m, now.getUTCDate()), utc(y, m, now.getUTCDate() + 90), 'Next 90 days');
+      case 'today': return r(utc(y, m, now.getUTCDate()), utc(y, m, now.getUTCDate() + 1), 'Today');
       default: { const a = custom && custom.from ? custom.from : iso(utc(y, m, 1)), b = custom && custom.to ? custom.to : iso(now); return { from: a, to: iso(utc(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10) + 1)), label: R.fmtDate(a) + ' – ' + R.fmtDate(b), custom: true }; }
     }
   };
@@ -224,6 +239,23 @@
   R.prevRange = range => { const a = Date.parse(range.from), b = Date.parse(range.to); return { from: iso(new Date(a - (b - a))), to: range.from }; };
   R.fmtDate = d => { if (!d) return ''; const s = String(d); if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4); const x = new Date(d); return isNaN(x) ? s : String(x.getDate()).padStart(2, '0') + '.' + String(x.getMonth() + 1).padStart(2, '0') + '.' + x.getFullYear(); };
   R.fmtK = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + 'k' : String(n);
+
+  // ---------- celebration boards (shared) ----------
+  // cards: [{ em, title, what, when (YYYY-MM-DD or YYYY-Qn), cls: 'record'|'goal'|'win' }]; scope filter 'all' | 'quarter'
+  R.celebBoard = function (el, cards) {
+    const F = R.filters({ time: false, controls: [{ key: 'scope', label: 'Show', type: 'select', options: [['quarter', 'This quarter'], ['all', 'Everything']] }], onChange: s => draw(s) });
+    const q = R.quarter ? R.quarter() : null;
+    function draw(s) {
+      const list = cards.filter(c => s.scope !== 'quarter' || !q || String(c.when).startsWith(q.label) || (q.startIso && /^\d{4}-\d{2}-\d{2}$/.test(c.when) && c.when >= q.startIso)).sort((a, b) => String(b.when).localeCompare(String(a.when)));
+      el.innerHTML = list.length ? list.map(c => '<div class="celeb ' + (c.cls || 'win') + '"><div class="em">' + c.em + '</div><div class="t">' + esc(c.title) + '</div><div class="w">' + esc(c.what) + '</div><div class="d">' + esc(/^\d{4}-\d{2}-\d{2}$/.test(c.when) ? R.fmtDate(c.when) : c.when) + '</div></div>').join('') : '<div class="state">Nothing in this scope yet.</div>';
+    }
+    draw(F);
+  };
+  R.record = function (rows, keyF, valF, who) {   // best (max value) group of rows -> { key, who, value } or null
+    const m = {}; for (const r of rows) { const k = keyF(r) + '|' + (who ? (who(r) || '?') : 'team'); m[k] = (m[k] || 0) + (valF ? valF(r) : 1); }
+    let best = null; for (const [k, v] of Object.entries(m)) if (!best || v > best.v) best = { k, v };
+    if (!best) return null; const [key, person] = best.k.split('|'); return { key, who: person, value: best.v };
+  };
 
   // ---------- helpers carried over from v1 (time, metrics, tables, quarter filters, tiny charts) ----------
   // ---- time ----

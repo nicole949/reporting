@@ -1,5 +1,69 @@
 [
   {
+    "version": "2026.11.11-3",
+    "date": "2026-11-11",
+    "title": "Department colours, personal page, Sales & CS overviews, celebration boards",
+    "items": [
+      {
+        "section": "me",
+        "page": "me",
+        "summary": "New personal page \"Hello {name}\" at the top of the menu with configurable cards.",
+        "details": "Cards: open tasks, upcoming renewals, upcoming meetings, warnings, calls, discoveries, wins, tickets, goals, change notes, celebrations. The gear opens settings (name, global timeframe, per-card timeframe toggle). Edit mode lets you drag to reorder, resize S/M/L, add cards (the same card more than once) and remove, then save. Everything is stored in your browser for now; it moves to the user profile once login exists.",
+        "departments": [
+          "all"
+        ]
+      },
+      {
+        "section": "overview",
+        "page": "funnel",
+        "summary": "Full funnel added under Commercial overview (shown from v1 until ported).",
+        "departments": [
+          "all"
+        ]
+      },
+      {
+        "section": "sales",
+        "page": "sales-overview",
+        "summary": "Sales overview: qualified accounts, opportunities, deals created, won, open pipeline by stage, Ø deal size, recent wins — with owner filter.",
+        "departments": [
+          "sales"
+        ]
+      },
+      {
+        "section": "cs",
+        "page": "cs-overview",
+        "summary": "Customer Success overview: customers & MRR, signed, renewals due/won, upsell, PS sold, tickets; renewals due and customers needing attention.",
+        "departments": [
+          "cs"
+        ]
+      },
+      {
+        "section": "sales",
+        "page": "sales-celebrations",
+        "summary": "Celebration board for Sales: qualified, new opportunity, new customer, record contract value, closed within a quarter, best quarter.",
+        "departments": [
+          "sales"
+        ]
+      },
+      {
+        "section": "cs",
+        "page": "cs-celebrations",
+        "summary": "Celebration board for Customer Success: PS sold, renewals, expansions, tickets closed record, largest customer.",
+        "departments": [
+          "cs"
+        ]
+      },
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "Menu: each department has its own colour and starts with its overview; light orange replaces the dark orange.",
+        "departments": [
+          "all"
+        ]
+      }
+    ]
+  },
+  {
     "version": "2026.11.11-2",
     "date": "2026-11-11",
     "title": "Commercial overview, change notes, feedback",

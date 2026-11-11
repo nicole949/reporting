@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sales pipeline overview · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?b=__BUILD__">
+<link rel="stylesheet" href="../assets/legacy.css?b=__BUILD__">
+</head>
+<body>
+<div id="shell"></div>
+<script src="../assets/config.js?b=__BUILD__"></script>
+<script src="../assets/app.js?b=__BUILD__"></script>
+<script>
+const page = R.shell({ page: 'sales-overview', title: 'Sales pipeline overview', subtitle: 'Qualified → Opportunity → Closed Won — what is moving and what is open' });
+page.innerHTML = '<div id="tiles" class="tiles" style="margin-bottom:1rem"></div><div class="grid c2"><div class="card"><h2>Open new-business pipeline <span class="muted small">· by stage, as of today</span></h2><div id="stages"></div></div><div class="card"><h2>Won in the period</h2><div id="won"></div></div></div>';
+let D = null, F = null;
+const NB = /^(full license \(new business\)|jentis light)$/i, POC = /^poc$/i;
+async function load() {
+  const get = q => R.fetchAll(q).catch(() => []);
+  const [entries, deals, dims] = await Promise.all([
+    get('company_stage_entries?suppressed=eq.false&stage=in.(qualified,opportunity,customer)&select=stage,effective_date,company_id'),
+    get('v_deals?select=deal_id,deal_name,company_id,company_name,dealtype,create_date,close_date,is_closed,is_won,amount,stage_label,pipeline_label,owner_name'),
+    get('company_dimensions?select=company_id,name')
+  ]);
+  const names = {}; for (const d of dims) names[d.company_id] = d.name;
+  D = { entries, deals, names };
+  const owners = [...new Set(deals.map(d => d.owner_name).filter(Boolean))].sort();
+  F = R.filters({ defaultTime: 'quarter', controls: [{ key: 'owner', label: 'Owner', type: 'multi', options: owners.map(o => [o, o]) }], onChange: render });
+  render();
+}
+function render() {
+  const r = F.range, p = R.prevRange(r), own = F.owner || [];
+  const deals = D.deals.filter(d => !own.length || own.includes(d.owner_name));
+  const E = (st, rg) => D.entries.filter(e => e.stage === st && R.inRange(e.effective_date, rg)).length;
+  const nb = deals.filter(d => NB.test(d.dealtype || '') || POC.test(d.dealtype || ''));
+  const created = rg => nb.filter(d => R.inRange(d.create_date, rg)).length;
+  const won = deals.filter(d => d.is_won && NB.test(d.dealtype || ''));
+  const wonIn = rg => won.filter(d => R.inRange(d.close_date, rg));
+  const open = nb.filter(d => !d.is_closed);
+  const sum = a => a.reduce((t, d) => t + (Number(d.amount) || 0), 0);
+  document.getElementById('tiles').innerHTML =
+    R.kpi('Qualified accounts', R.num(E('qualified', r)) + ' ' + R.delta(E('qualified', r), E('qualified', p)), 'before: ' + E('qualified', p)) +
+    R.kpi('Opportunities', R.num(E('opportunity', r)) + ' ' + R.delta(E('opportunity', r), E('opportunity', p)), 'before: ' + E('opportunity', p)) +
+    R.kpi('Deals created (NB + POC)', R.num(created(r)) + ' ' + R.delta(created(r), created(p)), 'before: ' + created(p)) +
+    R.kpi('Won new business', R.num(wonIn(r).length) + ' ' + R.delta(wonIn(r).length, wonIn(p).length), R.eur(sum(wonIn(r))) + ' · before ' + R.eur(sum(wonIn(p)))) +
+    R.kpi('Open pipeline · now', R.eur(sum(open)), open.length + ' deals', 'soft') +
+    R.kpi('Ø deal size won', R.eur(wonIn(r).length ? sum(wonIn(r)) / wonIn(r).length : 0), 'in the period', 'soft');
+  const byStage = {}; for (const d of open) { const k = d.stage_label || '?'; byStage[k] = byStage[k] || { n: 0, v: 0, deals: [] }; byStage[k].n++; byStage[k].v += Number(d.amount) || 0; byStage[k].deals.push(d); }
+  document.getElementById('stages').innerHTML = Object.keys(byStage).length ? '<table class="data"><tr><th>Stage</th><th style="text-align:right">Deals</th><th style="text-align:right">Value</th></tr>' + Object.entries(byStage).sort((a, b) => b[1].v - a[1].v).map(([k, v]) => '<tr><td>' + R.esc(k) + '</td><td style="text-align:right">' + v.n + '</td><td style="text-align:right">' + R.eur(v.v) + '</td></tr>').join('') + '</table>' : '<div class="state">No open new-business deals.</div>';
+  const w = wonIn(r).sort((a, b) => (b.close_date || '').localeCompare(a.close_date || ''));
+  document.getElementById('won').innerHTML = w.length ? '<table class="data"><tr><th>Closed</th><th>Company</th><th>Deal</th><th>Owner</th><th style="text-align:right">Value</th></tr>' + w.map(d => '<tr><td>' + R.fmtDate(d.close_date) + '</td><td><a href="' + R.hs('0-2', d.company_id) + '" target="_blank" rel="noopener">' + R.esc(d.company_name || D.names[d.company_id] || d.company_id) + '</a></td><td>' + R.esc(d.deal_name || '') + '</td><td>' + R.esc(d.owner_name || '') + '</td><td style="text-align:right">' + R.eur(d.amount) + '</td></tr>').join('') + '</table>' : '<div class="state">Nothing won in this period.</div>';
+}
+load();
+</script>
+</body>
+</html>

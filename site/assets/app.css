@@ -150,4 +150,37 @@ code { font-size: .85em; background: var(--paper); padding: .05em .35em; border-
 .celebs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .9rem; }
 .celeb { background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius); padding: .9rem 1rem; box-shadow: var(--shadow); position: relative; overflow: hidden; }
 .celeb .em { font-size: 1.6rem; } .celeb .t { font-weight: 700; font-family: var(--head); margin-top: .3rem; } .celeb .w { color: var(--slate); font-size: .82rem; } .celeb .d { color: var(--faint); font-size: .7rem; margin-top: .4rem; }
-.celeb.record { border-color: var(--orange-light); } .celeb.goal { border-color: var(--good); }
+.celeb.record { border-color: var(--orange-light); } .celeb.goal { border-color: var(--good); } .celeb.win { border-color: var(--sky-light); }
+
+/* ---------- department colours in the sidebar ---------- */
+.sec { --dept: #D5DEE6; border-left: 3px solid transparent; margin-left: -.6rem; padding-left: .6rem; }
+.sec > .hd { color: var(--dept); }
+.sec > .hd .sw { width: 8px; height: 8px; border-radius: 2px; background: var(--dept); flex: 0 0 8px; }
+.sec:not(.closed) { border-left-color: var(--dept); }
+.sec .items a.active { background: var(--dept); color: #1E2A33; }
+.sec.me { border-left: 0; margin: .3rem 0 .4rem; padding-left: 0; }
+.sec.me .hello { display: flex; align-items: center; gap: .5rem; color: #fff; text-decoration: none; padding: .55rem .7rem; border-radius: 10px; background: rgba(255,255,255,.08); font-weight: 600; font-size: .9rem; }
+.sec.me .hello.active, .sec.me .hello:hover { background: rgba(157,220,255,.22); }
+.dept-tag { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: middle; margin-right: .35rem; }
+.kgroup { border-left-width: 6px; }
+.kgroup.mkt { border-left-color: #9DDCFF; } .kgroup.bd { border-left-color: #F38C62; } .kgroup.sales { border-left-color: #C4B5F0; } .kgroup.cs { border-left-color: #8ED1B5; } .kgroup.partners { border-left-color: #E8C9A0; }
+
+/* ---------- my page (cards, edit mode) ---------- */
+.me-top { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: .8rem; }
+.me-top .spacer { flex: 1; }
+.me-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: .9rem; }
+.mc { background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius); box-shadow: var(--shadow); padding: .8rem 1rem; min-height: 120px; position: relative; grid-column: span 2; }
+.mc.s { grid-column: span 2; } .mc.m { grid-column: span 3; } .mc.l { grid-column: span 6; }
+@media (max-width: 1100px) { .mc.s, .mc.m { grid-column: span 3; } } @media (max-width: 700px) { .mc.s, .mc.m, .mc.l { grid-column: span 6; } }
+.mc .mh { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; } .mc .mh h3 { font-size: .86rem; } .mc .mh .tf { margin-left: auto; font-size: .7rem; color: var(--faint); }
+.mc .mh select { font: inherit; font-size: .7rem; border: 1px solid var(--hair); border-radius: 6px; padding: .1rem .3rem; background: var(--panel); color: var(--slate); margin-left: auto; }
+.mc .big { font-size: 1.6rem; font-weight: 700; color: var(--navy); line-height: 1.1; } :root[data-theme="dark"] .mc .big { color: var(--sky-light); }
+.mc ul { margin: 0; padding: 0; list-style: none; } .mc li { font-size: .8rem; padding: .25rem 0; border-top: 1px solid var(--hair); display: flex; gap: .5rem; align-items: baseline; } .mc li:first-child { border-top: 0; }
+.mc li .d { color: var(--faint); font-size: .7rem; min-width: 64px; } .mc li .r { margin-left: auto; color: var(--slate); font-size: .74rem; white-space: nowrap; }
+.mc .ph { color: var(--faint); font-size: .8rem; }
+.me-grid.edit .mc { border: 1px dashed var(--sky); cursor: grab; } .me-grid.edit .mc.drag { opacity: .4; } .me-grid.edit .mc.over { outline: 2px solid var(--sky); }
+.mc .tools { display: none; position: absolute; top: .55rem; right: .6rem; gap: .25rem; } .me-grid.edit .mc .tools { display: flex; } .me-grid.edit .mc .mh .tf, .me-grid.edit .mc .mh select { display: none; }
+.mc .tools button { border: 1px solid var(--hair); background: var(--panel); border-radius: 6px; font-size: .68rem; padding: .05rem .35rem; cursor: pointer; color: var(--slate); } .mc .tools button.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+.me-add { border: 1px dashed var(--hair); border-radius: var(--radius); padding: .8rem; grid-column: span 2; display: flex; flex-direction: column; gap: .35rem; }
+.me-add select, .me-add button { font: inherit; font-size: .8rem; }
+.warn-li { color: var(--orange); }
