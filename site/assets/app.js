@@ -259,13 +259,14 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape') R.feedback.close(); });
 
   // ---------- data (PostgREST / Supabase) ----------
-  // Two sources while pages move over: 'api/<view>' → v2 database (self-hosted PostgREST), anything else → v1 views on Supabase.
+  // One source: the v2 database. 'v_deals?…' and 'api/v_deals?…' are the same thing.
+  // Only if LEGACY_API_URL is set in config.js do names without 'api/' fall back to the old Supabase views.
   const base = u => (u || '').replace(/\/+$/, '') + '/';
   const auth = k => k ? { Authorization: 'Bearer ' + k, apikey: k } : {};
-  R.source = pathQuery => /^api\//.test(pathQuery)
-    ? { url: base(C.API_URL) + pathQuery.slice(4), headers: auth(C.API_KEY) }
-    : { url: base(C.LEGACY_API_URL || C.API_URL) + pathQuery, headers: auth(C.LEGACY_API_KEY || C.API_KEY) };
-  R.apiBase = base(C.LEGACY_API_URL || C.API_URL);           // kept for older page code
+  R.source = pathQuery => /^api\//.test(pathQuery) || !C.LEGACY_API_URL
+    ? { url: base(C.API_URL) + pathQuery.replace(/^api\//, ''), headers: auth(C.API_KEY) }
+    : { url: base(C.LEGACY_API_URL) + pathQuery, headers: auth(C.LEGACY_API_KEY) };
+  R.apiBase = base(C.LEGACY_API_URL || C.API_URL);
   R.apiHeaders = () => auth(C.LEGACY_API_KEY || C.API_KEY);
   R.fetchAll = async function (pathQuery) {
     const out = []; const page = 1000; let from = 0;

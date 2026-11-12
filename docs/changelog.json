@@ -1,5 +1,21 @@
 [
   {
+    "version": "2026.11.12-1",
+    "date": "2026-11-12",
+    "title": "v2 now runs on our own database",
+    "items": [
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "All v2 pages read from the new JENTIS-hosted database instead of Supabase. Numbers are identical.",
+        "details": "The data is copied from the current dashboard's database every morning at 07:40, after the nightly syncs. So v2 shows the same numbers as v1, as of that morning. Raw message texts and internal sync tables are no longer reachable from the browser.",
+        "departments": [
+          "all"
+        ]
+      }
+    ]
+  },
+  {
     "version": "2026.11.11-4",
     "date": "2026-11-11",
     "title": "Calmer, cleaner menu",
