@@ -259,15 +259,19 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape') R.feedback.close(); });
 
   // ---------- data (PostgREST / Supabase) ----------
-  R.apiBase = (C.API_URL || '').replace(/\/+$/, '') + '/';
-  R.apiHeaders = () => C.API_KEY ? { Authorization: 'Bearer ' + C.API_KEY, apikey: C.API_KEY } : {};
-  // New v2 views live in schema "api": call R.fetchAll('api/<view>?…'). Old Supabase views (public) stay plain '<view>?…'.
+  // Two sources while pages move over: 'api/<view>' → v2 database (self-hosted PostgREST), anything else → v1 views on Supabase.
+  const base = u => (u || '').replace(/\/+$/, '') + '/';
+  const auth = k => k ? { Authorization: 'Bearer ' + k, apikey: k } : {};
+  R.source = pathQuery => /^api\//.test(pathQuery)
+    ? { url: base(C.API_URL) + pathQuery.slice(4), headers: auth(C.API_KEY) }
+    : { url: base(C.LEGACY_API_URL || C.API_URL) + pathQuery, headers: auth(C.LEGACY_API_KEY || C.API_KEY) };
+  R.apiBase = base(C.LEGACY_API_URL || C.API_URL);           // kept for older page code
+  R.apiHeaders = () => auth(C.LEGACY_API_KEY || C.API_KEY);
   R.fetchAll = async function (pathQuery) {
     const out = []; const page = 1000; let from = 0;
-    const schema = /^api\//.test(pathQuery) ? { 'Accept-Profile': 'api' } : {};
-    pathQuery = pathQuery.replace(/^api\//, '');
+    const src = R.source(pathQuery);
     for (;;) {
-      const r = await fetch(R.apiBase + pathQuery, { headers: { ...R.apiHeaders(), ...schema, Range: from + '-' + (from + page - 1), Prefer: 'count=none' } });
+      const r = await fetch(src.url, { headers: { ...src.headers, Range: from + '-' + (from + page - 1), Prefer: 'count=none' } });
       if (!r.ok) { const e = new Error(r.status + ' on ' + pathQuery.split('?')[0]); e.status = r.status; throw e; }
       const rows = await r.json(); out.push(...rows);
       if (rows.length < page) return out;
