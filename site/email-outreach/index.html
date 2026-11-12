@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email outreach · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?b=__BUILD__">
+<link rel="stylesheet" href="../assets/legacy.css?b=__BUILD__">
+</head>
+<body>
+<div id="shell"></div>
+<script src="../assets/config.js?b=__BUILD__"></script>
+<script src="../assets/app.js?b=__BUILD__"></script>
+<script>
+const TABS = [{ key: 'sequences', label: 'Sequences', v1: 'https://vibe-reports.jentis.info/sequences/' }, { key: 'subjects', label: 'Subject lines', v1: 'https://vibe-reports.jentis.info/subjects/' }];
+const page = R.shell({ page: 'email', title: 'Email outreach', subtitle: 'HubSpot sequences and Instantly campaigns — performance, subject lines, engagers' });
+const cur = location.hash.slice(1) || TABS[0].key;
+page.innerHTML = '<div class="tabs">' + TABS.map(t => '<a href="#' + t.key + '" class="' + (t.key === cur ? 'on' : '') + '" onclick="setTimeout(() => location.reload(), 0)">' + t.label + (t.v1 ? ' <span class="badge">v1</span>' : '') + '</a>').join('') + '</div>' +
+  (() => { const t = TABS.find(x => x.key === cur) || TABS[0]; return t.v1 ? '<p class="small muted">Shown from the current dashboard until this page is ported — <a href="' + t.v1 + '" target="_blank" rel="noopener">open it in its own tab</a>.</p><iframe class="embed" src="' + t.v1 + '"></iframe>' : '<div class="card"><div class="state">' + t.note + '</div></div>'; })();
+</script>
+</body>
+</html>

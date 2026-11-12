@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Celebration board · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/app.css?b=__BUILD__">
+<link rel="stylesheet" href="../../assets/legacy.css?b=__BUILD__">
+</head>
+<body>
+<div id="shell"></div>
+<script src="../../assets/config.js?b=__BUILD__"></script>
+<script src="../../assets/app.js?b=__BUILD__"></script>
+<script>
+const page = R.shell({ page: 'celebrations', title: 'Celebration board', subtitle: 'Records and wins of the Business Development team — computed from calls, discoveries and goals' });
+page.innerHTML = '<div class="celebs" id="celebs"><div class="state">Loading…</div></div><p class="small muted" style="margin-top:.8rem">Records are all-time since the data starts (2026). Cards appear automatically when a record falls or a goal is reached; special notes can be added in the change notes.</p>';
+async function load() {
+  const get = q => R.fetchAll(q).catch(() => []);
+  const [calls, discos, goals, entries] = await Promise.all([
+    get('v_calls?select=ts,bucket,owner_name,disposition_label'),
+    get('v_discoveries?select=created_at,meeting_start,status,owner_name'),
+    get('v_goals?select=*'),
+    get('company_stage_entries?suppressed=eq.false&stage=in.(responded,discovery,qualified,customer)&select=stage,effective_date')
+  ]);
+  const F = R.filters({ time: false, controls: [{ key: 'scope', label: 'Show', type: 'select', options: [['all', 'All records'], ['quarter', 'This quarter only']] }], onChange: s => render(s) });
+  const day = t => String(t).slice(0, 10), week = t => R.isoWeek(String(t));
+  const cards = [];
+  const rec = (rows, keyF, who, em, title, what, cls) => {
+    const m = {}; for (const r of rows) { const k = keyF(r) + '|' + (who ? r.owner_name || '?' : 'team'); m[k] = (m[k] || 0) + 1; }
+    let best = null; for (const [k, v] of Object.entries(m)) if (!best || v > best.v) best = { k, v };
+    if (best) { const [when, person] = best.k.split('|'); cards.push({ em, title: title.replace('{n}', best.v), what: what.replace('{who}', person === 'team' ? 'the whole team' : person), when, cls, sort: when }); }
+  };
+  const conn = calls.filter(c => c.bucket === 'counts_as_responded'), booked = calls.filter(c => /meeting booked/i.test(c.disposition_label || ''));
+  rec(calls, c => day(c.ts), true, '📞', '{n} calls in one day', 'personal record · {who}', 'record');
+  rec(calls, c => day(c.ts), false, '🏟️', '{n} calls in one day', 'team record · {who}', 'record');
+  rec(conn, c => day(c.ts), true, '🎯', '{n} connected calls in one day', 'personal record · {who}', 'record');
+  rec(conn, c => week(c.ts), false, '🔥', '{n} connected calls in one week', 'team record · {who}', 'record');
+  rec(booked, c => day(c.ts), true, '📅', '{n} meetings booked from calls in one day', 'personal record · {who}', 'record');
+  rec(discos.filter(d => d.status !== 'canceled'), d => week(d.created_at || d.meeting_start), false, '🚀', '{n} discoveries booked in one week', 'team record · {who}', 'record');
+  rec(discos.filter(d => d.status !== 'canceled'), d => week(d.created_at || d.meeting_start), true, '⭐', '{n} discoveries booked in one week', 'personal record · {who}', 'record');
+  // goals reached (per quarter)
+  const Q = R.quarterBounds ? null : null;
+  const byQ = {}; for (const e of entries) { const [y, m] = e.effective_date.split('-').map(Number); const k = y + '-Q' + (Math.floor((m - 1) / 3) + 1); byQ[k] = byQ[k] || {}; byQ[k][e.stage] = (byQ[k][e.stage] || 0) + 1; }
+  const labels = { responded: 'Responses', discovery: 'Discoveries', qualified: 'Qualified accounts', customer: 'Customers signed' };
+  for (const g of goals) { const got = (byQ[g.period] || {})[g.metric]; if (got != null && Number(g.target) > 0 && got >= Number(g.target)) cards.push({ em: '🏆', title: 'Goal reached: ' + (labels[g.metric] || g.label || g.metric), what: got + ' of ' + g.target + ' · ' + g.period, when: g.period, cls: 'goal', sort: g.period }); }
+  function render(s) {
+    const q = R.quarter ? R.quarter() : null;
+    const list = cards.filter(c => s.scope !== 'quarter' || !q || String(c.when).startsWith(q.label) || (q.startIso && c.when >= q.startIso)).sort((a, b) => String(b.sort).localeCompare(String(a.sort)));
+    document.getElementById('celebs').innerHTML = list.length ? list.map(c => '<div class="celeb ' + c.cls + '"><div class="em">' + c.em + '</div><div class="t">' + R.esc(c.title) + '</div><div class="w">' + R.esc(c.what) + '</div><div class="d">' + R.esc(/^\d{4}-\d{2}-\d{2}$/.test(c.when) ? R.fmtDate(c.when) : c.when) + '</div></div>').join('') : '<div class="state">Nothing to celebrate yet in this scope — go make some calls 📞</div>';
+  }
+  render(F);
+}
+load();
+</script>
+</body>
+</html>

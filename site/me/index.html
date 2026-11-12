@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My page · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?b=__BUILD__">
+<link rel="stylesheet" href="../assets/legacy.css?b=__BUILD__">
+</head>
+<body>
+<div id="shell"></div>
+<script src="../assets/config.js?b=__BUILD__"></script>
+<script src="../assets/app.js?b=__BUILD__"></script>
+<script>
+const page = R.shell({ page: 'me', title: 'Hello', subtitle: 'Your personal overview — pick the cards, their timeframe and arrangement' });
+// ---------- card registry ----------
+// each card: label, sizes allowed, times allowed (keys of R.timeRange; 'now' = snapshot), render(ctx) -> html; ctx = { range, me, data }
+const PAST = [['week', 'This week'], ['lastweek', 'Last week'], ['month', 'This month'], ['quarter', 'This quarter'], ['90d', 'Last 90 days']];
+const FUT = [['today', 'Today'], ['next7', 'Next 7 days'], ['next30', 'Next 30 days'], ['next90', 'Next 90 days']];
+const li = (d, t, r) => '<li><span class="d">' + R.esc(d) + '</span><span>' + t + '</span>' + (r ? '<span class="r">' + r + '</span>' : '') + '</li>';
+const mine = (rows, f) => ctx => ctx.me ? rows.filter(x => (f(x) || '').toLowerCase().includes(ctx.me.split(' ')[0].toLowerCase())) : rows;
+const CARDS = {
+  tasks: { label: 'My open tasks', times: [], render: () => '<div class="ph">HubSpot tasks are not synced yet — this card fills up with the v2 database (tasks per owner, due date, linked record).</div>' },
+  renewals: { label: 'Upcoming renewals', times: FUT, render: ctx => { const rows = mine(ctx.data.ren, x => x.owner_name)(ctx).filter(x => R.inRange(x.license_end, ctx.range)).sort((a, b) => a.license_end.localeCompare(b.license_end)); return rows.length ? '<ul>' + rows.slice(0, 8).map(x => li(R.fmtDate(x.license_end), '<a href="' + R.hs('0-2', x.company_id) + '" target="_blank" rel="noopener">' + R.esc(x.company_name) + '</a>', (x.renewal_status || '') + (x.auto_renewal ? ' · auto' : ''))).join('') + '</ul>' + (rows.length > 8 ? '<div class="ph">+' + (rows.length - 8) + ' more</div>' : '') : '<div class="ph">No renewals in this window.</div>'; } },
+  meetings: { label: 'Upcoming discoveries', times: FUT, render: ctx => { const rows = ctx.data.disc.filter(d => d.status !== 'canceled' && R.inRange(d.meeting_start, ctx.range)).sort((a, b) => a.meeting_start.localeCompare(b.meeting_start)); return rows.length ? '<ul>' + rows.slice(0, 8).map(d => li(R.fmtDate(d.meeting_start), R.esc(d.company_name || '') + (d.contact_name ? ' · ' + R.esc(d.contact_name) : ''), R.esc(d.owner_name || ''))).join('') + '</ul>' : '<div class="ph">No discoveries in this window.</div>'; } },
+  warnings: { label: 'Customers needing attention', times: [], render: ctx => { const rows = mine(ctx.data.cust, c => c.owner_name)(ctx).filter(c => c.status_code && c.status_code !== 'ok'); return rows.length ? '<ul>' + rows.slice(0, 8).map(c => li('', '<a href="https://vibe-reports.jentis.info/cs-customers/?company=' + c.company_id + '" target="_blank" rel="noopener">' + R.esc(c.company_name) + '</a>', '<span class="warn-li">' + R.esc(c.status_text || c.status_code) + '</span>')).join('') + '</ul>' : '<div class="ph">All good right now.</div>'; } },
+  calls: { label: 'My calls', times: PAST, render: ctx => { const rows = mine(ctx.data.calls, c => c.owner_name)(ctx).filter(c => R.inRange(c.ts, ctx.range)); const k = rows.filter(c => c.bucket === 'counts_as_responded').length; return '<div class="big">' + rows.length + '</div><div class="small muted">' + k + ' connected · ' + R.pct(k, rows.length) + (ctx.me ? '' : ' · set your name to see only yours') + '</div>'; } },
+  discos: { label: 'My discoveries booked', times: PAST, render: ctx => { const rows = mine(ctx.data.disc, d => d.owner_name)(ctx).filter(d => d.status !== 'canceled' && R.inRange(d.created_at || d.meeting_start, ctx.range)); return '<div class="big">' + rows.length + '</div><ul>' + rows.slice(0, 5).map(d => li(R.fmtDate(d.meeting_start), R.esc(d.company_name || ''))).join('') + '</ul>'; } },
+  wins: { label: 'Won deals (team)', times: PAST, render: ctx => { const rows = ctx.data.deals.filter(d => d.is_won && R.inRange(d.close_date, ctx.range)).sort((a, b) => (b.close_date || '').localeCompare(a.close_date || '')); const v = rows.reduce((t, d) => t + (Number(d.amount) || 0), 0); return '<div class="big">' + rows.length + ' <span class="small muted">' + R.eur(v) + '</span></div><ul>' + rows.slice(0, 6).map(d => li(R.fmtDate(d.close_date), R.esc(d.company_name || ''), R.esc(d.dealtype || ''))).join('') + '</ul>'; } },
+  tickets: { label: 'Open tickets', times: [], render: ctx => { const ids = ctx.me ? new Set(mine(ctx.data.cust, c => c.owner_name)(ctx).map(c => c.company_id)) : null; const rows = ctx.data.tix.filter(t => !/closed|done|resolved/i.test(t.status || '') && (!ids || ids.has(t.company_id))); return '<div class="big">' + rows.length + '</div><ul>' + rows.slice(0, 6).map(t => li(R.fmtDate(t.created_at), R.esc(t.subject || ''), R.esc(t.company_name || ''))).join('') + '</ul>'; } },
+  goals: { label: 'Quarter goals', times: [], render: ctx => { const q = R.quarter(); const g = ctx.data.goals.filter(x => x.period === q.label || x.period === q.year); if (!g.length) return '<div class="ph">No goals for ' + q.label + '.</div>'; const cnt = {}; for (const e of ctx.data.entries) if (e.effective_date >= q.startIso) cnt[e.stage] = (cnt[e.stage] || 0) + 1; return '<ul>' + g.map(x => { const v = cnt[x.metric] || 0; return li('', R.esc(x.label || x.metric), v + ' / ' + x.target + ' · ' + Math.round(100 * v / x.target) + '%'); }).join('') + '</ul>'; } },
+  changes: { label: 'Unread change notes', times: [], render: () => { const u = R.changes.unread(); return u.length ? '<ul>' + u.flatMap(r => r.items.slice(0, 4).map(i => li(R.fmtDate(r.date), R.esc(i.summary || '')))).slice(0, 6).join('') + '</ul><div class="ph"><a href="../changes/">All change notes →</a></div>' : '<div class="ph">You are up to date.</div>'; } },
+  celebrate: { label: 'Latest celebrations', times: [], render: ctx => { const rows = ctx.data.deals.filter(d => d.is_won).sort((a, b) => (b.close_date || '').localeCompare(a.close_date || '')).slice(0, 5); return '<ul>' + rows.map(d => li(R.fmtDate(d.close_date), '🏆 ' + R.esc(d.company_name || ''), R.eur(d.amount))).join('') + '</ul><div class="ph"><a href="../sales/celebrations/">Sales board →</a> · <a href="../bd/celebrations/">BD board →</a></div>'; } },
+};
+const DEFAULT = { time: 'month', perCard: false, cards: [{ id: 1, key: 'tasks', size: 's' }, { id: 2, key: 'renewals', size: 's', time: 'next30' }, { id: 3, key: 'meetings', size: 's', time: 'next7' }, { id: 4, key: 'warnings', size: 'm' }, { id: 5, key: 'goals', size: 'm' }, { id: 6, key: 'calls', size: 's' }, { id: 7, key: 'wins', size: 's' }, { id: 8, key: 'changes', size: 's' }] };
+let L = Object.assign({}, DEFAULT, R.pref('me.layout') || {}); if (!Array.isArray(L.cards) || !L.cards.length) L.cards = DEFAULT.cards.map(c => ({ ...c }));
+const save = () => R.pref('me.layout', L);
+let DATA = null, EDIT = false;
+page.innerHTML = '<div class="me-top"><div id="me-name" class="small muted"></div><span class="spacer"></span><button class="btn" id="me-settings">⚙ Settings</button><button class="btn" id="me-edit">✎ Edit layout</button></div><div class="me-grid" id="grid"><div class="state">Loading…</div></div>';
+async function load() {
+  const get = q => R.fetchAll(q).catch(() => []);
+  const [ren, disc, cust, calls, deals, tix, goals, entries] = await Promise.all([
+    get('v_cs_renewals?select=deal_id,company_id,company_name,owner_name,license_end,renewal_status,auto_renewal'),
+    get('v_discoveries?select=company_id,company_name,contact_name,owner_name,created_at,meeting_start,status'),
+    get('v_cs_customers_ext?select=company_id,company_name,owner_name,status_code,status_text'),
+    get('v_calls?select=ts,bucket,owner_name'),
+    get('v_deals?select=deal_id,company_id,company_name,dealtype,close_date,is_won,amount,owner_name'),
+    get('cs_tickets?select=ticket_id,company_id,company_name,subject,status,created_at'),
+    get('v_goals?select=*'),
+    get('company_stage_entries?suppressed=eq.false&select=stage,effective_date')
+  ]);
+  DATA = { ren, disc, cust, calls, deals, tix, goals, entries };
+  render();
+}
+function timeFor(c) { const def = CARDS[c.key]; if (!def.times.length) return null; const allowed = def.times.map(t => t[0]); const t = (L.perCard ? c.time : null) || (allowed.includes(L.time) ? L.time : null) || c.time || allowed[0]; return allowed.includes(t) ? t : allowed[0]; }
+function render() {
+  const me = R.userName();
+  document.getElementById('me-name').innerHTML = me ? 'Showing things for <strong>' + R.esc(me) + '</strong> where a name applies' : '<a href="#" onclick="askName();return false">Set your name</a> to see your own calls, customers and renewals';
+  document.querySelector('.topbar h1').textContent = me ? 'Hello ' + me.split(' ')[0] : 'Hello';
+  const grid = document.getElementById('grid'); grid.classList.toggle('edit', EDIT);
+  grid.innerHTML = L.cards.map((c, i) => {
+    const def = CARDS[c.key]; if (!def) return '';
+    const t = timeFor(c); const range = t ? R.timeRange(t) : null;
+    let body; try { body = DATA ? def.render({ range, me, data: DATA }) : '<div class="ph">Loading…</div>'; } catch (e) { body = '<div class="ph">' + R.esc(e.message) + '</div>'; }
+    const tf = t ? (L.perCard ? '<select onchange="setTime(' + i + ', this.value)">' + def.times.map(o => '<option value="' + o[0] + '"' + (o[0] === t ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' : '<span class="tf">' + R.esc(range.label) + '</span>') : '<span class="tf">now</span>';
+    return '<div class="mc ' + c.size + '" draggable="' + EDIT + '" data-i="' + i + '"><div class="mh"><h3>' + R.esc(def.label) + '</h3>' + tf + '</div>' + body +
+      '<div class="tools">' + ['s', 'm', 'l'].map(sz => '<button class="' + (c.size === sz ? 'on' : '') + '" onclick="setSize(' + i + ',\'' + sz + '\')">' + sz.toUpperCase() + '</button>').join('') + '<button onclick="removeCard(' + i + ')" title="remove">✕</button></div></div>';
+  }).join('') + (EDIT ? '<div class="me-add"><strong class="small">Add a card</strong><select id="add-key">' + Object.entries(CARDS).map(([k, d]) => '<option value="' + k + '">' + d.label + '</option>').join('') + '</select><button class="btn primary" onclick="addCard()">+ Add</button><span class="small muted">The same card can be added several times, e.g. with different timeframes.</span></div>' : '');
+  if (EDIT) wireDnD();
+}
+function setTime(i, v) { L.cards[i].time = v; save(); render(); }
+function setSize(i, sz) { L.cards[i].size = sz; save(); render(); }
+function removeCard(i) { L.cards.splice(i, 1); save(); render(); }
+function addCard() { const key = document.getElementById('add-key').value; L.cards.push({ id: Date.now(), key, size: 's', time: (CARDS[key].times[0] || [null])[0] }); save(); render(); }
+function wireDnD() {
+  let from = null;
+  document.querySelectorAll('#grid .mc').forEach(el => {
+    el.addEventListener('dragstart', () => { from = Number(el.dataset.i); el.classList.add('drag'); });
+    el.addEventListener('dragend', () => el.classList.remove('drag'));
+    el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('over'); });
+    el.addEventListener('dragleave', () => el.classList.remove('over'));
+    el.addEventListener('drop', e => { e.preventDefault(); const to = Number(el.dataset.i); if (from === null || from === to) return; const [c] = L.cards.splice(from, 1); L.cards.splice(to, 0, c); save(); render(); });
+  });
+}
+function askName() { const n = prompt('Your name (as it appears in HubSpot, e.g. "Sebastian Tapinos"):', R.userName() || ''); if (n != null) { R.userName(n.trim()); render(); } }
+document.getElementById('me-edit').onclick = () => { EDIT = !EDIT; document.getElementById('me-edit').textContent = EDIT ? '✓ Done' : '✎ Edit layout'; render(); };
+document.getElementById('me-settings').onclick = () => {
+  const m = document.getElementById('fb-modal');
+  m.innerHTML = '<div class="box"><h3>My page settings <button class="x" onclick="R.feedback.close()">✕</button></h3>' +
+    '<label>Your name<input id="s-name" value="' + R.esc(R.userName()) + '" placeholder="as in HubSpot"></label>' +
+    '<label>Timeframe for all cards<select id="s-time">' + R.TIME_OPTS.filter(o => o[0] !== 'custom').map(o => '<option value="' + o[0] + '"' + (L.time === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></label>' +
+    '<label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:0;font-size:.84rem;color:var(--text)"><input type="checkbox" id="s-per" style="width:auto;margin:0"' + (L.perCard ? ' checked' : '') + '> Each card has its own timeframe</label>' +
+    '<div class="row"><button class="btn" onclick="L=JSON.parse(JSON.stringify(DEFAULT));save();R.feedback.close();render()">Reset layout</button><button class="btn primary" onclick="saveSettings()">Save</button></div></div>';
+  m.classList.add('open');
+};
+function saveSettings() { R.userName(document.getElementById('s-name').value.trim()); L.time = document.getElementById('s-time').value; L.perCard = document.getElementById('s-per').checked; save(); R.feedback.close(); render(); }
+load();
+</script>
+</body>
+</html>

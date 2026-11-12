@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer Success celebration board · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/app.css?b=__BUILD__">
+<link rel="stylesheet" href="../../assets/legacy.css?b=__BUILD__">
+</head>
+<body>
+<div id="shell"></div>
+<script src="../../assets/config.js?b=__BUILD__"></script>
+<script src="../../assets/app.js?b=__BUILD__"></script>
+<script>
+const page = R.shell({ page: 'cs-celebrations', title: 'Customer Success celebration board', subtitle: 'Renewals, expansions, professional services sold, records' });
+page.innerHTML = '<div class="celebs" id="celebs"><div class="state">Loading…</div></div>';
+const PS = /^professional service/i, REN = /^(early )?renewal$/i, UP = /^(upsell|expansion)$/i;
+async function load() {
+  const get = q => R.fetchAll(q).catch(() => []);
+  const [deals, tix, cust] = await Promise.all([
+    get('v_deals?select=deal_id,deal_name,company_id,company_name,dealtype,close_date,is_won,amount,owner_name'),
+    get('cs_tickets?select=ticket_id,status,last_activity,created_at'),
+    get('v_cs_customers_ext?select=company_id,company_name,mrr,customer_since')
+  ]);
+  const cards = [];
+  const won = deals.filter(d => d.is_won).sort((a, b) => (a.close_date || '').localeCompare(b.close_date || ''));
+  let bestPS = 0, bestUp = 0;
+  for (const d of won) {
+    const v = Number(d.amount) || 0, who = d.owner_name ? ' · ' + d.owner_name : '';
+    if (PS.test(d.dealtype || '')) { cards.push({ em: '🛠️', title: 'Professional service sold: ' + d.company_name, what: R.eur(v) + who, when: d.close_date, cls: 'win' }); if (v > bestPS && bestPS > 0) cards.push({ em: '💎', title: 'Largest PS package: ' + R.eur(v), what: d.company_name + ' — previous record ' + R.eur(bestPS), when: d.close_date, cls: 'record' }); if (v > bestPS) bestPS = v; }
+    if (REN.test(d.dealtype || '')) cards.push({ em: '🔁', title: 'Renewed: ' + d.company_name, what: R.eur(v) + who, when: d.close_date, cls: 'win' });
+    if (UP.test(d.dealtype || '')) { cards.push({ em: '📈', title: 'Expansion: ' + d.company_name, what: R.eur(v) + who + ' · ' + d.dealtype, when: d.close_date, cls: 'win' }); if (v > bestUp && bestUp > 0) cards.push({ em: '💎', title: 'Largest expansion: ' + R.eur(v), what: d.company_name + ' — previous record ' + R.eur(bestUp), when: d.close_date, cls: 'record' }); if (v > bestUp) bestUp = v; }
+  }
+  const closed = tix.filter(t => /closed|done|resolved/i.test(t.status || '') && t.last_activity);
+  const rec = R.record(closed, t => R.isoWeek(t.last_activity));
+  if (rec) cards.push({ em: '🎫', title: rec.value + ' tickets closed in one week', what: 'team record · ' + rec.key, when: rec.key, cls: 'record' });
+  const top = [...cust].sort((a, b) => (Number(b.mrr) || 0) - (Number(a.mrr) || 0))[0];
+  if (top && top.mrr) cards.push({ em: '👑', title: 'Largest customer: ' + top.company_name, what: R.eur(top.mrr) + ' MRR', when: (top.customer_since || '').slice(0, 10) || '—', cls: 'record' });
+  R.celebBoard(document.getElementById('celebs'), cards);
+}
+load();
+</script>
+</body>
+</html>

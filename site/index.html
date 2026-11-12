@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commercial overview · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css?b=__BUILD__">
+<link rel="stylesheet" href="assets/legacy.css?b=__BUILD__">
+</head>
+<body>
+<div id="shell"></div>
+<script src="assets/config.js?b=__BUILD__"></script>
+<script src="assets/app.js?b=__BUILD__"></script>
+<script>
+const page = R.shell({ page: 'overview', title: 'Commercial overview', subtitle: 'Key numbers across the whole commercial journey — Marketing → Business Development → Sales → Customer Success' });
+page.innerHTML = '<div class="kgroups" id="kg"><div class="state">Loading…</div></div><p class="small muted" style="margin-top:.8rem">Each tile compares the chosen period with the period of the same length before it. Tiles marked “now” are a snapshot and ignore the period.</p>';
+let D = null;
+const NB = /^(full license \(new business\)|jentis light)$/i, POC = /^poc$/i, PS = /^professional service/i, REN = /^(early )?renewal$/i;
+async function load() {
+  const get = q => R.fetchAll(q).catch(() => []);
+  const [entries, email, inst, outreach, resp, calls, discos, deals, tickets, renewals] = await Promise.all([
+    get('company_stage_entries?suppressed=eq.false&select=stage,effective_date,company_id'),
+    get('v_email_daily?select=date,sends'),
+    get('instantly_daily?select=date,sent'),
+    get('v_outreach_events?select=channel,ts,n'),
+    get('v_contact_responded?select=responded_at'),
+    get('v_calls?select=ts,bucket'),
+    get('v_discoveries?select=created_at,meeting_start,status'),
+    get('v_deals?select=dealtype,create_date,close_date,is_closed,is_won,amount'),
+    get('cs_tickets?select=created_at,status'),
+    get('v_cs_renewals?select=license_end,renewal_status,is_won')
+  ]);
+  D = { entries, email, inst, outreach, resp, calls, discos, deals, tickets, renewals };
+  render();
+}
+const F = R.filters({ defaultTime: 'quarter', onChange: render });
+function count(rows, f, range) { return rows.filter(r => { const d = f(r); return d && R.inRange(d, range); }).length; }
+function sum(rows, f, v, range) { return rows.filter(r => { const d = f(r); return d && R.inRange(d, range); }).reduce((a, r) => a + (Number(v(r)) || 0), 0); }
+function tile(label, cur, prev, opts) {
+  opts = opts || {};
+  const val = opts.eur ? R.eur(cur) : R.num(cur);
+  return R.kpi(label, val + (prev == null ? '' : ' ' + R.delta(cur, prev)), opts.sub || (prev == null ? 'as of today' : 'before: ' + (opts.eur ? R.eur(prev) : R.num(prev))), opts.cls);
+}
+function render() {
+  if (!D) return;
+  const r = F.range, p = R.prevRange(r);
+  const E = (stage, rg) => count(D.entries.filter(e => e.stage === stage), e => e.effective_date, rg);
+  const emails = rg => sum(D.email, x => x.date, x => x.sends, rg) + sum(D.inst, x => x.date, x => x.sent, rg);
+  const li = rg => sum(D.outreach.filter(o => /linkedin/i.test(o.channel)), o => o.ts, o => o.n || 1, rg);
+  const calls = rg => count(D.calls, c => c.ts, rg), conn = rg => count(D.calls.filter(c => c.bucket === 'counts_as_responded'), c => c.ts, rg);
+  const disc = rg => count(D.discos.filter(d => d.status !== 'canceled'), d => d.created_at || d.meeting_start, rg);
+  const held = rg => count(D.discos.filter(d => d.status === 'completed'), d => d.meeting_start, rg);
+  const nbDeals = D.deals.filter(d => NB.test(d.dealtype || '') || POC.test(d.dealtype || ''));
+  const created = rg => count(nbDeals, d => d.create_date, rg);
+  const won = D.deals.filter(d => d.is_won && NB.test(d.dealtype || ''));
+  const wonN = rg => count(won, d => d.close_date, rg), wonV = rg => sum(won, d => d.close_date, d => d.amount, rg);
+  const ps = D.deals.filter(d => d.is_won && PS.test(d.dealtype || ''));
+  const psN = rg => count(ps, d => d.close_date, rg), psV = rg => sum(ps, d => d.close_date, d => d.amount, rg);
+  const renWon = D.deals.filter(d => d.is_won && REN.test(d.dealtype || ''));
+  const renDue = rg => count(D.renewals, x => x.license_end, rg);
+  const tix = rg => count(D.tickets, t => t.created_at, rg);
+  const openPipe = nbDeals.filter(d => !d.is_closed).reduce((a, d) => a + (Number(d.amount) || 0), 0);
+  const openTix = D.tickets.filter(t => !/closed|done|resolved|geschlossen/i.test(t.status || '')).length;
+  const onboarding = (() => { const to = r.to, from = new Date(Date.parse(to) - 90 * 864e5).toISOString().slice(0, 10); return won.filter(d => d.close_date >= from && d.close_date < to).length; })();
+  const groups = [
+    { key: 'mkt', name: 'Marketing', st: 'awareness → lead → response', tiles: [
+      tile('New leads', E('lead', r), E('lead', p)), tile('Outreach emails sent', emails(r), emails(p)), tile('LinkedIn actions', li(r), li(p)), tile('Responses', count(D.resp, x => x.responded_at, r), count(D.resp, x => x.responded_at, p)), tile('Engaged → Responded (stage)', E('responded', r), E('responded', p)) ] },
+    { key: 'bd', name: 'Business Development', st: 'response → discovery', tiles: [
+      tile('Calls', calls(r), calls(p)), tile('Connected calls', conn(r), conn(p)), tile('Discoveries booked', disc(r), disc(p)), tile('Discoveries held', held(r), held(p)), tile('Entered Discovery (stage)', E('discovery', r), E('discovery', p)) ] },
+    { key: 'sales', name: 'Sales pipeline', st: 'qualified → closed won', tiles: [
+      tile('Qualified accounts', E('qualified', r), E('qualified', p)), tile('Opportunities', E('opportunity', r), E('opportunity', p)), tile('Deals created (NB + POC)', created(r), created(p)), tile('Won new business', wonN(r), wonN(p), { sub: R.eur(wonV(r)) + ' · before ' + R.eur(wonV(p)) }), tile('Open NB pipeline · now', openPipe, null, { eur: true, cls: 'soft' }) ] },
+    { key: 'cs', name: 'Customer Success', st: 'onboarding → renewal → expansion', tiles: [
+      tile('Customers signed', E('customer', r), E('customer', p)), tile('In onboarding · now', onboarding, null, { sub: 'signed in the 90 days before period end', cls: 'soft' }), tile('Renewals due', renDue(r), renDue(p)), tile('Renewals won', count(renWon, d => d.close_date, r), count(renWon, d => d.close_date, p)), tile('Professional services sold', psN(r), psN(p), { sub: R.eur(psV(r)) + ' · before ' + R.eur(psV(p)) }), tile('Tickets opened', tix(r), tix(p)), tile('Open tickets · now', openTix, null, { cls: 'soft' }) ] },
+  ];
+  document.getElementById('kg').innerHTML = groups.map(g => '<section class="kgroup ' + g.key + '"><div class="gh"><h2>' + g.name + '</h2><span class="st">' + g.st + '</span><span class="st" style="margin-left:auto">' + R.esc(r.label) + '</span></div><div class="tiles">' + g.tiles.join('') + '</div></section>').join('');
+}
+load();
+</script>
+</body>
+</html>

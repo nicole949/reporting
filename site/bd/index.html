@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Business Development overview · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?b=__BUILD__">
+<link rel="stylesheet" href="../assets/legacy.css?b=__BUILD__">
+</head>
+<body>
+<div id="shell"></div>
+<script src="../assets/config.js?b=__BUILD__"></script>
+<script src="../assets/app.js?b=__BUILD__"></script>
+<script>
+const page = R.shell({ page: 'bd-overview', title: 'Business Development overview', subtitle: 'Calls, connections and discoveries — per period and per SDR' });
+page.innerHTML = '<div id="bd-goals" class="tiles" style="margin-bottom:1rem"></div><div class="grid c2"><div class="card"><h2>Per SDR <span class="muted small" id="sdr-sub"></span></h2><div id="sdr-table"></div></div><div class="card"><h2>Calls per week <span class="muted small">· connected in dark</span></h2><div id="calls-chart"></div></div></div><div class="card" style="margin-top:1rem"><h2>Discoveries booked in the period</h2><div id="disc-list"></div></div>';
+let D = null, F = null;
+async function load() {
+  const get = q => R.fetchAll(q).catch(() => []);
+  const [calls, discos, goals, entries] = await Promise.all([
+    get('v_calls?select=ts,bucket,owner_name,disposition_label,contact_name,company_id,company_name'),
+    get('v_discoveries?select=meeting_id,company_id,company_name,contact_name,owner_name,created_at,meeting_start,status'),
+    get('v_goals?select=*'),
+    get('company_stage_entries?suppressed=eq.false&stage=in.(responded,discovery)&select=stage,effective_date')
+  ]);
+  D = { calls, discos, goals, entries };
+  const owners = [...new Set([...calls.map(c => c.owner_name), ...discos.map(d => d.owner_name)].filter(Boolean))].sort();
+  F = R.filters({ defaultTime: 'quarter', controls: [{ key: 'sdr', label: 'SDR', type: 'multi', options: owners.map(o => [o, o]) }], onChange: render });
+  render();
+}
+function render() {
+  const r = F.range, p = R.prevRange(r), sel = F.sdr || [];
+  const own = x => !sel.length || sel.includes(x.owner_name);
+  const calls = D.calls.filter(own), discos = D.discos.filter(own).filter(d => d.status !== 'canceled');
+  const inR = (rows, f, rg) => rows.filter(x => { const d = f(x); return d && R.inRange(d, rg); });
+  const cN = inR(calls, c => c.ts, r).length, cP = inR(calls, c => c.ts, p).length;
+  const conn = rows => rows.filter(c => c.bucket === 'counts_as_responded');
+  const kN = conn(inR(calls, c => c.ts, r)).length, kP = conn(inR(calls, c => c.ts, p)).length;
+  const booked = rows => rows.filter(c => /meeting booked/i.test(c.disposition_label || ''));
+  const bN = booked(inR(calls, c => c.ts, r)).length, bP = booked(inR(calls, c => c.ts, p)).length;
+  const dN = inR(discos, d => d.created_at || d.meeting_start, r).length, dP = inR(discos, d => d.created_at || d.meeting_start, p).length;
+  const resp = inR(D.entries.filter(e => e.stage === 'responded'), e => e.effective_date, r).length;
+  const q = R.quarter ? R.quarter() : null;
+  const goal = m => { const g = (D.goals || []).find(x => x.metric === m && q && (x.period === q.label || x.period === q.year)); return g ? Number(g.target) : null; };
+  const gTile = (label, val, prev, target) => R.kpi(label, R.num(val) + ' ' + R.delta(val, prev), target ? 'goal ' + R.num(target) + ' · ' + Math.round(100 * val / target) + '%' : 'before: ' + R.num(prev));
+  document.getElementById('bd-goals').innerHTML = gTile('Calls', cN, cP, F.time === 'quarter' ? goal('calls') : null) + gTile('Connected', kN, kP) + R.kpi('Connect rate', R.pct(kN, cN), 'before: ' + R.pct(kP, cP)) + gTile('Meetings booked from calls', bN, bP) + gTile('Discoveries booked', dN, dP, F.time === 'quarter' ? goal('discovery') : null) + R.kpi('Responded (stage, all channels)', R.num(resp), F.time === 'quarter' && goal('responded') ? 'goal ' + R.num(goal('responded')) : '');
+  // per SDR
+  const names = [...new Set([...calls.map(c => c.owner_name), ...discos.map(d => d.owner_name)].filter(Boolean))].sort();
+  const rows = names.map(n => { const c = inR(calls.filter(x => x.owner_name === n), x => x.ts, r); const k = conn(c).length; const d = inR(discos.filter(x => x.owner_name === n), x => x.created_at || x.meeting_start, r).length;
+    return { n, calls: c.length, conn: k, rate: c.length ? Math.round(100 * k / c.length) : 0, booked: booked(c).length, disc: d }; }).filter(x => x.calls || x.disc).sort((a, b) => b.calls - a.calls);
+  document.getElementById('sdr-sub').textContent = '· ' + r.label;
+  document.getElementById('sdr-table').innerHTML = '<table class="data"><tr><th>SDR</th><th style="text-align:right">Calls</th><th style="text-align:right">Connected</th><th style="text-align:right">Rate</th><th style="text-align:right">Meetings booked</th><th style="text-align:right">Discoveries</th></tr>' +
+    rows.map(x => '<tr><td>' + R.esc(x.n) + '</td><td style="text-align:right">' + x.calls + '</td><td style="text-align:right">' + x.conn + '</td><td style="text-align:right">' + x.rate + '%</td><td style="text-align:right">' + x.booked + '</td><td style="text-align:right">' + x.disc + '</td></tr>').join('') + '</table>';
+  // weekly chart (last 13 weeks ending at the period end)
+  const weeks = []; const end = new Date(Date.parse(r.to)); for (let i = 12; i >= 0; i--) { const d = new Date(end.getTime() - i * 7 * 864e5); weeks.push(R.isoWeek(d.toISOString())); }
+  const per = {}; for (const c of calls) { const w = R.isoWeek(c.ts); if (!per[w]) per[w] = { a: 0, k: 0 }; per[w].a++; if (c.bucket === 'counts_as_responded') per[w].k++; }
+  const vals = weeks.map(w => (per[w] || { a: 0 }).a), kv = weeks.map(w => (per[w] || { k: 0 }).k);
+  const max = Math.max(1, ...vals);
+  document.getElementById('calls-chart').innerHTML = '<div style="display:flex;align-items:flex-end;gap:4px;height:140px">' + weeks.map((w, i) => '<div title="' + w + ': ' + vals[i] + ' calls, ' + kv[i] + ' connected" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%"><div style="font-size:.62rem;text-align:center;color:var(--faint)">' + (vals[i] || '') + '</div><div style="background:var(--blue-a12);height:' + (100 * vals[i] / max) + '%;border-radius:3px 3px 0 0;position:relative"><div style="position:absolute;bottom:0;left:0;right:0;background:var(--navy);height:' + (vals[i] ? 100 * kv[i] / vals[i] : 0) + '%;border-radius:3px 3px 0 0"></div></div></div>').join('') + '</div><div style="display:flex;gap:4px;font-size:.6rem;color:var(--faint)">' + weeks.map(w => '<div style="flex:1;text-align:center">' + w.slice(5) + '</div>').join('') + '</div>';
+  const list = inR(discos, d => d.created_at || d.meeting_start, r).sort((a, b) => (b.meeting_start || '').localeCompare(a.meeting_start || ''));
+  document.getElementById('disc-list').innerHTML = list.length ? '<table class="data"><tr><th>Meeting</th><th>Company</th><th>Contact</th><th>Booked by</th><th>Status</th></tr>' + list.map(d => '<tr><td>' + R.fmtDate(d.meeting_start) + '</td><td><a href="' + R.hs('0-2', d.company_id) + '" target="_blank" rel="noopener">' + R.esc(d.company_name || d.company_id) + '</a></td><td>' + R.esc(d.contact_name || '') + '</td><td>' + R.esc(d.owner_name || '') + '</td><td>' + R.esc(d.status || '') + '</td></tr>').join('') + '</table>' : '<div class="state">No discoveries in this period.</div>';
+}
+load();
+</script>
+</body>
+</html>
