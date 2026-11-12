@@ -26,3 +26,18 @@ deploy/        staging .htaccess / .htpasswd
 - Pages call `R.shell({ page, title, subtitle })` and read data with `R.fetchAll('view?select=…')` — views only, from schema `api`.
 - Anything produced by an AI call is marked with `R.ai({...})` using the row from `api.ai_usage_last`.
 - Ids are `company_id`, `deal_id`, `contact_id` everywhere; every table has a primary key; syncs upsert and log to `app.sync_runs`.
+
+## Data (since 12.11.2026)
+
+The site reads one source: the JENTIS-hosted Postgres `reporting` through PostgREST at `https://n8n.rec.jentis.com` (schema `api`, anonymous read-only).
+
+| Schema | What | Filled by |
+|---|---|---|
+| `api` | views the pages read — the only thing reachable from the browser | `sql/*.sql`, bridge |
+| `v1` | copy of the old Supabase tables + its views, rebuilt every morning 07:40 | n8n "Reporting v2 — Supabase Bridge" (`n8n/supabase-bridge.workflow.js`, `sql/002_bridge.sql`) |
+| `hs` | HubSpot mirror: one table per object, all non-empty properties in `props` | n8n "Reporting v2 — HubSpot Mirror" 05:10 (`n8n/hubspot-mirror.workflow.js`, `sql/003_hs.sql`) |
+| `core`, `ext` | derived facts / other sources — empty until the logic syncs are moved | — |
+| `app` | `sync_runs` (every run of the workflows above), AI usage, later users & settings | workflows |
+
+Today every `api` view is a pass-through to `v1` (marked with the comment `bridge`). To move a page off the copy: write the view in `api` on top of `hs` / `core` under the same name — the bridge then leaves that name alone.
+SQL files are applied with the "SQL File Trigger" path of the n8n workflow "SQL Scratchpad (Claude)".
