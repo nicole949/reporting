@@ -1,5 +1,51 @@
 [
   {
+    "version": "2026.11.13-8",
+    "date": "2026-11-13",
+    "title": "Go-To-Market section, goals banner and projects",
+    "items": [
+      {
+        "section": "marketing",
+        "page": "mkt-overview",
+        "summary": "Marketing and Business Development are now one menu section, \"Go-To-Market\". Calls, Journeys and the BD celebration board moved in; the separate BD overview is gone (old links open the Go-To-Market overview).",
+        "details": "Discoveries moved to the Sales pipeline section, right before Qualification.",
+        "departments": [
+          "marketing",
+          "bd",
+          "sales"
+        ]
+      },
+      {
+        "section": "marketing",
+        "page": "mkt-overview",
+        "summary": "The Go-To-Market overview opens with the goals banner again (like the old overview): quarter, days left, time elapsed and every goal with ahead / behind. Pick a closed quarter to see its final result; click a goal for the records.",
+        "departments": [
+          "marketing",
+          "bd"
+        ]
+      },
+      {
+        "section": "marketing",
+        "page": "mkt-overview",
+        "summary": "New \"Projects\" card next to the to-dos: name, status, owner, timeframe, plus subtasks and a description as drop-downs. Shared with everyone on the page.",
+        "details": "Change the status with the coloured pill in the list. Tick subtasks off, double-click one to rename it. Projects whose end date has passed are flagged overdue.",
+        "departments": [
+          "marketing",
+          "bd"
+        ]
+      },
+      {
+        "section": "marketing",
+        "page": "mkt-overview",
+        "summary": "Calls, connected calls, discoveries booked and held are now on the Go-To-Market overview (tiles and charts), plus a tile for contact form submissions (shows \"not connected yet\" until its data source is built).",
+        "departments": [
+          "marketing",
+          "bd"
+        ]
+      }
+    ]
+  },
+  {
     "version": "2026.11.13-7",
     "date": "2026-11-13",
     "title": "Ask AI on every number and page",

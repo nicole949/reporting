@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Marketing overview · JENTIS Reporting</title>
+<title>Go-To-Market overview · JENTIS Reporting</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/app.css?b=__BUILD__">
@@ -15,28 +15,35 @@
 <script src="../assets/help.js?b=__BUILD__"></script>
 <script src="../assets/kpis.js?b=__BUILD__"></script>
 <script src="../assets/todos.js?b=__BUILD__"></script>
+<script src="../assets/projects.js?b=__BUILD__"></script>
 <script>
-const page = R.shell({ page: 'mkt-overview', title: 'Marketing overview', subtitle: 'What we are working on, where we stand against the goals, and how outreach and responses develop' });
-page.innerHTML = '<div class="mgrid"><section id="todos" class="kgroup todos"><div class="state">Loading…</div></section><section id="goals" class="kgroup goalsec"><div class="state">Loading…</div></section></div>' +
+const page = R.shell({ page: 'mkt-overview', title: 'Go-To-Market overview', subtitle: 'Marketing and Business Development: goals, what we are working on, outreach, calls, responses and discoveries' });
+page.innerHTML = '<section id="goals" class="ghero"><div class="eyebrow" data-help="Goals">Goals</div><div class="qsub">Loading…</div></section>' +
+  '<div class="mgrid tp"><section id="todos" class="kgroup todos"><div class="state">Loading…</div></section><section id="projects" class="kgroup projects"><div class="state">Loading…</div></section></div>' +
   '<div class="kgroups" id="kg"></div>' +
-  '<div class="cgrid"><div id="c-emails"></div><div id="c-linkedin"></div><div id="c-responses"></div><div id="c-lsr"></div></div>';
+  '<div class="cgrid"><div id="c-emails"></div><div id="c-linkedin"></div><div id="c-calls"></div><div id="c-responses"></div><div id="c-booked"></div><div id="c-lsr"></div></div>';
 
 const esc = R.esc, DAY = 864e5;
 // every metric a to-do can track, grouped like the Commercial overview
 const TARGET_GROUPS = [
-  ['Marketing', ['leads', 'emails', 'linkedin', 'responses', 'lsr', 'st_responded']],
-  ['Business Development', ['calls', 'connected', 'booked', 'held', 'st_discovery']],
+  ['Go-To-Market', ['leads', 'forms', 'emails', 'linkedin', 'calls', 'connected', 'responses', 'lsr', 'st_responded', 'booked', 'held', 'st_discovery']],
   ['Sales', ['st_qualified', 'st_opp', 'created', 'won', 'won_value', 'st_customer']]];
 const K = R.kpis({
   el: 'kg', defaultTime: 'week',
-  groups: [{ key: 'mkt', name: 'Marketing KPIs', st: 'outreach → response → pipeline', tiles: ['leads', 'emails', 'linkedin', 'responses', 'lsr', 'st_responded', 'st_discovery'] }],
+  groups: [
+    { key: 'mkt', name: 'Outreach & responses', st: 'lead → outreach → response', tiles: ['leads', 'forms', 'emails', 'linkedin', 'responses', 'lsr', 'st_responded'] },
+    { key: 'bd', name: 'Calls & discoveries', st: 'response → discovery', tiles: ['calls', 'connected', 'booked', 'held', 'st_discovery'] }],
   metrics: [].concat(...TARGET_GROUPS.map(g => g[1])), extra: ['goals'],
   onReady(K) {
     K.card('c-emails', 'emails', { title: 'Outreach emails sent', sub: 'by sequence · HubSpot + Instantly', links: [['email-outreach/', 'Sequences'], ['email-outreach/subjects/', 'Subject lines']] });
     K.card('c-linkedin', 'linkedin', { title: 'LinkedIn actions', sub: 'connection requests, messages, follows (LaGrowthMachine)' });
+    K.card('c-calls', 'calls', { title: 'Calls', sub: 'by outcome', links: [['bd/calls/', 'Calls']] });
     K.card('c-responses', 'responses', { title: 'Responses', sub: 'connected calls, email and LinkedIn replies', links: [['marketing/responses/', 'Responses']] });
+    K.card('c-booked', 'booked', { title: 'Discoveries booked', sub: 'without cancelled ones', links: [['bd/discoveries/', 'Discoveries']] });
     K.card('c-lsr', 'lsr', { title: 'Contacts → lead status Responded', sub: 'one per contact', links: [['marketing/responses/', 'Responses']] });
+    const people = [...new Set([].concat(...['calls', 'booked', 'created'].map(K.owners)))].filter(n => n && n !== 'Unassigned').sort();
     TODO = R.todos({ el: 'todos', scope: 'marketing', K, groups: TARGET_GROUPS });
+    R.projects({ el: 'projects', scope: 'marketing', people });
     goals();
   },
   onRender() { if (TODO) TODO.refresh(); }
@@ -75,6 +82,8 @@ function goalRecords(g, from, to) {
   if (kind === 'won_value') return { key: 'won_value', rows: D.deals.filter(d => d.is_won && K.NB.test(d.dealtype || '') && inP(d.close_date)) };
   return { key: null, rows: [] };
 }
+// help entry per kind of goal (the "?" next to each goal)
+const GOAL_HELP = { responded: 'Goal: responded', discovery: 'Goal: discoveries', qualified: 'Goal: qualified', opportunity: 'Goal: opportunities', customer: 'Goal: customers', calls: 'Goal: calls', won_value: 'Goal: won value' };
 function goals() {
   const el = document.getElementById('goals'), all = K.D.goals || [], cur = curQ();
   const quarters = [...new Set(all.map(g => g.period).filter(p => /^\d{4}-Q[1-4]$/.test(p)).concat(cur))].sort().reverse();
@@ -84,23 +93,31 @@ function goals() {
   const rows = list.map((g, i) => {
     const w = g.period === Q.year ? yr : Q, rec = goalRecords(g, w.from, w.to);
     const actual = g.metric === 'won_value' ? rec.rows.reduce((a, d) => a + (Number(d.amount) || 0), 0) : rec.rows.length;
-    const target = Number(g.target) || 0, pct = target ? Math.round(100 * actual / target) : 0, elapsed = g.period === Q.year ? yearGone : Q.gone, diff = pct - elapsed;
-    const stat = pct >= 100 ? ['done', pct > 100 ? '✓ overachieved' : '✓ reached'] : Q.past ? ['missed', '✗ missed'] : diff >= 5 ? ['ahead', '● ahead'] : diff <= -5 ? ['behind', '● behind'] : ['ontrack', '● on track'];
+    // pct is not capped: overachievement (22 / 18 = 122 %) shows as such; only the bar is clamped
+    const target = Number(g.target) || 0, pct = target ? Math.round(100 * actual / target) : 0, elapsed = g.period === Q.year ? yearGone : Q.gone, diff = pct - elapsed, over = pct >= 100;
+    const stat = over ? ['done', '✓ ' + (pct > 100 ? 'overachieved' : 'reached')] : Q.past ? ['missed', '✗ missed'] : diff >= 5 ? ['ahead', '● ahead'] : diff <= -5 ? ['behind', '● behind'] : ['ontrack', '● on track'];
     const f = v => g.metric === 'won_value' ? R.eur(v) : R.num(v);
-    return '<button type="button" class="goal2" data-i="' + i + '" title="Click for the companies / contacts behind the number">' +
-      '<span class="gtop"><span class="gname">' + esc(g.label || g.metric) + '</span><span class="gstat ' + stat[0] + '">' + stat[1] + '</span><span class="gnum"><strong>' + f(actual) + '</strong> / ' + f(target) + '</span></span>' +
-      '<span class="tdbar big ' + stat[0] + '"><i style="width:' + Math.min(100, pct) + '%"></i>' + (Q.past || pct >= 100 ? '' : '<b style="left:' + elapsed + '%" title="where we should be by today"></b>') + '</span>' +
-      '<span class="gsub">' + pct + '% of the goal · ' + (Q.past ? 'final' : elapsed + '% of the ' + (g.period === Q.year ? 'year' : 'quarter') + ' passed') + (GOAL_KIND[g.metric] === 'chained' ? ' · only accounts whose discovery was in the same period' : '') + (GOAL_KIND[g.metric] === 'newcust' ? ' · new full licences' : '') + '</span></button>';
+    return '<div class="goal" role="button" tabindex="0" data-i="' + i + '" title="Click for the companies / contacts behind the number">' +
+      '<div class="gl"><span data-help="' + esc(GOAL_HELP[g.metric] || 'Goal: stage') + '">' + esc(g.label || g.metric) + '<span class="gstat ' + stat[0] + '">' + stat[1] + '</span></span>' +
+      '<strong>' + f(actual) + ' / ' + f(target) + (over && actual > target ? '<span class="gplus">+' + f(actual - target) + '</span>' : '') + '</strong></div>' +
+      '<div class="track"><div class="fill' + (over ? ' done' : '') + '" style="width:' + Math.min(100, pct) + '%"></div></div>' +
+      '<div class="pctl">' + pct + '% of goal · ' + (Q.past ? 'final' : elapsed + '% of the period elapsed') + ' · ' + esc(g.period) +
+        (GOAL_KIND[g.metric] === 'chained' ? ' · of this period’s discoveries' : '') + (GOAL_KIND[g.metric] === 'newcust' ? ' · new full licences' : '') + '</div></div>';
   });
-  el.innerHTML = '<div class="gh"><h2>Goals</h2><select class="qsel" title="Show the goals of another quarter">' + quarters.map(q => '<option value="' + q + '"' + (q === Q.label ? ' selected' : '') + '>' + q.replace('-', ' · ') + (q === cur ? ' (current)' : quarterOf(q).past ? ' · closed' : '') + '</option>').join('') + '</select>' +
-    '<span class="st" style="margin-left:auto">' + (Q.past ? 'closed quarter · final result' : Q.gone + '% passed · ' + Q.daysLeft + ' days left') + '</span></div>' +
-    (rows.length ? '<div class="glist">' + rows.join('') + '</div>' : '<div class="tdempty">No goals for ' + esc(Q.label.replace('-', ' · ')) + ' yet — add rows to the <strong>Goals</strong> tab of the reporting sheet (metric · period · target · label); they arrive here the next morning.</div>') +
-    (Q.past ? '<div class="small muted" style="margin-top:.5rem">Final numbers as the data stands today — late corrections in HubSpot are reflected.</div>' : '');
+  el.classList.toggle('past', Q.past);
+  el.innerHTML = '<div class="gtop"><div><div class="eyebrow" data-help="Goals">Goals</div><div class="qtitle">' + esc(Q.label.replace('-', ' · ')) + '</div>' +
+      '<div class="qsub">' + (Q.past ? 'closed quarter · final result' : Q.gone + '% of the quarter elapsed') + '</div>' +
+      '<select class="qsel" title="Show the goals of another quarter (closed quarters show their final result)">' + quarters.map(q => '<option value="' + q + '"' + (q === Q.label ? ' selected' : '') + '>' + q.replace('-', ' · ') + (q === cur ? ' (current)' : quarterOf(q).past ? ' · closed' : '') + '</option>').join('') + '</select></div>' +
+      '<div class="count"><div class="n">' + (Q.past ? '✓' : Q.daysLeft) + '</div><div class="l">' + (Q.past ? 'quarter closed' : 'days left in the quarter') + '</div></div></div>' +
+    '<div class="elapsed"><div class="gl"><span>Time elapsed in this quarter</span><strong>' + Q.gone + '%</strong></div><div class="track"><div class="fill" style="width:' + Q.gone + '%"></div></div></div>' +
+    (rows.length ? '<div class="goals">' + rows.join('') + '</div>' : '<div class="nogoals">No goals for ' + esc(Q.label.replace('-', ' · ')) + ' yet — add rows to the <strong>Goals</strong> tab of the reporting sheet (metric · period · target · label); they arrive here the next morning.</div>') +
+    (Q.past ? '<div class="pastnote">Final numbers as the data stands today — late corrections in HubSpot are reflected.</div>' : '');
   el.querySelector('.qsel').onchange = e => { QSEL = e.target.value; goals(); };
-  el.querySelectorAll('.goal2').forEach(b => b.onclick = () => {
-    const g = list[+b.dataset.i], w = g.period === Q.year ? yr : Q, rec = goalRecords(g, w.from, w.to);
+  const open = gi => {
+    const g = list[gi], w = g.period === Q.year ? yr : Q, rec = goalRecords(g, w.from, w.to);
     if (rec.key) K.list(rec.key, rec.rows, g.label || g.metric, esc(g.period) + ' · ' + R.fmtDate(w.from) + ' – ' + R.fmtDate(new Date(Date.parse(w.to) - DAY).toISOString()) + ' · target ' + R.num(g.target));
-  });
+  };
+  el.querySelectorAll('.goal').forEach(b => { b.onclick = () => open(+b.dataset.i); b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(+b.dataset.i); } }; });
 }
 </script>
 </body>
