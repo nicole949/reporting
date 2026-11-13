@@ -50,7 +50,7 @@
 const C = window.RCONFIG;
 R.shell({"page": "customers", "title": "Customers", "subtitle": "The full book of business — contract, usage, status and an AI briefing per customer"});
 R.legacyFilters({"period": {"f-range": "all"}, "labels": {"ownerbar": "Owner", "f-status": "Status", "f-range": "Period", "f-service": "Services"}, "hints": {"f-range": "Customers who became a customer in this period"}, "next": [], "stash": []});
-
+const vw = f => Math.max(480, Math.round(((document.getElementById('page') || document.body).clientWidth || 1200) * f) - 60);
 </script>
 <script>
 const DAY = 86400000;
@@ -337,7 +337,7 @@ function dealsHtml(r) {
 }
 // 12-month bars with the contracted monthly limit as a line (scale always includes the limit)
 function usageChart(values, labels, limit, metric, timeframe) {
-  const W = 560, H = 110, pad = 18, lh = 14, top = 14;
+  const W = vw(.42), H = 110, pad = 18, lh = 14, top = 14;
   const max = Math.max(1, ...values, limit || 0) * 1.05;
   const bw = Math.max(4, (W - pad) / values.length - 3);
   const yOf = v => top + Math.round((H - top) * (1 - v / max));
@@ -463,7 +463,7 @@ function timelineHtml(r) {
   const per = (tl[r.company_id] || []).filter(p => p.license_start && p.license_end).sort((a, b) => a.license_start < b.license_start ? -1 : 1);
   if (!per.length) return '<div class="dhead"><h3>License timeline</h3></div><div class="empty">No license periods on won deals for this company.</div>';
   const t0 = Date.parse(per[0].license_start), t1 = Math.max(...per.map(p => Date.parse(p.license_end))) + 30 * DAY, now = Date.now();
-  const W = 1000, H = 86, L = 8, Rr = 8, Y = 30, BH = 18;
+  const W = vw(1), H = 86, L = 8, Rr = 8, Y = 30, BH = 18;
   const x = t => L + (W - L - Rr) * (t - t0) / (t1 - t0);
   let s = '<svg class="tl" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">';
   per.forEach(p => {
@@ -477,7 +477,7 @@ function timelineHtml(r) {
   s += '<text x="' + x(t0) + '" y="' + (Y - 10) + '">Start ' + R.fmtDate(per[0].license_start) + '</text>';
   if (now > t0 && now < t1) s += '<line class="today" x1="' + x(now) + '" x2="' + x(now) + '" y1="' + (Y - 12) + '" y2="' + (Y + BH + 10) + '"/><text class="today" x="' + x(now) + '" y="' + (Y - 14) + '" text-anchor="middle">today</text>';
   s += '</svg>';
-  const legend = '<div class="legend"><span><span class="sw" style="background:#9AA4AD;opacity:.6"></span>past period</span><span><span class="sw" style="background:#4FA3D8;opacity:.9"></span>current period</span><span><span class="sw" style="background:#004771;opacity:.35"></span>upcoming (renewed)</span><span><span class="sw" style="background:#ED4502;opacity:.75"></span>30-day cancellation period</span></div>';
+  const legend = '<div class="legend"><span><span class="sw" style="background:#9AA4AD;opacity:.45"></span>past period</span><span><span class="sw" style="background:var(--brand-teal);opacity:.9"></span>current period</span><span><span class="sw" style="background:var(--brand-blue);opacity:.3"></span>upcoming (renewed)</span><span><span class="sw" style="background:var(--red);opacity:.7"></span>30-day cancellation period</span></div>';
   const nxt = per.filter(p => Date.parse(p.license_end) >= now).sort((a, b) => a.license_end < b.license_end ? -1 : 1)[0];
   const note = nxt ? '<div class="mini" style="margin-top:.3rem">Next license end ' + R.fmtDate(nxt.license_end) + ' (' + days(nxt.license_end) + ' d) · cancellation period from ' + R.fmtDate(nxt.cancellation_start) + ' · ' + hsLink('0-3', nxt.deal_id, R.esc(nxt.deal_name || 'deal')) + '</div>' : '';
   return '<div class="dhead"><h3>License timeline</h3>' + R.badge(r.status_text || '', statusCls(r.status_code)) + '</div>' + s + legend + note;

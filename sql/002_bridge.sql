@@ -82,6 +82,9 @@ BEGIN
   FOR f IN SELECT * FROM jsonb_array_elements(coalesce(spec->'functions', '[]'::jsonb)) LOOP
     EXECUTE replace(replace(f->>'def', 'public.', 'v1.'), $q$search_path TO 'public'$q$, $q$search_path TO 'v1'$q$);
     EXECUTE format('ALTER FUNCTION v1.%s SET search_path = v1', f->>'sig');
+    -- dashboard users (role anon) may not enter schema v1; a function that reads v1 tables (cs_resolve_company) must
+    -- therefore run with the owner's rights, otherwise every api view that uses it fails with "permission denied for schema v1"
+    EXECUTE format('ALTER FUNCTION v1.%s SECURITY DEFINER', f->>'sig');
   END LOOP;
 
   -- 3 · views, retried until dependencies resolve

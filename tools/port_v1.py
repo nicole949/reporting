@@ -82,7 +82,18 @@ PAGES = [
     dict(src='cs-customers', out='cs/customers', key='customers', title='Customers',
          subtitle='The full book of business — contract, usage, status and an AI briefing per customer',
          period={'f-range': 'all'}, labels={'ownerbar': 'Owner', 'f-status': 'Status', 'f-range': 'Period', 'f-service': 'Services'},
-         hints={'f-range': 'Customers who became a customer in this period'}),
+         hints={'f-range': 'Customers who became a customer in this period'},
+         # charts are drawn at the width they are shown at (v1 stretched a fixed 1000 px drawing, which distorts the text on wide screens)
+         pre_js="const vw = f => Math.max(480, Math.round(((document.getElementById('page') || document.body).clientWidth || 1200) * f) - 60);",
+         patches=[
+             ('const W = 1000, H = 86, L = 8, Rr = 8, Y = 30, BH = 18;', 'const W = vw(1), H = 86, L = 8, Rr = 8, Y = 30, BH = 18;'),
+             ('const W = 560, H = 110, pad = 18, lh = 14, top = 14;', 'const W = vw(.42), H = 110, pad = 18, lh = 14, top = 14;'),
+             # legend swatches in the colours the bars are actually drawn in
+             ('<span class="sw" style="background:#1FA294;opacity:.9"></span>current period', '<span class="sw" style="background:var(--brand-teal);opacity:.9"></span>current period'),
+             ('<span class="sw" style="background:#14506C;opacity:.35"></span>upcoming (renewed)', '<span class="sw" style="background:var(--brand-blue);opacity:.3"></span>upcoming (renewed)'),
+             ('<span class="sw" style="background:#C4574E;opacity:.75"></span>30-day cancellation period', '<span class="sw" style="background:var(--red);opacity:.7"></span>30-day cancellation period'),
+             ('<span class="sw" style="background:#9AA4AD;opacity:.6"></span>past period', '<span class="sw" style="background:#9AA4AD;opacity:.45"></span>past period'),
+         ]),
     dict(src='cs-renewals', out='cs/renewals', key='renewals', title='Renewals & expansion',
          subtitle='Every renewal on the clock — value, stage, days left',
          period={'f-quarter': 'all'}, next=['f-quarter'], labels={'ownerbar': 'Owner', 'f-status': 'Status', 'f-quarter': 'Period'},

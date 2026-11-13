@@ -1,5 +1,30 @@
 [
   {
+    "version": "2026.11.13-3",
+    "date": "2026-11-13",
+    "title": "Customer details: product data is back, layout fixed",
+    "items": [
+      {
+        "section": "cs",
+        "page": "customers",
+        "summary": "Fix: the customer detail panel showed no usage, containers, logins or features. The data was in the database but the dashboard was not allowed to read it.",
+        "details": "Affected everything that comes from the product database (DCP): usage against the contract, container setup, login heatmap, consent rate, feature list. All views the dashboard uses were re-checked the way a browser reads them.",
+        "departments": [
+          "cs"
+        ]
+      },
+      {
+        "section": "cs",
+        "page": "customers",
+        "summary": "Fix: the ticket list in the customer detail was stretched over the whole screen; the licence timeline text was distorted on wide screens and its legend showed the wrong colours.",
+        "details": "",
+        "departments": [
+          "cs"
+        ]
+      }
+    ]
+  },
+  {
     "version": "2026.11.13-2",
     "date": "2026-11-13",
     "title": "Filters stay as you set them, and can be saved",
