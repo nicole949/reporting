@@ -1,5 +1,30 @@
 [
   {
+    "version": "2026.11.13-2",
+    "date": "2026-11-13",
+    "title": "Filters stay as you set them, and can be saved",
+    "items": [
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "Filters now stay the way you left them: period, owner, status, search and the drop-downs on individual charts are remembered per page until you change them.",
+        "details": "This is remembered in your browser, so a different computer or browser starts with the defaults. \"Reset this page to its default filters\" in the Saved filters menu clears it.",
+        "departments": [
+          "all"
+        ]
+      },
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "New \"Saved filters\" button at the top right (next to Feedback): name the current filter combination and get it back with one click.",
+        "details": "Tick \"Share with everyone\" when saving and the filter appears for all users in the section \"Shared with everyone\", below their own filters. Periods are saved as chosen, so \"Last quarter\" keeps meaning the last quarter. Not on Quote checker, Professional services and the personal page.",
+        "departments": [
+          "all"
+        ]
+      }
+    ]
+  },
+  {
     "version": "2026.11.13-1",
     "date": "2026-11-13",
     "title": "Every page is now a real v2 page",

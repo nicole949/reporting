@@ -30,15 +30,8 @@ function query(view, params) {           // a small part of PostgREST: eq/neq/gt
   const lim = params.get('limit'); if (lim) rows = rows.slice(0, Number(lim));
   return rows;
 }
-(async () => {
-  const b = await chromium.launch(); const out = {};
-  for (const p of PAGES) {
-    if (ONLY && p !== ONLY) continue;
-    const page = await b.newPage({ viewport: { width: 1500, height: 1000 }, deviceScaleFactor: 1 });
-    const errs = [], missing404 = new Set();
-    page.on('pageerror', e => errs.push(e.message.slice(0, 300)));
-    page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errs.push('console: ' + m.text().slice(0, 300)); });
-    await page.route('**/*', async route => {
+const SF = [];   // shared saved filters (emulates api.saved_filters + rpc/filter_op)
+const wire = (page, errs, missing404) => page.route('**/*', async route => {
       const u = new URL(route.request().url());
       if (u.hostname === 'local.test') {
         let pth = u.pathname.replace(/^\/v2-staging/, ''); if (pth.endsWith('/')) pth += 'index.html';
@@ -48,6 +41,13 @@ function query(view, params) {           // a small part of PostgREST: eq/neq/gt
         return route.fulfill({ contentType: ct, body: pth.endsWith('.png') ? fs.readFileSync(f) : fs.readFileSync(f, 'utf8').replace(/__BUILD__/g, 'test').replace(/__ENV__/g, 'staging') });
       }
       if (u.hostname === 'n8n.rec.jentis.com') {
+        if (u.pathname === '/rpc/filter_op') {
+          if (route.request().method() !== 'POST' || (route.request().headers()['content-type'] || '').indexOf('text/plain') !== 0) { errs.push('filter_op: not a simple POST'); return route.fulfill({ status: 400, body: '{}' }); }
+          const j = JSON.parse(route.request().postData());
+          if (j.op === 'save') { const k = SF.findIndex(x => x.page === j.page && x.name.toLowerCase() === j.name.toLowerCase()); const row = { id: k >= 0 ? SF[k].id : SF.length + 1, page: j.page, name: j.name, state: j.state, created_by: j.by }; if (k >= 0) SF[k] = row; else SF.push(row); return route.fulfill({ contentType: 'application/json', body: JSON.stringify(row) }); }
+          const k = SF.findIndex(x => x.id === j.id); if (k >= 0) SF.splice(k, 1); return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ deleted: k >= 0 }) });
+        }
+        if (u.pathname === '/saved_filters') return route.fulfill({ contentType: 'application/json', body: JSON.stringify(SF.filter(x => 'eq.' + x.page === u.searchParams.get('page'))) });
         const view = u.pathname.slice(1); const rows = query(view, u.searchParams);
         if (!rows) { missing404.add(view); return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ code: '42P01', message: 'relation "api.' + view + '" does not exist' }) }); }
         const range = (route.request().headers()['range'] || '0-999').split('-').map(Number);
@@ -56,6 +56,16 @@ function query(view, params) {           // a small part of PostgREST: eq/neq/gt
       if (/supabase|vibe-reports/.test(u.hostname)) { errs.push('still calls ' + u.hostname + u.pathname); return route.fulfill({ status: 500, body: '' }); }
       return route.fulfill({ status: 200, body: '' });
     });
+module.exports = { wire, SF };
+if (require.main === module) (async () => {
+  const b = await chromium.launch(); const out = {};
+  for (const p of PAGES) {
+    if (ONLY && p !== ONLY) continue;
+    const page = await b.newPage({ viewport: { width: 1500, height: 1000 }, deviceScaleFactor: 1 });
+    const errs = [], missing404 = new Set();
+    page.on('pageerror', e => errs.push(e.message.slice(0, 300)));
+    page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errs.push('console: ' + m.text().slice(0, 300)); });
+    await wire(page, errs, missing404);
     await page.addInitScript(() => { try { localStorage.setItem('r2.user.name', JSON.stringify('Sebastian Tapinos')); localStorage.setItem('r2.seenVersion', JSON.stringify('9999')); } catch (e) {} });
     await page.goto('http://local.test/v2-staging' + p);
     await page.waitForTimeout(1800);

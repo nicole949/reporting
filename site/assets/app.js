@@ -94,7 +94,8 @@
     out: '<path d="M8 16 16 8M9.5 8H16v6.5"/>',
     chev: '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
-    moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>'
+    moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+    bookmark: '<path d="M7 3.5h10a1 1 0 0 1 1 1v16l-6-4-6 4v-16a1 1 0 0 1 1-1z"/>'
   };
   R.icon = (name, cls) => '<svg class="i' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
 
@@ -138,6 +139,7 @@
     const pc = document.getElementById('page-content');          // ported v1 pages ship their own markup
     if (pc) { pc.hidden = false; page.appendChild(pc); }
     R.help.start();
+    R.views.start();
     return page;
   };
 
@@ -226,6 +228,9 @@
       });
     };
     document.addEventListener('click', () => bar.querySelectorAll('.msel.open').forEach(x => x.classList.remove('open')));
+    // used by saved filters: read / replace the whole state of this bar
+    R.views.native = { get: () => { const o = JSON.parse(JSON.stringify(st)); delete o.range; return o; },
+      set: o => { Object.keys(o || {}).forEach(k => { if (k !== 'range' && k in st) st[k] = o[k]; }); draw(); emit(); } };
     draw(); st.range = R.timeRange(st.time, st.custom);
     return st;
   };
@@ -439,6 +444,14 @@
     });
     const setCustom = () => { if (!(from.value && to.value)) return; cust.value = 'custom:' + from.value + ':' + to.value; sel.value = cust.value; sel.dispatchEvent(new Event('change')); };
     from.addEventListener('change', setCustom); to.addEventListener('change', setCustom);
+    // used by saved filters
+    sel._setPeriod = v => {
+      v = String(v);
+      if (v.indexOf('custom:') === 0) { const p = v.split(':'); from.value = p[1] || ''; to.value = p[2] || ''; cust.value = v; }
+      if (![...sel.options].some(o => o.value === v)) return false;
+      if (sel.value === v && LS.get(key, null) === v) return true;
+      sel.value = v; sel.dispatchEvent(new Event('change', { bubbles: true })); return true;
+    };
   };
 
   // ---- filter bar for ported pages -------------------------------------------------------------------
@@ -481,6 +494,172 @@
     // every period select — in the bar or inside a chart card — becomes the standard picker
     Object.keys(P).forEach(id => { const el = document.getElementById(id); if (!el) return; if (!el.dataset.default) el.dataset.default = P[id]; R.quarterOptions(el, (cfg.next || []).includes(id)); });
   };
+
+  // ---- filters that stay + saved filters -----------------------------------------------------------
+  // 1) Whatever a user sets in the filter bar or in a chart's own drop-down stays that way on this page (per browser).
+  // 2) "Saved filters" in the bar: name the current combination and get it back with one click. Own ones live in
+  //    the browser; "Share with everyone" stores it in the database (api.saved_filters) so all users see it.
+  R.views = (function () {
+    const OFF = ['quotes', 'ps', 'me', 'changes'];
+    const V = { native: null };
+    const pk = () => CUR.help || CUR.page || 'x';
+    const scopes = () => [document.getElementById('filters'), document.getElementById('page')].filter(Boolean);
+    const all = sel => scopes().flatMap(s => [...s.querySelectorAll(sel)]).filter(el => !el.closest('.views') && !el.closest('[hidden]'));
+    const inNative = el => V.native && el.closest('#filters') && !document.getElementById('filters').classList.contains('v1');
+    const fire = (el, t) => el.dispatchEvent(new Event(t, { bubbles: true }));
+    const mkey = el => el.id || el.dataset.key || el.dataset.k || '';
+    let applying = false;
+
+    function capture(withNative) {
+      const c = {};
+      all('select[id]').forEach(el => { if (!inNative(el)) c['s:' + el.id] = el.value; });
+      all('#filters input[id]').forEach(el => {
+        if (inNative(el) || el.type === 'date' || el.closest('.msel')) return;
+        if (el.type === 'checkbox') c['b:' + el.id] = el.checked; else c['i:' + el.id] = el.value;
+      });
+      all('.msel').forEach(el => { const k = mkey(el); if (k && !inNative(el)) c['m:' + k] = [...el.querySelectorAll('input[type=checkbox]:checked')].map(x => x.value); });
+      all('.opill.on').forEach(el => { const h = el.parentElement; if (h && h.id) c['p:' + h.id] = el.dataset.o || ''; });
+      const st = { v: 1, c };
+      if (withNative && V.native) st.n = V.native.get();
+      return st;
+    }
+    // sets what can be set right now; returns how many controls are still waiting (options that arrive with the data)
+    function applyOnce(st) {
+      let wait = 0;
+      Object.keys(st.c || {}).forEach(k => {
+        const t = k[0], id = k.slice(2), val = st.c[k];
+        if (t === 'm') {
+          const el = all('.msel').find(x => mkey(x) === id); if (!el) { if (val.length) wait++; return; }
+          const boxes = [...el.querySelectorAll('input[type=checkbox]')];
+          const off = boxes.find(b => b.checked !== val.includes(b.value));
+          if (off) { off.checked = !off.checked; fire(off, 'change'); wait++; return; }   // one at a time: pages redraw the list on every change
+          if (val.some(v => !boxes.some(b => b.value === v))) wait++;
+          return;
+        }
+        if (t === 'p') {
+          const h = document.getElementById(id); const b = h && [...h.querySelectorAll('.opill')].find(x => (x.dataset.o || '') === val);
+          if (!b) { if (val) wait++; return; }
+          if (!b.classList.contains('on')) b.click();
+          return;
+        }
+        const el = document.getElementById(id); if (!el || el.closest('[hidden]')) return;
+        if (t === 's') {
+          if (el._setPeriod) { if (!el._setPeriod(val)) wait++; return; }
+          if (el.value === val) return;
+          if (![...el.options].some(o => o.value === val)) { if (val) wait++; return; }
+          el.value = val; fire(el, 'input'); fire(el, 'change');
+        } else if (t === 'b') { if (el.checked !== !!val) el.click(); }
+        else if (t === 'i') { if (el.value !== String(val)) { el.value = val; fire(el, 'input'); fire(el, 'change'); } }
+      });
+      return wait;
+    }
+    function apply(st, done) {
+      if (!st) return;
+      applying = true; let rounds = 0, timer = null, over = false;
+      const stop = () => { if (over) return; over = true; applying = false; mo.disconnect(); clearTimeout(tmax); clearTimeout(timer); document.removeEventListener('pointerdown', user, true); done && done(); };
+      const user = e => { if (e.isTrusted && scopes().some(s => s.contains(e.target))) stop(); };
+      const step = () => { timer = null; if (over) return; rounds++; let w = 1; try { w = applyOnce(st); } catch (e) { w = 0; } if (!w || rounds > 80) stop(); };
+      const mo = new MutationObserver(() => { if (!timer && !over) timer = setTimeout(step, 60); });
+      scopes().forEach(s => mo.observe(s, { childList: true, subtree: true }));
+      const tmax = setTimeout(stop, 15000);
+      document.addEventListener('pointerdown', user, true);
+      if (st.n && V.native) V.native.set(st.n);
+      step();
+    }
+
+    // ---- stay as set ----
+    let saveT = null;
+    const remember = e => {
+      if (applying || !scopes().some(s => s.contains(e.target)) || (e.target.closest && e.target.closest('.views'))) return;
+      clearTimeout(saveT); saveT = setTimeout(() => { if (applying) return; const now = capture(true); if (JSON.stringify(now) !== JSON.stringify(LS.get('sticky.' + pk(), null))) { LS.set('sticky.' + pk(), now); setActive(''); } }, 250);
+    };
+
+    // ---- saved filters menu ----
+    const mine = () => LS.get('views.' + pk(), []);
+    let shared = null, sharedErr = false, msg = '';
+    const setActive = n => { LS.set('view.' + pk(), n || ''); const b = document.querySelector('.views .vbtn span'); if (b) b.textContent = n ? 'Saved filters · ' + n : 'Saved filters'; };
+    async function loadShared() {
+      try { shared = await R.fetchAll('saved_filters?page=eq.' + encodeURIComponent(pk()) + '&order=name'); sharedErr = false; }
+      catch (e) { shared = []; sharedErr = true; }
+    }
+    async function op(body) {
+      // text/plain on purpose: a plain POST needs no CORS preflight (the proxy only answers GET preflights)
+      const r = await fetch(R.source('rpc/filter_op').url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.message || ('error ' + r.status));
+      return j;
+    }
+    function menu() {
+      const pop = document.querySelector('.views .vpop'); if (!pop) return;
+      const row = (v, i, sh) => '<div class="vrow"><button type="button" class="vname" data-i="' + i + '" data-sh="' + sh + '">' + esc(v.name) + (sh && v.created_by ? '<small>' + esc(v.created_by) + '</small>' : '') + '</button><button type="button" class="vdel" data-i="' + i + '" data-sh="' + sh + '" title="Delete">✕</button></div>';
+      const my = mine();
+      pop.innerHTML = '<div class="vsec">My filters</div>' + (my.length ? my.map((v, i) => row(v, i, 0)).join('') : '<div class="vempty">Nothing saved yet.</div>') +
+        '<div class="vsec">Shared with everyone</div>' + (shared === null ? '<div class="vempty">Loading…</div>' : sharedErr ? '<div class="vempty">Shared filters cannot be loaded right now.</div>' : shared.length ? shared.map((v, i) => row(v, i, 1)).join('') : '<div class="vempty">Nothing shared yet.</div>') +
+        '<form class="vsave"><div class="vsec">Save the current filters</div><input type="text" class="vnm" maxlength="60" placeholder="Name, e.g. My open deals" required>' +
+        '<label class="vshare"><input type="checkbox" class="vsh"> Share with everyone</label><button class="btn primary" type="submit">Save</button></form>' +
+        '<div class="vmsg">' + esc(msg) + '</div><button type="button" class="vreset">Reset this page to its default filters</button>';
+      pop.querySelectorAll('.vname').forEach(b => b.onclick = () => {
+        const v = (+b.dataset.sh ? shared : mine())[+b.dataset.i]; if (!v) return;
+        toggle(false);
+        apply(v.state, () => { LS.set('sticky.' + pk(), capture(true)); setActive(v.name); });
+      });
+      pop.querySelectorAll('.vdel').forEach(b => b.onclick = async () => {
+        if (!b.classList.contains('sure')) { b.classList.add('sure'); b.textContent = 'Delete?'; return; }
+        const i = +b.dataset.i;
+        try {
+          if (+b.dataset.sh) { await op({ op: 'delete', id: shared[i].id }); await loadShared(); }
+          else { const l = mine(); l.splice(i, 1); LS.set('views.' + pk(), l); }
+          msg = 'Deleted.';
+        } catch (e) { msg = 'Could not delete: ' + e.message; }
+        menu();
+      });
+      pop.querySelector('.vsave').onsubmit = async e => {
+        e.preventDefault();
+        const name = pop.querySelector('.vnm').value.trim(), sh = pop.querySelector('.vsh').checked; if (!name) return;
+        const state = capture(true);
+        try {
+          if (sh) { await op({ op: 'save', page: pk(), name, state, by: R.userName() || '' }); await loadShared(); msg = '“' + name + '” saved and shared with everyone.'; }
+          else { const l = mine().filter(v => v.name.toLowerCase() !== name.toLowerCase()); l.push({ name, state }); l.sort((a, b) => a.name.localeCompare(b.name)); LS.set('views.' + pk(), l); msg = '“' + name + '” saved.'; }
+          LS.set('sticky.' + pk(), state); setActive(name);
+        } catch (err) { msg = 'Could not save: ' + err.message; }
+        menu();
+      };
+      pop.querySelector('.vreset').onclick = () => {
+        try { Object.keys(localStorage).forEach(k => { if (k === 'r2.sticky.' + pk() || k === 'r2.view.' + pk() || k === 'r2.filters.' + (CUR.page || 'x') || k.indexOf('r2.period.' + (CUR.page || 'x') + '.') === 0) localStorage.removeItem(k); }); } catch (e) {}
+        location.reload();
+      };
+    }
+    function toggle(open) {
+      const w = document.querySelector('.views'); if (!w) return;
+      const on = open === undefined ? !w.classList.contains('open') : open;
+      w.classList.toggle('open', on);
+      if (on) { msg = ''; menu(); if (shared === null) loadShared().then(menu); }
+    }
+    function button() {
+      const bar = document.getElementById('filters'), tools = document.getElementById('tools'); if (!bar || !tools) return;
+      let w = tools.querySelector('.views');
+      if (!w) {
+        w = document.createElement('span'); w.className = 'views';
+        const act = LS.get('view.' + pk(), '');
+        w.innerHTML = '<button type="button" class="tool vbtn" title="Save this filter combination or pick a saved one">' + R.icon('bookmark') + '<span>' + esc(act ? 'Saved filters · ' + act : 'Saved filters') + '</span></button><div class="vpop"></div>';
+        tools.insertBefore(w, tools.firstChild);
+        w.querySelector('.vbtn').onclick = e => { e.stopPropagation(); toggle(); };
+        w.querySelector('.vpop').onclick = e => e.stopPropagation();
+      }
+      w.hidden = bar.hidden;
+    }
+    V.start = function () {
+      if (OFF.includes(CUR.page)) return;
+      ['change', 'input', 'click'].forEach(t => document.addEventListener(t, remember, true));
+      document.addEventListener('click', () => toggle(false));
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') toggle(false); });
+      const bar = document.getElementById('filters');
+      if (bar) new MutationObserver(button).observe(bar, { attributes: true, attributeFilter: ['hidden'] });
+      setTimeout(() => { button(); const st = LS.get('sticky.' + pk(), null); if (st) apply({ c: st.c }); }, 0);   // the native bar restores itself
+    };
+    V.capture = capture; V.apply = apply;
+    return V;
+  })();
 
   // ---- "?" explanations ------------------------------------------------------------------------------
   // assets/help.js registers, per page, where each number comes from and how it is calculated:
