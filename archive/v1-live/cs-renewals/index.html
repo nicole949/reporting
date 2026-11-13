@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS · Renewals · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?v=28">
+</head>
+<body>
+<div class="wrap">
+  <div id="shell"></div>
+  <div class="filters"><span id="ownerbar" style="display:flex;gap:.4rem;flex-wrap:wrap"></span>
+    <select id="f-status"><option value="open" selected>Open renewals</option><option value="won">Won</option><option value="lost">Lost</option><option value="">All</option></select>
+    <select id="f-quarter"><option value="">License end: any time</option></select>
+    <input type="search" id="f-search" placeholder="Find customer…" style="margin-left:auto"></div>
+  <div class="metrics" id="metrics"></div>
+  <div class="card"><h2>Renewals <span id="n"></span></h2><div id="content" class="empty">Loading…</div></div>
+  <footer>Sorted by license end · rows tinted amber when the license ends within 30 days, red when it has already ended without a closed renewal · renewal deals are created automatically 140 days before license end by the renewal-generator workflow.</footer>
+</div>
+<script src="../assets/config.js?v=28"></script>
+<script src="../assets/app.js?v=28"></script>
+<script>
+R.shell('cs', { title: 'Renewals', subtitle: 'Every renewal on the clock — value, stage, days left', subnav: R.CS_NAV, subActive: 'cs-renewals' });
+let rows=null, owner='';
+function render(){
+  const st=document.getElementById('f-status').value;
+  const inR=R.rangeTest(document.getElementById('f-quarter').value);
+  const q=(document.getElementById('f-search').value||'').trim().toLowerCase();
+  const list=rows.filter(r=>(!owner||(r.owner_name||'Unassigned')===owner)
+    &&(st===''||(st==='open'&&!r.is_closed)||(st==='won'&&r.is_won)||(st==='lost'&&r.is_closed&&!r.is_won))
+    &&inR(r.license_end)
+    &&(!q||((r.company_name||'')+' '+(r.deal_name||'')).toLowerCase().includes(q)));
+  R.ownerPills(document.getElementById('ownerbar'),
+    [...new Set(rows.map(r=>r.owner_name||'Unassigned'))].sort(), owner, o=>{owner=o;render();});
+  const open=list.filter(r=>!r.is_closed);
+  const in30=open.filter(r=>r.days_to_end!=null&&r.days_to_end>=0&&r.days_to_end<=30);
+  const in90=open.filter(r=>r.days_to_end!=null&&r.days_to_end>=0&&r.days_to_end<=90);
+  const val=a=>a.reduce((s,r)=>s+(Number(r.mrr||r.amount)||0),0);
+  R.metrics(document.getElementById('metrics'),[
+    {label:'Renewals (in view)', val:R.num(list.length)},
+    {label:'≤ 30 days', val:in30.length, warn:in30.length>0},
+    {label:'≤ 90 days', val:in90.length},
+    {label:'Value ≤ 90d (MRR)', val:R.eur(val(in90))},
+    {label:'⚠️ Overdue', val:open.filter(r=>r.days_to_end!=null&&r.days_to_end<0).length,
+     warn:open.some(r=>r.days_to_end!=null&&r.days_to_end<0)}
+  ]);
+  document.getElementById('n').textContent='· '+list.length;
+  R.table(document.getElementById('content'),[
+    {key:'company_name',label:'Customer',cell:r=>'<a href="'+R.hs('0-3',r.deal_id)+'" target="_blank" rel="noopener"><strong>'+R.esc(r.company_name||r.deal_name)+'</strong></a>'+
+      '<div class="mini">'+R.esc(r.deal_name||'')+'</div>'},
+    {key:'license_end',label:'License end',sortVal:r=>r.license_end||'9999',cell:r=>R.fmtDate(r.license_end)},
+    {key:'days_to_end',label:'In',num:true,sortVal:r=>r.days_to_end==null?99999:r.days_to_end,
+     cell:r=>r.days_to_end==null?'—':(r.days_to_end<0?R.badge(Math.abs(r.days_to_end)+'d overdue','b-bad'):r.days_to_end+'d')},
+    {key:'mrr',label:'MRR',num:true,sortVal:r=>Number(r.mrr||r.amount)||0,cell:r=>R.eur(r.mrr||r.amount)},
+    {key:'stage_label',label:'Stage',cell:r=>r.is_won?R.badge(r.stage_label||'won','b-good'):(r.is_closed?R.badge(r.stage_label||'lost','b-bad'):R.esc(r.stage_label||'—'))},
+    {key:'owner_name',label:'Owner',cell:r=>R.esc(r.owner_name||'—')}
+  ],list,{sort:{key:'days_to_end',dir:1},decorate:(el,sorted)=>{
+    const trs=el.querySelectorAll('table.data tr');
+    sorted.forEach((r,i)=>{const tr=trs[i+1];if(!tr||r.is_closed)return;
+      if(r.days_to_end!=null&&r.days_to_end<0)tr.classList.add('row-lost');
+      else if(r.days_to_end!=null&&r.days_to_end<=30)tr.querySelectorAll('td').forEach(td=>td.style.background='var(--amber-tint)');});
+  }});
+}
+(async function init(){
+  const c=document.getElementById('content');
+  rows=await R.loadViewOrPending('v_cs_renewals?select=*', c, {
+    title:'Customer Success pipeline not connected yet',
+    text:'The cs-sync workflows fill this table once the four open HubSpot questions are settled — chiefly how renewal deals are detected.',
+    view:'v_cs_renewals'});
+  if(!rows) return;
+  R.quarterOptions(document.getElementById('f-quarter'), true);
+  document.getElementById('f-status').addEventListener('change',()=>rows&&render());
+  document.getElementById('f-quarter').addEventListener('change',()=>rows&&render());
+  document.getElementById('f-search').addEventListener('input',()=>rows&&render());
+  render();
+})();
+</script>
+</body>
+</html>

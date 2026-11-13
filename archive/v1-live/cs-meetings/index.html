@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS · Meetings · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?v=28">
+</head>
+<body>
+<div class="wrap">
+  <div id="shell"></div>
+  <div class="filters"><span id="ownerbar" style="display:flex;gap:.4rem;flex-wrap:wrap"></span>
+    <select id="f-range"><option value="90" selected>Last 90 days + upcoming</option><option value="30">Last 30 days + upcoming</option><option value="0">All</option></select>
+    <input type="search" id="f-search" placeholder="Find company…" style="margin-left:auto"></div>
+  <div class="metrics" id="metrics"></div>
+  <div class="card"><h2>Upcoming <span id="up-n"></span></h2><div id="upcoming" class="empty">Loading…</div></div>
+  <div class="card"><h2>Completed &amp; past <span id="past-n"></span></h2><div id="past" class="empty"></div></div>
+  <footer>Customer-Success meetings only (meeting type per cs-sync definition) · Summary and TODO are AI-condensed from the meeting notes, same style as the Discoveries page.</footer>
+</div>
+<script src="../assets/config.js?v=28"></script>
+<script src="../assets/app.js?v=28"></script>
+<script>
+R.shell('cs', { title: 'Meetings', subtitle: 'Customer-Success meetings — upcoming, outcomes, TODOs', subnav: R.CS_NAV, subActive: 'cs-meetings' });
+let rows=null, owner='';
+const SB={completed:'b-good',no_show:'b-warn',canceled:'b-bad'};
+function render(){
+  const inR=R.rangeTest(document.getElementById('f-range').value);
+  const q=(document.getElementById('f-search').value||'').trim().toLowerCase();
+  const list=rows.filter(r=>(!owner||(r.owner_name||'Unassigned')===owner)
+    &&(inR(r.meeting_start)||r.status==='upcoming')
+    &&(!q||((r.company_name||'')+' '+(r.contact_name||'')).toLowerCase().includes(q)));
+  R.ownerPills(document.getElementById('ownerbar'),
+    [...new Set(rows.map(r=>r.owner_name||'Unassigned'))].sort(), owner, o=>{owner=o;render();});
+  const up=list.filter(r=>r.status==='upcoming').sort((a,b)=>a.meeting_start<b.meeting_start?-1:1);
+  const past=list.filter(r=>r.status!=='upcoming');
+  R.metrics(document.getElementById('metrics'),[
+    {label:'Upcoming', val:up.length, good:up.length>0},
+    {label:'Completed (in view)', val:past.filter(r=>r.status==='completed').length},
+    {label:'No-shows', val:past.filter(r=>r.status==='no_show').length},
+    {label:'Companies met', val:new Set(past.map(r=>r.company_id)).size}
+  ]);
+  document.getElementById('up-n').textContent='· '+up.length;
+  document.getElementById('past-n').textContent='· '+past.length;
+  const dd=r=>Math.round((Date.parse(r.meeting_start)-Date.now())/86400000);
+  R.table(document.getElementById('upcoming'),[
+    {key:'meeting_start',label:'Meeting',cell:r=>R.fmtDate(r.meeting_start)+' <span class="mini">'+String(r.meeting_start).slice(11,16)+'</span>'},
+    {key:'in',label:'In',num:true,sortVal:dd,cell:r=>{const d=dd(r);return d===0?'today':d+'d';}},
+    {key:'company_name',label:'Company',cell:r=>'<a href="'+R.hs('0-2',r.company_id)+'" target="_blank" rel="noopener">'+R.esc(r.company_name||'—')+'</a>'},
+    {key:'contact_name',label:'Contacts',cell:r=>R.esc(r.contact_name||'—')},
+    {key:'participants',label:'JENTIS',cell:r=>R.esc(r.participants||'—')},
+    {key:'meeting_type',label:'Type',cell:r=>R.esc(r.meeting_type||'—')},
+    {key:'owner_name',label:'Owner',cell:r=>R.esc(r.owner_name||'—')}
+  ],up,{sort:{key:'meeting_start',dir:1}});
+  R.table(document.getElementById('past'),[
+    {key:'meeting_start',label:'Meeting',cell:r=>R.fmtDate(r.meeting_start)},
+    {key:'company_name',label:'Company',cell:r=>'<a href="'+R.hs('0-2',r.company_id)+'" target="_blank" rel="noopener">'+R.esc(r.company_name||'—')+'</a>'},
+    {key:'contact_name',label:'Contacts',cell:r=>R.esc(r.contact_name||'—')},
+    {key:'participants',label:'JENTIS',cell:r=>R.esc(r.participants||'—')},
+    {key:'meeting_type',label:'Type',cell:r=>R.esc(r.meeting_type||'—')},
+    {key:'status',label:'Status',cell:r=>R.badge((r.status||'—').replace('_',' '),SB[r.status]||'b-neutral')},
+    {key:'notes_summary',label:'Summary',cell:r=>R.esc(r.notes_summary||'—')},
+    {key:'next_todo',label:'Next TODO',cell:r=>r.next_todo?('<strong>'+R.esc(r.next_todo)+'</strong>'):'—'},
+    {key:'owner_name',label:'Owner',cell:r=>R.esc(r.owner_name||'—')}
+  ],past,{sort:{key:'meeting_start',dir:-1}});
+}
+(async function init(){
+  const c=document.getElementById('upcoming');
+  rows=await R.loadViewOrPending('v_cs_meetings?select=*&order=meeting_start.desc', c, {
+    title:'Customer Success pipeline not connected yet',
+    text:'The cs-sync workflows fill this table once the four open HubSpot questions are settled.',
+    view:'v_cs_meetings'});
+  if(!rows) return;
+  R.quarterOptions(document.getElementById('f-range'));
+  document.getElementById('f-range').addEventListener('change',()=>rows&&render());
+  document.getElementById('f-search').addEventListener('input',()=>rows&&render());
+  render();
+})();
+</script>
+</body>
+</html>

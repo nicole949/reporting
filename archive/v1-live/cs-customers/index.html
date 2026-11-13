@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS · Customers · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?v=29">
+</head>
+<body>
+<div class="wrap">
+  <div id="shell"></div>
+  <div class="filters"><span id="ownerbar" style="display:flex;gap:.4rem;flex-wrap:wrap"></span>
+    <select id="f-status">
+      <option value="">Status: all</option>
+      <option value="attention">Needs attention</option>
+      <option value="renewal">Renewal ≤ 120d</option>
+      <option value="cancellation_period">Cancellation period</option>
+      <option value="auto_renewal">Auto-renewal ≤ 120d</option>
+      <option value="usage_over">Usage over contract</option>
+      <option value="usage_under">Usage under contract</option>
+      <option value="unpaid">Features used without contract</option>
+      <option value="unused">Contracted features unused</option>
+      <option value="tickets">Open tickets</option>
+      <option value="setup">Setup issues (DNS / tracking code)</option>
+      <option value="tc1">Old tracking code (v1)</option>
+      <option value="trial">Synthetic Users trial</option>
+      <option value="onboarding">Onboarding</option>
+      <option value="inactive">Inactive / no login</option>
+      <option value="no_license">No license data</option>
+    </select>
+    <select id="f-range"><option value="">Customer since: any time</option></select>
+    <select id="f-service"><option value="">Services: any</option><option value="active">Active professional service</option><option value="none">No active service</option></select>
+    <span id="msels" style="display:contents"></span>
+    <button class="btn" id="f-clear" type="button" title="Clear all filters" style="margin-top:0;display:none">✕ clear</button>
+    <input type="search" id="f-search" placeholder="Find customer…" style="margin-left:auto"></div>
+  <div class="metrics" id="metrics"></div>
+  <div class="card"><h2>Customers <span id="n"></span></h2><div id="content" class="empty">Loading…</div></div>
+  <footer>Usage follows the deal's Contract Usage Timeframe: Monthly = last full month vs. the monthly limit; Quarterly / Bi-Yearly / Yearly = the current contract period counted from the license start, usage to date plus a pace projection (shown as ~x % while the period runs); Full Contract = license start to end · MRR = monthly value of every live won deal (hs_mrr for Revenue Hub deals, amount for older deals), the usage limit is summed over all live won deals (an add-on deal whose limit merely repeats the license deal's limit is not counted twice) · 🟢 70–110 % · 🔵 under 70 % · 🔴 over 110 % · ⚪ no contract limit or no usage data · Features: ✅ contracted &amp; in use · ⚠️ contracted, not in use · 🚫 in use, not in contract · ◻️ contracted, usage not measurable (App Tracking) · Status comes from the license-bearing won deal; the cancellation period is the 30 days before the license end · ↻ asks Claude for a fresh briefing (5-minute cooldown per customer), the dot marks HubSpot activity newer than the last briefing · Hits-based contracts count incoming tracking packets + outgoing requests, session-based contracts incoming sessions only · 🧪 Synthetic Users: model exists but the paid feature is off (trial / preview) · Tracking code v1 = old, blocked by browsers (upgrade!), v2 = ok, v3 = current, n/a = the DCP could not read it · Setup: a container counts as an issue only when DNS is 0 or the tracking code is neither detected nor delivering data · DCP usage data is mirrored nightly from the product database (merged HubSpot company IDs are resolved automatically).</footer>
+</div>
+<script src="../assets/config.js?v=29"></script>
+<script src="../assets/app.js?v=29"></script>
+<script>
+R.shell('cs', { title: 'Customers', subtitle: 'The full book of business — contract, usage, status and an AI briefing per customer', subnav: R.CS_NAV, subActive: 'cs-customers' });
+const DAY = 86400000;
+let rows = null, feats = {}, tl = {}, tix = {}, usage = {}, summaries = {};
+const detail = {};                       // company_id -> { containers, heat, su } loaded on expand
+const hideUsers = {};                    // company_id -> Set of hidden e-mails (heatmap)
+const heatMode = {};                     // company_id -> '' | 'internal' | 'external'
+let owner = new URLSearchParams(location.search).get('owner') || '';
+// multi-select filters (all filters combine with AND; inside one multi-select the chosen values are OR)
+const msel = { industry: new Set(), feat_use: new Set(), feat_paid: new Set() };
+const MSEL_DEF = [
+  { key: 'industry', label: 'Industry', options: () => [...new Set(rows.map(r => r.industry).filter(Boolean))].map(v => [v, indLabel(v)]).sort((a, b) => a[1] < b[1] ? -1 : 1) },
+  { key: 'feat_use', label: 'Features in use', options: () => featureOptions() },
+  { key: 'feat_paid', label: 'Features paid', options: () => featureOptions() }
+];
+// HubSpot industry enums come as COMPUTER_SOFTWARE etc.; custom values are already readable
+const indLabel = v => !v ? '' : /^[A-Z0-9_]+$/.test(v) ? v.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()).replace(/\bAnd\b/g, '&') : v;
+function featureOptions() { const m = {}; Object.values(feats).flat().forEach(f => m[f.feature_key] = f.label); return Object.entries(m).sort((a, b) => a[1] < b[1] ? -1 : 1); }
+function renderMsels() {
+  const host = document.getElementById('msels');
+  host.innerHTML = MSEL_DEF.map(d => {
+    const sel = msel[d.key], opts = d.options();
+    return '<details class="msel" data-key="' + d.key + '"><summary' + (sel.size ? ' class="on"' : '') + '>' + d.label + (sel.size ? ' · ' + sel.size : '') + ' ▾</summary><div class="opts">' +
+      (opts.length ? opts.map(([v, l]) => '<label><input type="checkbox" value="' + R.esc(v) + '"' + (sel.has(v) ? ' checked' : '') + '> ' + R.esc(l) + '</label>').join('') : '<span class="mini">no values</span>') +
+      (sel.size ? '<button type="button" class="mclear">clear</button>' : '') + '</div></details>';
+  }).join('');
+  host.querySelectorAll('details').forEach(d => {
+    const key = d.dataset.key;
+    d.querySelectorAll('input').forEach(i => i.onchange = () => { i.checked ? msel[key].add(i.value) : msel[key].delete(i.value); render(); });
+    const b = d.querySelector('.mclear'); if (b) b.onclick = () => { msel[key].clear(); render(); };
+  });
+  document.addEventListener('click', ev => { host.querySelectorAll('details[open]').forEach(d => { if (!d.contains(ev.target)) d.open = false; }); });
+}
+function mselMatch(r) {
+  if (msel.industry.size && !msel.industry.has(r.industry)) return false;
+  const fl = feats[r.company_id] || [];
+  if (msel.feat_use.size && !fl.some(f => msel.feat_use.has(f.feature_key) && (f.state === 'ok' || f.state === 'unpaid'))) return false;
+  if (msel.feat_paid.size && !fl.some(f => msel.feat_paid.has(f.feature_key) && f.contracted)) return false;
+  const sv = document.getElementById('f-service').value;
+  if (sv === 'active' && !n0(r.active_services)) return false;
+  if (sv === 'none' && n0(r.active_services)) return false;
+  return true;
+}
+let openId = null;                       // company_id of the expanded row
+const clickedAt = {};                    // company_id -> ms of last refresh click (client-side cooldown)
+const pollers = {};                      // company_id -> interval id
+
+// ---------- small helpers ----------
+const days = d => d ? Math.round((Date.parse(d) - Date.now()) / DAY) : null;
+const n0 = v => Number(v) || 0;
+const fmtK = v => { v = Number(v); if (!isFinite(v)) return '—'; if (v >= 1e9) return (v / 1e9).toFixed(1) + ' Mrd'; if (v >= 1e6) return (v / 1e6).toFixed(1) + ' M'; if (v >= 1e3) return Math.round(v / 1e3) + ' k'; return String(Math.round(v)); };
+const metricLabel = m => m === 'requests' ? 'hits' : (m || 'sessions');
+const hsLink = (type, id, txt) => '<a href="' + R.hs(type, id) + '" target="_blank" rel="noopener">' + txt + '</a>';
+// Row value: completed period (Monthly = last full month) -> actual %; running contract period -> pace projection, marked with ~
+function usageVal(r) { return r.period_complete === false && r.projected_pct != null ? Number(r.projected_pct) : (r.usage_pct != null ? Number(r.usage_pct) : null); }
+function usageTip(r) {
+  const per = r.period_label ? ' · ' + r.period_label : '';
+  if (r.usage_pct == null) return r.usage_flag === 'no_limit' ? 'No contract limit in HubSpot' : 'No usage data' + per;
+  return r.period_complete === false
+    ? Math.round(r.usage_pct) + ' % of the contract limit used so far, ' + Math.round(r.elapsed_pct) + ' % of the period elapsed → projected ' + Math.round(r.projected_pct) + ' %' + per
+    : Math.round(r.usage_pct) + ' % of the contract limit' + per;
+}
+function usageIcon(r) {
+  const f = r.usage_flag, t = R.esc(usageTip(r));
+  if (f === 'ok') return '<span class="uflag" title="' + t + '">🟢</span>';
+  if (f === 'under') return '<span class="uflag" title="Under · ' + t + '">🔵</span>';
+  if (f === 'over') return '<span class="uflag" title="Over · ' + t + '">🔴</span>';
+  return '<span class="uflag" title="' + t + '">⚪</span>';
+}
+function featIcons(r) {
+  const a = [];
+  if (n0(r.unused_count)) a.push('<span title="' + r.unused_count + ' contracted feature(s) not in use">⚠️' + r.unused_count + '</span>');
+  if (n0(r.unpaid_count)) a.push('<span title="' + r.unpaid_count + ' feature(s) in use without contract">🚫' + r.unpaid_count + '</span>');
+  const trial = (feats[r.company_id] || []).some(f => f.state === 'trial');
+  if (trial) a.push('<span title="Synthetic Users: model exists, paid feature not active (trial / preview)">🧪</span>');
+  if (a.length) return '<span class="fflags">' + a.join(' ') + '</span>';
+  const okN = (feats[r.company_id] || []).filter(f => f.state === 'ok').length;
+  return okN ? '<span class="fflags fok" title="All ' + okN + ' contracted feature(s) in use">✅ ' + okN + '</span>' : '<span class="mini" title="No contract products on the license deal">—</span>';
+}
+function setupHints(r) {
+  const a = [];
+  if (r.region) a.push(R.esc(r.region));
+  if (r.industry) a.push(R.esc(indLabel(r.industry)));
+  if (n0(r.active_services)) a.push('<span class="hint svc" title="' + R.esc((r.services || []).filter(x => x.open).map(x => x.name + ' (' + (x.stage || '') + ')').join(', ')) + '">🛠 ' + r.active_services + ' service' + (r.active_services > 1 ? 's' : '') + '</span>');
+  if (n0(r.setup_issues)) a.push('<span class="hint bad" title="' + r.setup_issues + ' active container(s) with DNS status 0, or tracking code neither detected nor sending data — onboarding not finished">⚙️ ' + r.setup_issues + ' setup issue' + (r.setup_issues > 1 ? 's' : '') + '</span>');
+  if (r.min_tracking_code_version === 1) a.push('<span class="hint bad" title="At least one container still runs the old basic tracking code v1 (blocked by browsers) — upgrade">TC v1</span>');
+  else if (r.min_tracking_code_version === 2) a.push('<span class="hint warn" title="Basic tracking code v2 (ok; v3 is current)">TC v2</span>');
+  return a.length ? '<div class="mini">' + a.join(' · ') + '</div>' : '';
+}
+const statusCls = c => ({ cancellation_period: 'b-bad', ended_no_renewal: 'b-bad', renewal_no_deal: 'b-warn', renewal_upcoming: 'b-warn', auto_renewal: 'b-info', renewed: 'b-good', onboarding: 'b-info', inactive: 'b-neutral', no_license: 'b-neutral', stable: 'b-good' }[c] || 'b-neutral');
+// minimal markdown (bold, bullets, paragraphs) for the AI briefing
+function md(s) {
+  if (!s) return '';
+  const esc = R.esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  const out = []; let ul = false;
+  esc.split(/\r?\n/).forEach(line => {
+    const m = line.match(/^\s*[-•]\s+(.*)$/);
+    if (m) { if (!ul) { out.push('<ul>'); ul = true; } out.push('<li>' + m[1] + '</li>'); return; }
+    if (ul) { out.push('</ul>'); ul = false; }
+    if (line.trim()) out.push('<p>' + line + '</p>');
+  });
+  if (ul) out.push('</ul>');
+  return out.join('');
+}
+const ago = iso => { if (!iso) return ''; const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 48 * 60 ? Math.round(m / 60) + ' h ago' : R.fmtDate(iso); };
+
+// ---------- filters & list ----------
+function matches(r, st) {
+  if (!st) return true;
+  switch (st) {
+    case 'attention': return ['cancellation_period', 'ended_no_renewal', 'renewal_no_deal'].includes(r.status_code) || r.usage_flag === 'over' || n0(r.unpaid_count) > 0 || n0(r.open_tickets) > 0;
+    case 'renewal': return r.days_to_license_end != null && r.days_to_license_end <= 120 && r.days_to_license_end >= 0;
+    case 'usage_over': return r.usage_flag === 'over';
+    case 'usage_under': return r.usage_flag === 'under';
+    case 'unpaid': return n0(r.unpaid_count) > 0;
+    case 'unused': return n0(r.unused_count) > 0;
+    case 'tickets': return n0(r.open_tickets) > 0;
+    case 'setup': return n0(r.setup_issues) > 0;
+    case 'tc1': return r.min_tracking_code_version === 1;
+    case 'trial': return (feats[r.company_id] || []).some(f => f.state === 'trial' || f.state === 'trial_only');
+    case 'all': return true;
+    default: return r.status_code === st;
+  }
+}
+function render() {
+  const q = (document.getElementById('f-search').value || '').trim().toLowerCase();
+  const st = document.getElementById('f-status').value;
+  const inR = R.rangeTest(document.getElementById('f-range').value);
+  const list = rows.filter(r => (!owner || (r.owner_name || 'Unassigned') === owner) && inR(r.customer_since) && matches(r, st) && mselMatch(r)
+    && (!q || (r.company_name || '').toLowerCase().includes(q)));
+  renderMsels();
+  const anyF = st || owner || document.getElementById('f-range').value || document.getElementById('f-service').value || Object.values(msel).some(x => x.size) || q;
+  document.getElementById('f-clear').style.display = anyF ? '' : 'none';
+  R.ownerPills(document.getElementById('ownerbar'), [...new Set(rows.map(r => r.owner_name || 'Unassigned'))].sort(), owner, o => { owner = o; render(); });
+  // KPI cards double as quick filters (click = set the status filter, click again = clear)
+  const base = rows.filter(r => (!owner || (r.owner_name || 'Unassigned') === owner) && inR(r.customer_since) && mselMatch(r) && (!q || (r.company_name || '').toLowerCase().includes(q)));
+  const cnt = f => base.filter(r => matches(r, f)).length;
+  const cards = [
+    { label: 'Customers', val: R.num(base.length), filter: '' },
+    { label: 'MRR (in view)', val: R.eur(list.reduce((s, r) => s + n0(r.mrr), 0)) },
+    { label: 'Renewal ≤ 120d', val: cnt('renewal'), filter: 'renewal' },
+    { label: '🚫 Cancellation period', val: cnt('cancellation_period'), warn: cnt('cancellation_period') > 0, filter: 'cancellation_period' },
+    { label: '🔴 Usage over contract', val: cnt('usage_over'), warn: cnt('usage_over') > 0, filter: 'usage_over' },
+    { label: '⚙️ Setup issues', val: cnt('setup'), warn: cnt('setup') > 0, filter: 'setup' },
+    { label: '🎫 Open tickets', val: base.reduce((s, r) => s + n0(r.open_tickets), 0), filter: 'tickets' }
+  ];
+  const mEl = document.getElementById('metrics');
+  R.metrics(mEl, cards);
+  mEl.querySelectorAll('.metric').forEach((el, i) => {
+    const c = cards[i]; if (c.filter == null) return;
+    el.classList.add('clickable'); if (c.filter && st === c.filter) el.classList.add('active');
+    el.title = c.filter ? 'Click to filter the list' : 'Click to show all';
+    el.onclick = () => { const sel = document.getElementById('f-status'); sel.value = (st === c.filter) ? '' : c.filter; render(); };
+  });
+  document.getElementById('n').textContent = '· ' + list.length;
+  R.table(document.getElementById('content'), [
+    { key: 'company_name', label: 'Company', cell: r => '<span class="caret" title="Show details">' + (openId === r.company_id ? '▾' : '▸') + '</span> ' + hsLink('0-2', r.company_id, '<strong>' + R.esc(r.company_name || ('#' + r.company_id)) + '</strong>') + setupHints(r) },
+    { key: 'owner_name', label: 'Owner', cell: r => '<span class="nw">' + R.esc(r.owner_name || '—') + '</span>' },
+    { key: 'customer_since', label: 'Since', cell: r => R.fmtDate(r.customer_since) },
+    { key: 'mrr', label: 'MRR', num: true, sortVal: r => n0(r.mrr), cell: r => {
+      const d = r.live_deals || [];
+      if (d.length < 2) return R.eur(r.mrr);
+      const tip = 'Sum of ' + d.length + ' live won deals:\n' + d.map(x => (x.name || '#' + x.deal_id) + ' · ' + R.eur(x.amount) + (x.end ? ' · until ' + R.fmtDate(x.end) : '')).join('\n');
+      return '<span class="nw" title="' + R.esc(tip) + '">' + R.eur(r.mrr) + ' <span class="mini">Σ' + d.length + '</span></span>'; } },
+    { key: 'license_type', label: 'License', cell: r => R.esc(r.license_type || '—') },
+    { key: 'usage', label: 'Usage', sortVal: r => usageVal(r) == null ? -1 : usageVal(r), cell: r => '<span class="nw" title="' + R.esc(usageTip(r)) + '">' + usageIcon(r) + (usageVal(r) != null ? ' <span class="mini">' + (r.period_complete === false ? '~' : '') + Math.round(usageVal(r)) + ' %</span>' : '') + '</span>' },
+    { key: 'features', label: 'Features', sortVal: r => n0(r.unpaid_count) * 10 + n0(r.unused_count), cell: featIcons },
+    { key: 'open_tickets', label: '🎫', num: true, sortVal: r => n0(r.open_tickets), cell: r => n0(r.open_tickets) ? '<strong>' + r.open_tickets + '</strong>' : '<span class="mini">—</span>' },
+    { key: 'license_end', label: 'Next renewal', sortVal: r => r.license_end ? (r.days_to_license_end < 0 ? 100000 + r.days_to_license_end : r.days_to_license_end) : null, cell: r => {
+      if (!r.license_end) return '<span class="mini">—</span>';
+      const d = r.days_to_license_end;
+      return '<span class="nw">' + R.fmtDate(r.license_end) + ' <span class="mini' + (d >= 0 && d <= 30 ? ' due' : '') + '">' + (d >= 0 ? 'in ' + d + 'd' : (-d) + 'd ago') + '</span>' + (r.auto_renewal ? ' <span class="auto" title="Auto-renewal on the license deal">🔄</span>' : '') + '</span>'; } },
+    { key: 'status', label: 'Status', sortVal: r => r.days_to_license_end == null ? 99999 : r.days_to_license_end, cell: r => R.badge(r.status_text || '—', statusCls(r.status_code)) },
+    { key: 'refresh', label: '', cell: r => refreshBtn(r) }
+  ], list, { sort: { key: 'license_end', dir: 1 }, rowClick: toggleRow, decorate: (el, sorted) => {
+    el.querySelectorAll('button.rbtn').forEach(b => b.onclick = ev => { ev.stopPropagation(); requestRefresh(Number(b.dataset.id)); });
+    el.querySelectorAll('a').forEach(a => a.onclick = ev => ev.stopPropagation());
+    if (openId != null) { const i = sorted.findIndex(r => r.company_id === openId); const tr = el.querySelectorAll('table.data tr')[i + 1]; if (tr) expand(sorted[i], tr); else openId = null; }
+  } });
+}
+function refreshBtn(r) {
+  const s = summaries[r.company_id] || {};
+  const gen = s.status === 'generating';
+  const cool = (Date.now() - (clickedAt[r.company_id] || 0)) < 5 * 60000 || (s.generated_at && (Date.now() - Date.parse(s.generated_at)) < 5 * 60000);
+  const title = gen ? 'Briefing is being generated…' : cool ? 'Updated ' + ago(s.generated_at) + ' — available again in a few minutes' : (r.has_new_activity ? 'New HubSpot activity since the last briefing — click to update' : (s.generated_at ? 'Briefing from ' + ago(s.generated_at) + ' — click to update' : 'No briefing yet — click to generate'));
+  return '<button class="rbtn' + (gen ? ' busy' : '') + (cool ? ' cool' : '') + '" data-id="' + r.company_id + '" title="' + R.esc(title) + '"' + (gen || cool ? ' disabled' : '') + '>' + (gen ? '<span class="spin">↻</span>' : '↻') + (r.has_new_activity && !gen ? '<span class="newdot"></span>' : '') + '</button>';
+}
+function toggleRow(r, tr) {
+  const was = openId === r.company_id;
+  document.querySelectorAll('tr.detail').forEach(x => x.remove());
+  document.querySelectorAll('tr.open').forEach(x => x.classList.remove('open'));
+  document.querySelectorAll('.caret').forEach(c => c.textContent = '▸');
+  openId = was ? null : r.company_id;
+  if (!was) expand(r, tr);
+}
+
+// ---------- expanded row ----------
+function expand(r, tr) {
+  tr.classList.add('open'); const c = tr.querySelector('.caret'); if (c) c.textContent = '▾';
+  const d = document.createElement('tr'); d.className = 'detail';
+  const id = r.company_id;
+  d.innerHTML = '<td colspan="11"><div class="dgrid">' +
+    '<div class="dcard" id="sum-' + id + '">' + summaryHtml(r) + '</div>' +
+    '<div class="dcard">' + usageHtml(r) + '</div>' +
+    '<div class="dcard wide" id="cont-' + id + '">' + containersHtml(r) + '</div>' +
+    '<div class="dcard wide" id="heat-' + id + '">' + heatHtml(r) + '</div>' +
+    '<div class="dcard wide" id="su-' + id + '">' + sankeyHtml(r) + '</div>' +
+    '<div class="dcard wide">' + timelineHtml(r) + '</div>' +
+    '<div class="dcard wide">' + ticketsHtml(r) + '</div>' +
+    '</div></td>';
+  tr.after(d);
+  wireDetail(d, r);
+  if (!detail[id]) loadDetail(r);
+}
+function wireDetail(d, r) {
+  d.querySelectorAll('button.rbtn').forEach(b => b.onclick = ev => { ev.stopPropagation(); requestRefresh(Number(b.dataset.id)); });
+  d.querySelectorAll('.uchip').forEach(b => b.onclick = ev => { ev.stopPropagation(); const set = hideUsers[r.company_id] = hideUsers[r.company_id] || new Set(); const e = b.dataset.email; set.has(e) ? set.delete(e) : set.add(e); refreshCard('heat-', r, heatHtml); });
+  d.querySelectorAll('.hmode').forEach(b => b.onclick = ev => { ev.stopPropagation(); heatMode[r.company_id] = heatMode[r.company_id] === b.dataset.mode ? '' : b.dataset.mode; refreshCard('heat-', r, heatHtml); });
+  d.querySelectorAll('.hreset').forEach(b => b.onclick = ev => { ev.stopPropagation(); delete hideUsers[r.company_id]; heatMode[r.company_id] = ''; refreshCard('heat-', r, heatHtml); });
+}
+function refreshCard(prefix, r, fn) {
+  const el = document.getElementById(prefix + r.company_id); if (!el) return;
+  el.innerHTML = fn(r); wireDetail(el, r);
+}
+// containers, login heatmap and synthetic-user flow are fetched per customer when the row opens
+async function loadDetail(r) {
+  const id = r.company_id;
+  const safe = async q => { try { return await R.fetchAll(q); } catch (e) { console.warn(q, e); return []; } };
+  const [c, h, su] = await Promise.all([
+    safe('v_cs_container_status?select=container_name,tracking_code_version,tracking_code_version_raw,dns_status,tracking_code_status,tracking_ok,sessions_60d,packets_60d,last_published,publish_version,tools,url,is_active,container_created_at&company_id=eq.' + id + '&order=is_active.desc,container_name'),
+    safe('v_cs_login_heat?select=email,week_start,logins,is_internal,is_jentis&company_id=eq.' + id),
+    safe('v_cs_su_flow?select=kind,name,value,lost_pool,lost_segment&company_id=eq.' + id)
+  ]);
+  detail[id] = { containers: c, heat: h, su: su };
+  if (openId !== id) return;
+  refreshCard('cont-', r, containersHtml); refreshCard('heat-', r, heatHtml); refreshCard('su-', r, sankeyHtml);
+}
+function summaryHtml(r) {
+  const s = summaries[r.company_id] || {};
+  let body;
+  if (s.status === 'generating') body = '<div class="genwait"><span class="spin">↻</span> Claude is reading the last 90 days of HubSpot activity, contract and usage data… <span class="mini">this takes 20–60 s</span></div>';
+  else if (s.status === 'failed') body = '<div class="empty">Last attempt failed' + (s.error ? ': ' + R.esc(s.error) : '') + '. Try again with ↻.</div>';
+  else if (s.summary_md) body = '<div class="brief">' + md(s.summary_md) + '</div>';
+  else body = '<div class="empty">No briefing yet. Click ↻ to let Claude summarise the relationship and the last 90 days.</div>';
+  const meta = s.generated_at ? '<span class="mini">Generated ' + ago(s.generated_at) + (s.inputs_until ? ' · data until ' + R.fmtDate(s.inputs_until) : '') + (s.input_counts ? ' · ' + Object.entries(s.input_counts).filter(([, v]) => v).map(([k, v]) => v + ' ' + k).join(', ') : '') + '</span>' : '';
+  return '<div class="dhead"><h3>AI briefing</h3>' + refreshBtn(r) + '</div>' + body + (r.has_new_activity && s.generated_at ? '<div class="newnote">● New HubSpot activity since this briefing (' + R.fmtDate(r.last_activity_at) + ')</div>' : '') + meta;
+}
+function usageHtml(r) {
+  const u = usage[r.company_id] || {};
+  const metric = u.metric || r.metric || 'sessions';
+  const lim = u.period_limit != null ? Number(u.period_limit) : null;
+  const pct = u.usage_pct != null ? Number(u.usage_pct) : null;
+  const running = u.period_complete === false;
+  let bar = '';
+  if (pct != null) {
+    const basis = running && u.projected_pct != null ? Number(u.projected_pct) : pct;
+    const cls = basis > 110 ? 'over' : basis < 70 ? 'under' : 'ok';
+    bar = '<div class="plabel">' + R.esc(u.period_label || '') + (running ? ' · running' : ' · complete') + '</div>' +
+      '<div class="ubar"><div class="ufill ' + cls + '" style="width:' + Math.min(100, pct) + '%"></div>' + (running ? '<div class="umark" style="left:' + Math.min(100, Number(u.elapsed_pct)) + '%" title="' + Math.round(u.elapsed_pct) + ' % of the period elapsed"></div>' : '') + '</div>' +
+      '<div class="urow"><span>' + fmtK(u.period_used) + ' ' + R.esc(metricLabel(metric)) + ' used</span><span' + (n0(r.addon_monthly_limit) ? ' title="' + fmtK(r.base_monthly_limit) + ' / month from the license deal + ' + fmtK(r.addon_monthly_limit) + ' / month from ' + r.addon_deals + ' live add-on deal(s)"' : '') + '>limit ' + fmtK(lim) + ' per ' + R.esc((u.timeframe || 'month').toLowerCase().replace('monthly', 'month').replace('yearly', 'year').replace('quarterly', 'quarter').replace('bi-year', 'half-year').replace('full contract', 'contract')) + (n0(r.addon_monthly_limit) ? ' <span class="mini">(incl. +' + fmtK(r.addon_monthly_limit) + '/mo add-ons)</span>' : '') + '</span></div>' +
+      (running ? '<div class="mini">' + Math.round(u.elapsed_pct) + ' % of the period elapsed → at this pace <strong>' + fmtK(u.period_projected) + '</strong> (' + Math.round(u.projected_pct) + ' % of the limit)</div>' : '') +
+      (u.mtd_projected_pct != null && u.monthly_limit ? '<div class="mini">This month so far: ' + fmtK(u.mtd_value) + ' → projected ' + fmtK(u.mtd_projected) + ' (' + Math.round(u.mtd_projected_pct) + ' % of the monthly share ' + fmtK(u.monthly_limit) + ')</div>' : '');
+  } else {
+    bar = '<div class="empty">' + (r.usage_flag === 'no_limit' ? 'No contract limit on the license deal in HubSpot.' : 'No usage data for ' + R.esc(u.period_label || 'the current period') + ' in the product database.') + '</div>';
+  }
+  const trend = (u.last_12 || []).filter(x => x.v != null);
+  const chart = trend.length > 1 ? usageChart(trend.map(x => Number(x.v)), trend.map(x => x.m.slice(2)), u.monthly_limit != null ? Number(u.monthly_limit) : null, metricLabel(metric), u.timeframe) : '';
+  const fl = (feats[r.company_id] || []).filter(f => f.state !== 'none');
+  const ICON = { ok: '✅', unused: '⚠️', trial_only: '⚠️', unpaid: '🚫', trial: '🧪', contracted_unknown: '◻️' };
+  const TIP = { ok: 'contracted and in use', unused: 'contracted, not in use', trial_only: 'contracted, but only the trial / preview model runs — paid feature not active', unpaid: 'in use, not in contract', trial: 'trial / preview model exists, paid feature not active, not in contract', contracted_unknown: 'contracted, usage not measurable' };
+  const chips = fl.length ? fl.map(f => '<span class="fchip f-' + f.state + '" title="' + TIP[f.state] + '">' + ICON[f.state] + ' ' + R.esc(f.label) + (f.state === 'trial' || f.state === 'trial_only' ? ' <em>trial</em>' : '') + '</span>').join('') : '<span class="mini">No contract products on the license deal.</span>';
+  const consent = r.consent_rate_pct != null ? '<div class="consent" title="Share of consented vs. not-consented hits over all containers and vendors, ' + R.esc(r.consent_month || 'last full month') + '">Consent rate <strong>' + Math.round(r.consent_rate_pct) + ' %</strong> <span class="mini">(' + R.esc(r.consent_month || '') + ')</span></div>' : '';
+  return '<div class="dhead"><h3>Usage &amp; features</h3>' + (pct != null ? '<span class="ubig" title="' + R.esc(usageTip(r)) + '">' + (running ? '~' + Math.round(u.projected_pct) : Math.round(pct)) + ' %</span>' : '') + '</div>' + bar + chart + consent +
+    '<div class="fchips">' + chips + '</div>' + dealsHtml(r) + (r.last_login ? '<div class="mini" style="margin-top:.4rem">Last login ' + R.fmtDate(r.last_login) + '</div>' : '');
+}
+// live won deals that make up MRR and limit
+function dealsHtml(r) {
+  const d = r.live_deals || [];
+  const sv = (r.services || []);
+  if (!d.length && !sv.length) return '';
+  return '<div class="deals"><div class="mini" style="margin-bottom:.15rem">Live deals · MRR ' + R.eur(r.mrr) + (d.length > 1 ? ' = sum of ' + d.length : '') + '</div>' +
+    d.map(x => '<div class="deal"><span>' + hsLink('0-3', x.deal_id, R.esc(x.name || '#' + x.deal_id)) + ' <span class="mini">' + R.esc(x.type || '') + '</span></span><span class="nw">' + R.eur(x.amount) + (x.tcv ? ' <span class="mini" title="Revenue Hub deal: monthly value from hs_mrr, total contract value ' + R.eur(x.tcv) + '">/mo</span>' : '') + (x.limit ? ' <span class="mini">· ' + fmtK(x.limit) + '</span>' : '') + (x.end ? ' <span class="mini">· until ' + R.fmtDate(x.end) + '</span>' : '') + '</span></div>').join('') +
+    (sv.length ? '<div class="mini" style="margin:.4rem 0 .15rem">Professional services</div>' + sv.map(x => '<div class="deal"><span><a href="https://app.hubspot.com/contacts/144226702/record/0-162/' + x.id + '" target="_blank" rel="noopener">' + R.esc(x.name || '#' + x.id) + '</a> <span class="mini">' + R.esc(x.pipeline || '') + '</span></span><span class="nw">' + R.badge(x.stage || (x.open ? 'open' : 'closed'), x.open ? 'b-info' : 'b-neutral') + (x.start ? ' <span class="mini">· from ' + R.fmtDate(x.start) + '</span>' : '') + '</span></div>').join('') : '') + '</div>';
+}
+// 12-month bars with the contracted monthly limit as a line (scale always includes the limit)
+function usageChart(values, labels, limit, metric, timeframe) {
+  const W = 560, H = 110, pad = 18, lh = 14, top = 14;
+  const max = Math.max(1, ...values, limit || 0) * 1.05;
+  const bw = Math.max(4, (W - pad) / values.length - 3);
+  const yOf = v => top + Math.round((H - top) * (1 - v / max));
+  let s = '<svg class="chart uchart" viewBox="0 0 ' + W + ' ' + (H + lh) + '" preserveAspectRatio="none" style="max-height:' + (H + lh + 20) + 'px">';
+  values.forEach((v, i) => {
+    const x = Math.round(pad / 2 + i * ((W - pad) / values.length));
+    const cls = limit ? (v > limit * 1.1 ? ' over' : v < limit * 0.7 ? ' under' : '') : '';
+    s += '<rect class="bar' + cls + '" x="' + x + '" y="' + yOf(v) + '" width="' + bw + '" height="' + (H - yOf(v)) + '"><title>' + R.esc(labels[i]) + ': ' + fmtK(v) + ' ' + R.esc(metric) + (limit ? ' (' + Math.round(100 * v / limit) + ' % of limit)' : '') + '</title></rect>';
+    const tall = H - yOf(v) > 16;   // value label inside the bar when it fits, above it otherwise
+    s += '<text class="bval' + (tall ? ' in' : '') + '" x="' + (x + bw / 2) + '" y="' + (tall ? yOf(v) + 11 : Math.max(9, yOf(v) - 3)) + '" text-anchor="middle">' + fmtK(v) + '</text>';
+    if (values.length <= 14 || i % Math.ceil(values.length / 14) === 0)
+      s += '<text x="' + (x + bw / 2) + '" y="' + (H + 11) + '" text-anchor="middle">' + R.esc(String(labels[i])) + '</text>';
+  });
+  if (limit) {
+    const y = yOf(limit);
+    s += '<line class="limit" x1="' + (pad / 2) + '" x2="' + (W - pad / 2) + '" y1="' + y + '" y2="' + y + '"/>' +
+      '<text class="limit" x="' + (W - pad / 2) + '" y="' + (y - 3) + '" text-anchor="end">' + (timeframe && timeframe !== 'Monthly' ? 'monthly share of contract ' : 'contract ') + fmtK(limit) + ' / month</text>';
+  }
+  return s + '</svg>';
+}
+// ---------- containers (setup status, tracking code version, last publish) ----------
+function containersHtml(r) {
+  const d = detail[r.company_id];
+  const head = '<div class="dhead"><h3>Containers &amp; setup</h3>' + (n0(r.setup_issues) ? R.badge('⚙️ ' + r.setup_issues + ' setup issue' + (r.setup_issues > 1 ? 's' : ''), 'b-bad') : (r.containers ? R.badge('setup ok', 'b-good') : '')) + '</div>';
+  if (!d) return head + '<div class="mini">Loading…</div>';
+  const list = d.containers || [];
+  if (!list.length) return head + '<div class="empty">No containers for this company in the product database.</div>';
+  const TC = { 1: ['v1', 'b-bad', 'old basic tracking code — blocked by browsers, must be upgraded'], 2: ['v2', 'b-warn', 'tracking code v2 — works, v3 is current'], 3: ['v3', 'b-good', 'current tracking code'] };
+  const st = v => v === 1 ? '<span class="ok">✓</span>' : v === 0 ? '<span class="bad">✗</span>' : '<span class="mini">?</span>';
+  // the DCP's own tracking-code check is a crawler and often cannot see the snippet (CMPs, Shopify, GTM) — real traffic is the better proof
+  const tcSt = c => c.tracking_code_status === 1 ? '<span class="ok">✓</span>'
+    : (n0(c.sessions_60d) + n0(c.packets_60d) > 0) ? '<span class="ok" title="DCP check could not detect the snippet, but ' + fmtK(c.sessions_60d) + ' sessions / ' + fmtK(c.packets_60d) + ' packets arrived in the last two months → tracking is live">✓<sup>*</sup></span>'
+    : c.tracking_code_status === 0 ? '<span class="bad" title="Not detected and no incoming traffic in the last two months">✗</span>' : '<span class="mini">?</span>';
+  const rowsH = list.map(c => {
+    const tc = TC[c.tracking_code_version];
+    const pub = c.last_published ? R.fmtDate(c.last_published) + ' <span class="mini">(' + Math.round((Date.now() - Date.parse(c.last_published)) / DAY) + 'd ago' + (c.publish_version ? ' · ' + R.esc(String(c.publish_version)) : '') + ')</span>' : '<span class="mini">never</span>';
+    return '<tr class="' + (c.is_active ? '' : 'inactive') + '"><td><strong>' + R.esc(c.container_name || '—') + '</strong>' + (c.url ? '<div class="mini">' + R.esc(c.url) + '</div>' : '') + (c.is_active ? '' : '<div class="mini">not active</div>') + '</td>' +
+      '<td>' + (tc ? '<span class="badge ' + tc[1] + '" title="' + tc[2] + '">TC ' + tc[0] + '</span>' : (c.tracking_code_version_raw ? '<span class="mini" title="DCP reports ' + R.esc(c.tracking_code_version_raw) + ' — version could not be read from the site">n/a</span>' : '<span class="mini">—</span>')) + '</td>' +
+      '<td class="num" title="DNS status (1 = ok)">' + st(c.dns_status) + '</td><td class="num" title="Tracking code: detected by the DCP check, or proven by incoming traffic (*)">' + tcSt(c) + '</td>' +
+      '<td class="num" title="Incoming sessions, current + previous month">' + (n0(c.sessions_60d) ? fmtK(c.sessions_60d) : '<span class="mini">0</span>') + '</td>' +
+      '<td>' + pub + '</td><td class="num">' + (c.tools != null ? c.tools : '<span class="mini">—</span>') + '</td></tr>';
+  }).join('');
+  return head + '<table class="data ctab"><thead><tr><th>Container</th><th>Tracking code</th><th class="num">DNS</th><th class="num">Code</th><th class="num">Sessions 2 mo</th><th>Last published</th><th class="num">Tools</th></tr></thead><tbody>' + rowsH + '</tbody></table>' +
+    '<div class="mini" style="margin-top:.35rem">Setup check for onboarding: DNS and tracking code should both be ✓ · ✓* = the DCP snippet check failed but data is arriving, so the code is live · last published = newest publish of the live configuration (per-user publish history is not in the product DB yet)</div>';
+}
+// ---------- login heatmap: users × weeks, last 52 weeks ----------
+function heatHtml(r) {
+  const d = detail[r.company_id];
+  const head = (extra) => '<div class="dhead"><h3>Logins · last 52 weeks</h3>' + (extra || '') + '</div>';
+  if (!d) return head() + '<div class="mini">Loading…</div>';
+  const rowsAll = d.heat || [];
+  if (!rowsAll.length) return head() + '<div class="empty">No DCP logins in the last 365 days.</div>';
+  const hidden = hideUsers[r.company_id] || new Set(), mode = heatMode[r.company_id] || '';
+  // weeks axis (Monday-based, 52 columns ending this week)
+  const monday = t => { const x = new Date(t); x.setUTCHours(0, 0, 0, 0); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7)); return x; };
+  const w1 = monday(Date.now()), weeks = []; for (let i = 51; i >= 0; i--) weeks.push(new Date(w1.getTime() - i * 7 * DAY).toISOString().slice(0, 10));
+  const wi = {}; weeks.forEach((w, i) => wi[w] = i);
+  const users = {};
+  // kind: 'jentis' (staff: @jentis.com or abbreviation-only login), 'int' (customer domain / HubSpot contact domain), 'ext' (agency, partner, other)
+  const kindOf = x => x.is_jentis ? 'jentis' : x.is_internal === true ? 'int' : 'ext';
+  rowsAll.forEach(x => { const u = users[x.email] = users[x.email] || { email: x.email, internal: x.is_internal, kind: kindOf(x), total: 0, cells: new Array(52).fill(0) }; const i = wi[x.week_start]; if (i != null) u.cells[i] += n0(x.logins); u.total += n0(x.logins); });
+  const all = Object.values(users).sort((a, b) => b.total - a.total);
+  const MODE = { internal: 'int', external: 'ext', jentis: 'jentis' };
+  const vis = all.filter(u => !hidden.has(u.email) && (mode === '' || u.kind === MODE[mode]));
+  const nInt = all.filter(u => u.kind === 'int').length, nExt = all.filter(u => u.kind === 'ext').length, nJ = all.filter(u => u.kind === 'jentis').length;
+  const KT = { int: 'internal (customer domain or HubSpot contact domain)', ext: 'external (partner / agency / other domain)', jentis: 'JENTIS staff' };
+  const chips = all.map(u => '<button class="uchip' + (hidden.has(u.email) ? ' off' : '') + ' ' + u.kind + '" data-email="' + R.esc(u.email) + '" title="' + KT[u.kind] + ' · ' + u.total + ' logins · click to hide / show">' + R.esc(u.email) + '</button>').join('');
+  const ctrl = '<span class="hctrl"><button class="hmode' + (mode === 'internal' ? ' on' : '') + '" data-mode="internal">internal ' + nInt + '</button><button class="hmode' + (mode === 'external' ? ' on' : '') + '" data-mode="external">external ' + nExt + '</button><button class="hmode' + (mode === 'jentis' ? ' on' : '') + '" data-mode="jentis">JENTIS ' + nJ + '</button>' + (hidden.size || mode ? '<button class="hreset">reset</button>' : '') + '</span>';
+  const max = Math.max(1, ...vis.flatMap(u => u.cells));
+  const CW = 14, CH = 14, LW = 200, W = LW + 52 * CW + 6, H = 16 + vis.length * CH + 4;
+  let svg = '<svg class="heat" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">';
+  weeks.forEach((w, i) => { const chg = i > 0 && w.slice(0, 7) !== weeks[i - 1].slice(0, 7); if (chg || (i === 0 && weeks[3].slice(0, 7) === w.slice(0, 7))) svg += '<text x="' + (LW + i * CW + 1) + '" y="10">' + w.slice(5, 7) + '/' + w.slice(2, 4) + '</text>'; });
+  vis.forEach((u, j) => {
+    const y = 16 + j * CH;
+    svg += '<text class="lbl ' + u.kind + '" x="' + (LW - 6) + '" y="' + (y + 10) + '" text-anchor="end">' + R.esc(u.email.length > 30 ? u.email.slice(0, 29) + '…' : u.email) + ' <tspan class="tot">' + u.total + '</tspan></text>';
+    u.cells.forEach((v, i) => {
+      const o = v ? 0.25 + 0.75 * Math.min(1, Math.log1p(v) / Math.log1p(max)) : 0;
+      svg += '<rect class="c' + (v ? ' ' + u.kind : ' z') + '" x="' + (LW + i * CW) + '" y="' + y + '" width="' + (CW - 2) + '" height="' + (CH - 2) + '" rx="2" style="fill-opacity:' + o.toFixed(2) + '"><title>' + R.esc(u.email) + ' · week of ' + R.fmtDate(weeks[i]) + ': ' + v + ' login' + (v === 1 ? '' : 's') + '</title></rect>';
+    });
+  });
+  svg += '</svg>';
+  const legend = '<div class="legend"><span><span class="sw" style="background:#1FA294"></span>internal (company domain or a HubSpot contact\'s domain)</span><span><span class="sw" style="background:#E98862"></span>external (partner / agency / other domain)</span><span><span class="sw" style="background:#9AA4AD"></span>JENTIS (@jentis.com or abbreviation login)</span><span class="mini">darker = more logins · publishes per user will follow once the product DB exposes them</span></div>';
+  return head(ctrl) + '<div class="heatwrap">' + (vis.length ? svg : '<div class="empty">All users hidden.</div>') + '</div>' + legend + '<div class="uchips">' + chips + '</div>';
+}
+// ---------- synthetic users flow (Sankey) ----------
+function sankeyHtml(r) {
+  const d = detail[r.company_id];
+  const head = '<div class="dhead"><h3>Synthetic Users · last 30 days</h3></div>';
+  if (!d) return head + '<div class="mini">Loading…</div>';
+  const seg = (d.su || []).filter(x => x.kind === 'segment' && n0(x.value) > 0).sort((a, b) => n0(b.value) - n0(a.value));
+  const tools = (d.su || []).filter(x => x.kind === 'tool').sort((a, b) => n0(b.value) - n0(a.value));
+  if (!seg.length && !tools.length) {
+    const f = (feats[r.company_id] || []).find(x => x.feature_key === 'synthetic_users');
+    return head + '<div class="empty">' + (f && f.state !== 'none' ? 'No synthetic-user predictions or recovered requests in the last 30 days.' : 'Synthetic Users not active for this customer.') + '</div>';
+  }
+  const rec = tools.reduce((s, t) => s + n0(t.value), 0), pool = tools.reduce((s, t) => s + n0(t.lost_pool), 0), miss = tools.reduce((s, t) => s + n0(t.lost_segment), 0);
+  const predTotal = seg.reduce((s, x) => s + n0(x.value), 0), outTotal = rec + pool + miss;
+  // columns: segments (predictions) -> outcome (recovered / id pool empty / segment missing) -> tools (recovered requests)
+  const W = 1000, H = Math.max(200, 40 + 24 * Math.max(seg.length, tools.length, 3)), colW = 14, gap = 8, top = 24;
+  const colX = [190, 500, 840];
+  const scale = (H - top - 10 - gap * 3) / Math.max(predTotal, outTotal, 1);
+  const layout = (items, total) => { let y = top + (H - top - 10 - items.reduce((s, it) => s + it.v * scale, 0) - gap * (items.length - 1)) / 2; return items.map(it => { const h = Math.max(2, it.v * scale); const o = Object.assign({}, it, { y, h }); y += h + gap; return o; }); };
+  const S = layout(seg.map(x => ({ name: x.name, v: n0(x.value), cls: 'seg' })));
+  const O = layout([{ name: 'Recovered', v: rec, cls: 'rec' }, { name: 'ID pool empty', v: pool, cls: 'pool' }, { name: 'Segment missing', v: miss, cls: 'miss' }].filter(x => x.v > 0));
+  const T = layout(tools.filter(t => n0(t.value) > 0).map(x => ({ name: x.name, v: n0(x.value), cls: 'tool' })));
+  const path = (x1, y1, h1, x2, y2, h2, cls, title) => { const c = (x1 + x2) / 2; return '<path class="flow ' + cls + '" d="M' + x1 + ',' + y1 + ' C' + c + ',' + y1 + ' ' + c + ',' + y2 + ' ' + x2 + ',' + y2 + ' v' + h2 + ' C' + c + ',' + (y2 + h2) + ' ' + c + ',' + (y1 + h1) + ' ' + x1 + ',' + (y1 + h1) + ' z"><title>' + title + '</title></path>'; };
+  let svg = '<svg class="sankey" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">';
+  svg += '<text class="col" x="' + (colX[0] + colW) + '" y="14" text-anchor="end">Predictions by segment (' + fmtK(predTotal) + ')</text><text class="col" x="' + colX[1] + '" y="14" text-anchor="middle">Outcome per request (' + fmtK(outTotal) + ')</text><text class="col" x="' + (colX[2] + colW) + '" y="14" text-anchor="end">Recovered per tool</text>';
+  // segments -> outcomes: the DB has no per-segment outcome, so each segment is split in the overall outcome proportion
+  const oOff = {}; O.forEach(o => oOff[o.name] = 0);
+  S.forEach(s => { let yo = s.y; O.forEach(o => { const share = outTotal ? o.v / outTotal : 0; const h1 = s.h * share, h2 = o.h * (predTotal ? s.v / predTotal : 0); svg += path(colX[0] + colW, yo, h1, colX[1], o.y + oOff[o.name], h2, o.cls, s.name + ' → ' + o.name + ' (proportional split)'); yo += h1; oOff[o.name] += h2; }); });
+  // recovered -> tools
+  const recO = O.find(o => o.name === 'Recovered'); let yr = recO ? recO.y : 0;
+  T.forEach(t => { const h = recO ? recO.h * (rec ? t.v / rec : 0) : 0; svg += path(colX[1] + colW, yr, h, colX[2], t.y, t.h, 'rec', 'Recovered → ' + t.name + ': ' + fmtK(t.v)); yr += h; });
+  const node = (x, it, anchor) => '<rect class="node ' + it.cls + '" x="' + x + '" y="' + it.y + '" width="' + colW + '" height="' + it.h + '" rx="2"><title>' + R.esc(it.name) + ': ' + fmtK(it.v) + '</title></rect><text x="' + (anchor === 'end' ? x - 5 : x + colW + 5) + '" y="' + (it.y + it.h / 2 + 4) + '" text-anchor="' + anchor + '">' + R.esc(it.name) + ' <tspan class="tot">' + fmtK(it.v) + '</tspan></text>';
+  S.forEach(it => svg += node(colX[0], it, 'end')); O.forEach(it => svg += node(colX[1], it, 'start')); T.forEach(it => svg += node(colX[2], it, 'start'));
+  svg += '</svg>';
+  const lost = tools.filter(t => n0(t.lost_pool) + n0(t.lost_segment) > 0).map(t => R.esc(t.name) + ': pool empty ' + fmtK(t.lost_pool) + ', segment missing ' + fmtK(t.lost_segment)).join(' · ');
+  return head + svg + '<div class="legend"><span><span class="sw" style="background:#1FA294"></span>recovered (synthetic ID served to the tool)</span><span><span class="sw" style="background:#C4574E"></span>lost: ID pool empty</span><span><span class="sw" style="background:#B07A2A"></span>lost: segment missing</span></div>' +
+    '<div class="mini" style="margin-top:.3rem">Predictions are counted per user and segment, outcomes per tool request, so the two totals differ; the segment → outcome split is proportional (the product DB holds no per-segment outcome). Campaign-level data is not in this DB yet.' + (lost ? '<br>Lost by tool: ' + lost : '') + '</div>';
+}
+function timelineHtml(r) {
+  const per = (tl[r.company_id] || []).filter(p => p.license_start && p.license_end).sort((a, b) => a.license_start < b.license_start ? -1 : 1);
+  if (!per.length) return '<div class="dhead"><h3>License timeline</h3></div><div class="empty">No license periods on won deals for this company.</div>';
+  const t0 = Date.parse(per[0].license_start), t1 = Math.max(...per.map(p => Date.parse(p.license_end))) + 30 * DAY, now = Date.now();
+  const W = 1000, H = 86, L = 8, Rr = 8, Y = 30, BH = 18;
+  const x = t => L + (W - L - Rr) * (t - t0) / (t1 - t0);
+  let s = '<svg class="tl" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">';
+  per.forEach(p => {
+    const a = Date.parse(p.license_start), b = Date.parse(p.license_end), cs = Date.parse(p.cancellation_start);
+    const cls = b < now ? 'past' : a > now ? 'future' : 'cur';
+    s += '<rect class="per ' + cls + '" x="' + x(a) + '" y="' + Y + '" width="' + Math.max(1, x(b) - x(a)) + '" height="' + BH + '" rx="3"><title>' + R.esc(p.deal_name || '') + '\n' + R.fmtDate(p.license_start) + ' – ' + R.fmtDate(p.license_end) + (p.amount ? '\n' + R.eur(p.amount) : '') + '</title></rect>';
+    s += '<rect class="cancel" x="' + x(cs) + '" y="' + Y + '" width="' + Math.max(1, x(b) - x(cs)) + '" height="' + BH + '" rx="3"><title>Cancellation period ' + R.fmtDate(p.cancellation_start) + ' – ' + R.fmtDate(p.license_end) + '</title></rect>';
+    s += '<line class="mark" x1="' + x(b) + '" x2="' + x(b) + '" y1="' + (Y - 6) + '" y2="' + (Y + BH + 6) + '"/>';
+    s += '<text x="' + x(b) + '" y="' + (Y + BH + 20) + '" text-anchor="' + (x(b) > W - 60 ? 'end' : 'middle') + '">' + R.fmtDate(p.license_end) + '</text>';
+  });
+  s += '<text x="' + x(t0) + '" y="' + (Y - 10) + '">Start ' + R.fmtDate(per[0].license_start) + '</text>';
+  if (now > t0 && now < t1) s += '<line class="today" x1="' + x(now) + '" x2="' + x(now) + '" y1="' + (Y - 12) + '" y2="' + (Y + BH + 10) + '"/><text class="today" x="' + x(now) + '" y="' + (Y - 14) + '" text-anchor="middle">today</text>';
+  s += '</svg>';
+  const legend = '<div class="legend"><span><span class="sw" style="background:#9AA4AD;opacity:.6"></span>past period</span><span><span class="sw" style="background:#1FA294;opacity:.9"></span>current period</span><span><span class="sw" style="background:#14506C;opacity:.35"></span>upcoming (renewed)</span><span><span class="sw" style="background:#C4574E;opacity:.75"></span>30-day cancellation period</span></div>';
+  const nxt = per.filter(p => Date.parse(p.license_end) >= now).sort((a, b) => a.license_end < b.license_end ? -1 : 1)[0];
+  const note = nxt ? '<div class="mini" style="margin-top:.3rem">Next license end ' + R.fmtDate(nxt.license_end) + ' (' + days(nxt.license_end) + ' d) · cancellation period from ' + R.fmtDate(nxt.cancellation_start) + ' · ' + hsLink('0-3', nxt.deal_id, R.esc(nxt.deal_name || 'deal')) + '</div>' : '';
+  return '<div class="dhead"><h3>License timeline</h3>' + R.badge(r.status_text || '', statusCls(r.status_code)) + '</div>' + s + legend + note;
+}
+function ticketsHtml(r) {
+  const list = (tix[r.company_id] || []).sort((a, b) => (b.last_activity || '') < (a.last_activity || '') ? -1 : 1);
+  const open = list.filter(t => t.is_open), closed = list.filter(t => !t.is_open).slice(0, 5);
+  const line = t => '<div class="co"><div style="min-width:0"><div class="nm">' + hsLink('0-5', t.ticket_id, R.esc(t.subject || '—')) + '</div><div class="meta">' + R.esc(t.status || '') + (t.priority ? ' · ' + R.esc(t.priority) : '') + ' · created ' + R.fmtDate(t.created_at) + (t.last_activity ? ' · last activity ' + R.fmtDate(t.last_activity) : '') + '</div></div>' +
+    '<div class="side">' + (t.is_open && t.last_activity && (Date.now() - Date.parse(t.last_activity)) / DAY > 7 ? R.badge('quiet 7d+', 'b-warn') : '') + (t.is_open ? R.badge('open', 'b-info') : R.badge('closed', 'b-neutral')) + '</div></div>';
+  return '<div class="dhead"><h3>Tickets</h3><span class="mini">' + open.length + ' open · ' + closed.length + ' recently closed shown</span></div>' + (open.length ? open.map(line).join('') : '<div class="empty">No open tickets.</div>') + (closed.length ? '<details class="more"><summary>Recently closed</summary>' + closed.map(line).join('') + '</details>' : '');
+}
+
+// ---------- refresh via n8n webhook + polling ----------
+async function requestRefresh(id) {
+  if (!R.C.CS_REFRESH_WEBHOOK) { alert('No refresh webhook configured in config.js'); return; }
+  clickedAt[id] = Date.now();
+  summaries[id] = Object.assign({}, summaries[id], { status: 'generating', requested_at: new Date().toISOString() });
+  rerender();
+  try {
+    const res = await fetch(R.C.CS_REFRESH_WEBHOOK, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ company_id: id }) });
+    const j = await res.json().catch(() => ({}));
+    if (res.status === 429 || j.ok === false) {
+      summaries[id] = Object.assign({}, summaries[id], { status: j.status || 'generated' });
+      await loadSummary(id); rerender();
+      return;
+    }
+    startPoll(id);
+  } catch (e) {
+    summaries[id] = Object.assign({}, summaries[id], { status: 'failed', error: 'webhook unreachable (' + e.message + ')' }); rerender();
+  }
+}
+function startPoll(id) {
+  if (pollers[id]) clearInterval(pollers[id]);
+  let n = 0;
+  pollers[id] = setInterval(async () => {
+    n++;
+    const s = await loadSummary(id);
+    if (!s || s.status !== 'generating' || n > 40) { clearInterval(pollers[id]); delete pollers[id]; if (s && s.status !== 'generating') { const row = rows.find(r => r.company_id === id); if (row) row.has_new_activity = false; } rerender(); }
+  }, 5000);
+}
+async function loadSummary(id) {
+  try { const a = await R.fetchAll('cs_customer_summary?select=*&company_id=eq.' + id); if (a[0]) summaries[id] = a[0]; return a[0]; } catch (e) { return null; }
+}
+function rerender() { render(); }
+
+// ---------- init ----------
+(async function init() {
+  const c = document.getElementById('content');
+  rows = await R.loadViewOrPending('v_cs_customers_ext?select=*', c, {
+    title: 'Customer usage views not installed yet',
+    text: 'Run <code>reporting-usage.sql</code> in Supabase and let "Reporting — Product Usage Sync" run once.',
+    view: 'v_cs_customers_ext' });
+  if (!rows) return;
+  const safe = async q => { try { return await R.fetchAll(q); } catch (e) { console.warn(q, e); return []; } };
+  const [f, t, k, u, s] = await Promise.all([
+    safe('v_cs_customer_features?select=company_id,feature_key,label,sort,state,trial,contracted&order=sort'),
+    safe('v_cs_license_timeline?select=*'),
+    safe('v_cs_tickets?select=ticket_id,company_id,subject,status,priority,created_at,last_activity,is_open'),
+    safe('v_cs_customer_usage?select=company_id,metric,timeframe,contract_limit,monthly_limit,period_label,period_limit,period_used,period_complete,elapsed_pct,usage_pct,period_projected,projected_pct,last_month_value,last_month,mtd_value,mtd_projected,mtd_projected_pct,last_12'),
+    safe('cs_customer_summary?select=*')
+  ]);
+  f.forEach(x => (feats[x.company_id] = feats[x.company_id] || []).push(x));
+  t.forEach(x => (tl[x.company_id] = tl[x.company_id] || []).push(x));
+  k.forEach(x => (tix[x.company_id] = tix[x.company_id] || []).push(x));
+  u.forEach(x => usage[x.company_id] = x);
+  s.forEach(x => summaries[x.company_id] = x);
+  s.filter(x => x.status === 'generating' && x.requested_at && (Date.now() - Date.parse(x.requested_at)) < 10 * 60000).forEach(x => startPoll(x.company_id));
+  R.quarterOptions(document.getElementById('f-range'));
+  ['f-range', 'f-status', 'f-service'].forEach(id => document.getElementById(id).addEventListener('change', () => rows && render()));
+  document.getElementById('f-clear').onclick = () => { ['f-range', 'f-status', 'f-service', 'f-search'].forEach(id => document.getElementById(id).value = ''); owner = ''; Object.values(msel).forEach(x => x.clear()); render(); };
+  document.getElementById('f-search').addEventListener('input', () => rows && render());
+  const pre = new URLSearchParams(location.search).get('company'); if (pre) openId = Number(pre);
+  render();
+})();
+</script>
+</body>
+</html>

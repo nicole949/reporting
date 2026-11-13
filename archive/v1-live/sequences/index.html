@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sequences · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?v=27">
+<style>
+.f-check{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--slate);border:1px solid var(--hair);border-radius:999px;padding:.35rem .7rem;background:#fff;cursor:pointer;white-space:nowrap}
+.f-check input{margin:0}
+.segnote{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;font-size:.8rem;color:var(--slate);margin:-.3rem 0 .7rem}
+.segnote .chip{background:rgba(20,80,108,.1);color:#14506C;border-radius:999px;padding:.15rem .6rem;font-weight:600}
+.segnote .x{cursor:pointer;color:#14506C;text-decoration:underline}
+.src{display:inline-block;font-size:.66rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border-radius:4px;padding:.05rem .35rem;margin-left:.35rem;vertical-align:middle;background:#E9EEF2;color:#4A5B68}
+.src.inst{background:#E3EEF7;color:#14506C}
+.sdot{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;margin-right:.45rem;vertical-align:middle;flex:none}
+.sdot.hs{background:#E98862}.sdot.inst{background:#3F8FBF}
+.srclegend{display:inline-flex;align-items:center;gap:.9rem;font-size:.78rem;color:var(--slate);white-space:nowrap}
+.srclegend .sdot{margin-right:.3rem}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:.2rem .8rem;font-size:.82rem;margin:.3rem 0 .6rem}
+.kv .k{color:var(--slate)}.kv .v{font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="shell"></div>
+
+  <div class="winners-hero" id="ai-card" style="display:none"><h2>🤖 AI analysis <span id="ai-date"></span></h2>
+    <div id="ai-body" style="font-size:.88rem;line-height:1.55;margin-top:.5rem"></div></div>
+
+  <div class="filters">
+    <select id="f-status"><option value="">Status: all</option></select>
+    <select id="f-range"><option value="0">Timeframe: all</option><option value="30">Active last 30d</option>
+      <option value="90">Active last 90d</option><option value="180">Active last 180d</option><option value="365">Active last 365d</option></select>
+    <select id="f-source"><option value="">Source: all</option><option value="hubspot">HubSpot sequences</option><option value="instantly">Instantly campaigns</option></select>
+    <span class="srclegend" title="Where the emails were sent from"><span><span class="sdot hs"></span>HubSpot</span><span><span class="sdot inst"></span>Instantly</span></span>
+    <select id="f-icp" title="Shows each sequence's numbers for contacts of this ICP type only"><option value="">ICP: all</option></select>
+    <select id="f-persona" title="Shows each sequence's numbers for contacts of this persona only"><option value="">Persona: all</option></select>
+    <select id="f-sen" title="Shows each sequence's numbers for contacts of this seniority only"><option value="">Seniority: all</option></select>
+    <select id="f-coll"><option value="">Collateral: all</option></select>
+    <input type="search" id="f-search" placeholder="Find sequence…">
+    <label class="f-check" title="Event invitations and event follow-ups (DMEXCO, OMR, webinars, afterworks …) are not cold outreach. Flags come from the sequence name and step subjects; manual overrides live in sequence_flag_overrides."><input type="checkbox" id="f-noevent" checked> Exclude event campaigns <span id="ev-count" class="mini"></span></label>
+  </div>
+  <div class="segnote" id="segnote" style="display:none"></div>
+  <div class="metrics" id="metrics"></div>
+  <div class="split">
+    <div class="card"><h2>Sequences <span>· ▸ per-step metrics · click row for engagers &amp; outcomes</span></h2><div id="content" class="empty" style="overflow-x:auto">Loading…</div></div>
+    <div class="card"><h2 id="eng-title">Details</h2><div id="engagers" class="empty">Click a sequence to see who engaged — and what happened after.</div></div>
+  </div>
+  <footer>HubSpot sequences: attribution via HubSpot's sequence ID · steps inferred from distinct emails ordered by first send (📂 = AI-personalized subjects grouped into categories) · 📅💼🏆 = companies with a discovery / deal / customer after the sequence first reached them · replies exclude auto-replies · CTA &amp; collateral determined by AI from the email bodies.
+  <strong>Instantly campaigns</strong> are discovered automatically from the Instantly API (nightly): enrolled = leads, open / reply = unique leads per emails sent, dates = campaign creation; they carry no HubSpot persona / ICP / seniority data, so they are hidden while a segment filter is active.
+  Persona / ICP / seniority filters switch every sequence's numbers to the contacts of that segment (one segment at a time).</footer>
+</div>
+<script src="../assets/config.js?v=27"></script>
+<script src="../assets/app.js?v=27"></script>
+<script>
+R.shell('sequences', { title: 'Sequences', subtitle: 'Which outreach sequences work — step by step, and what they turn into' });
+let rows=null, steps=null, comps=null, aux=null, after={}, SEG={}, EVENT=new Set(), INST={};
+const base=v=>String(v||'').replace(/\s*\(\d+%\)\s*$/,'');
+const prettyIcp=x=>x?String(x).replace(/_/g,' ').replace(/^\w/,c=>c.toUpperCase()):x;
+const SEN_ORDER=['C-Level','VP / Director / Head','Manager','Specialist / Other','Unknown'];
+// same word list the SQL flags use — applied client-side to Instantly campaign names
+const EVENT_RE=/(einladung|invite|event|afterwork|drinks|webinar|meetup|summit|konferenz|conference|dmexco|omr|stammtisch|networking|save the date|vor ort|rooftop|\bmesse\b)/i;
+const isInst=r=>r.source==='instantly';
+
+async function init(){
+  const c=document.getElementById('content');
+  rows=await R.loadViewOrPending('v_sequence_stats?select=*&order=last_send.desc', c, {
+    title:'Sequence pipeline not connected yet',
+    text:'Import and run reporting-outreach-sync.json.',
+    view:'v_sequence_stats'});
+  if(!rows) return;
+  rows.forEach(r=>{r.source='hubspot';});
+  // AI insights card
+  R.fetchAll('v_report_notes?key=eq.outreach_insights&select=*').then(n=>{
+    document.getElementById('ai-card').style.display='';
+    if(!n.length||!n[0].note){
+      document.getElementById('ai-body').innerHTML='<span style="color:#CDEBE6">Appears after the next outreach-sync run — a cross-cutting read on personas, ICPs, subject lines and sequences.</span>';
+      return;
+    }
+    document.getElementById('ai-date').textContent='· '+R.fmtDate(n[0].updated_at);
+    document.getElementById('ai-body').innerHTML=R.esc(n[0].note)
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/^[-•]\s?/gm,'<span style="color:#7FE0D6">▸</span> ')
+      .replace(/\n/g,'<br>');
+  }).catch(()=>{});
+  let inst=[], instSteps=[], segs=[], flags=[];
+  [steps,comps,inst,instSteps,segs,flags]=await Promise.all([
+    R.fetchAll('v_sequence_steps?select=*&order=step_rank.asc').catch(()=>[]),
+    R.fetchAll('v_sequence_companies?select=*').catch(()=>[]),
+    R.fetchAll('v_instantly_campaigns?select=*').catch(()=>[]),
+    R.fetchAll('v_instantly_campaign_steps?select=*&order=step.asc,variant.asc').catch(()=>[]),
+    R.fetchAll('v_sequence_segments?select=*').catch(()=>[]),
+    R.fetchAll('v_sequence_flags?select=sequence_id,is_event,reason').catch(()=>[])]);
+  // --- Instantly campaigns as sequence rows ---
+  for(const x of inst){
+    const id='instantly:'+x.campaign_id;
+    INST[id]=x;
+    rows.push({source:'instantly',sequence_id:id,sequence_name:x.name,status:x.status_label||'',
+      enrolled:x.leads,delivered:x.sent,opens:x.unique_opens,clicks:x.unique_clicks,replies:x.unique_replies,
+      open_rate:x.open_rate,reply_rate:x.reply_rate,bounce_rate:x.bounce_rate,steps:x.steps,
+      main_icp:null,main_persona:null,cta:null,collateral:null,ai_note:null,
+      first_send:x.created_at?String(x.created_at).slice(0,10):null,last_send:null});
+    if(EVENT_RE.test(x.name||'')) EVENT.add(id);
+  }
+  for(const s of instSteps){
+    const subj=String(s.subject||'').trim();
+    steps.push({sequence_id:'instantly:'+s.campaign_id,step_rank:(Number(s.step)||0)+1,
+      subject:/\{\{.*\}\}/.test(subj)?'📂 Personalized subjects (AI)':(subj||'(no subject)'),
+      variant:s.variant,sends:s.sent,opens:s.unique_opens,clicks:s.unique_clicks,replies:s.unique_replies,cta:null,collateral:null});
+  }
+  for(const f of flags) if(f.is_event) EVENT.add(String(f.sequence_id));
+  for(const g of segs){ const id=String(g.sequence_id); ((SEG[id]=SEG[id]||{})[g.dim]=SEG[id][g.dim]||{})[g.value]=g; }
+
+  const [disc,deals,cust]=await Promise.all([
+    R.fetchAll('v_discoveries?select=company_id,company_name,meeting_start,status').catch(()=>[]),
+    R.fetchAll('v_deals?select=company_id,company_name,deal_name,create_date,is_won').catch(()=>[]),
+    R.fetchAll('company_stage_entries?select=company_id,stage,effective_date&stage=eq.customer').catch(()=>[])]);
+  aux={disc,deals,cust};
+  const byCid={d:{},dl:{},cu:{}};
+  for(const x of disc)(byCid.d[String(x.company_id)]=byCid.d[String(x.company_id)]||[]).push(x);
+  for(const x of deals)(byCid.dl[String(x.company_id)]=byCid.dl[String(x.company_id)]||[]).push(x);
+  for(const x of cust)(byCid.cu[String(x.company_id)]=byCid.cu[String(x.company_id)]||[]).push(x);
+  for(const c2 of comps){
+    const a=(after[c2.sequence_id]=after[c2.sequence_id]||{disc:[],deal:[],cust:[],touched:0});
+    a.touched++;
+    const cid=String(c2.company_id), fs=c2.first_sent;
+    const d1=(byCid.d[cid]||[]).filter(x=>x.meeting_start&&String(x.meeting_start).slice(0,10)>=fs&&x.status!=='canceled').sort((x,y)=>x.meeting_start<y.meeting_start?-1:1)[0];
+    if(d1) a.disc.push({name:c2.company_name,date:d1.meeting_start,extra:d1.status});
+    const d2=(byCid.dl[cid]||[]).filter(x=>x.create_date&&x.create_date>=fs).sort((x,y)=>x.create_date<y.create_date?-1:1)[0];
+    if(d2) a.deal.push({name:c2.company_name,date:d2.create_date,extra:d2.deal_name,won:d2.is_won});
+    const d3=(byCid.cu[cid]||[]).filter(x=>x.effective_date>=fs).sort((x,y)=>x.effective_date<y.effective_date?-1:1)[0];
+    if(d3) a.cust.push({name:c2.company_name,date:d3.effective_date});
+  }
+  // filter options
+  const fill=(id,vals,fmt)=>{const el=document.getElementById(id);
+    vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=fmt?fmt(v):v;el.appendChild(o);});};
+  const uniq=a=>[...new Set(a.filter(Boolean))];
+  fill('f-status',uniq(rows.map(r=>r.status||'')).sort());
+  const dimVals=dim=>{const s=new Set();for(const id in SEG)for(const v in (SEG[id][dim]||{}))s.add(v);return [...s];};
+  const icps=dimVals('icp').filter(v=>v!=='Unknown').sort(); if(dimVals('icp').includes('Unknown')) icps.push('Unknown');
+  fill('f-icp',icps,prettyIcp);
+  const pers=dimVals('persona').filter(v=>v!=='Unknown').sort(); if(dimVals('persona').includes('Unknown')) pers.push('Unknown');
+  fill('f-persona',pers);
+  fill('f-sen',SEN_ORDER.filter(v=>dimVals('seniority').includes(v)));
+  fill('f-coll',uniq(rows.map(r=>r.collateral)).sort());
+  render();
+}
+const r1=v=>v==null?'—':(Math.round(v*10)/10)+'%';
+
+// active segment (one dim at a time) and the metrics a row shows under it
+function activeSeg(){
+  const gv=id=>document.getElementById(id).value;
+  if(gv('f-persona')) return {dim:'persona',val:gv('f-persona'),label:'Persona'};
+  if(gv('f-sen')) return {dim:'seniority',val:gv('f-sen'),label:'Seniority'};
+  if(gv('f-icp')) return {dim:'icp',val:gv('f-icp'),label:'ICP'};
+  return null;
+}
+function metricsFor(r,seg){
+  if(!seg) return {enrolled:Number(r.enrolled)||0,delivered:Number(r.delivered)||0,opens:Number(r.opens)||0,replies:Number(r.replies)||0,
+    open_rate:r.open_rate==null?null:Number(r.open_rate),reply_rate:r.reply_rate==null?null:Number(r.reply_rate),has:true};
+  const g=((SEG[r.sequence_id]||{})[seg.dim]||{})[seg.val];
+  if(!g) return {has:false};
+  const d=Number(g.sends)||0;
+  return {enrolled:Number(g.enrolled)||0,delivered:d,opens:Number(g.opens)||0,replies:Number(g.replies)||0,
+    open_rate:d?100*(Number(g.opens)||0)/d:null,reply_rate:d?100*(Number(g.replies)||0)/d:null,has:true};
+}
+
+function render(){
+  const gv=id=>document.getElementById(id).value;
+  const st=gv('f-status'), inR=R.overlapTest(gv('f-range')), src=gv('f-source'), coll=gv('f-coll');
+  const noEvent=document.getElementById('f-noevent').checked;
+  const seg=activeSeg();
+  const q=gv('f-search').trim().toLowerCase();
+  let hiddenEvents=0;
+  const list=[];
+  for(const r of rows){
+    if(st&&(r.status||'')!==st) continue;
+    if(!inR(r.first_send,r.last_send)) continue;
+    if(src&&r.source!==src) continue;
+    if(coll&&r.collateral!==coll) continue;
+    if(q&&!((r.sequence_name||'')+' '+(r.sequence_id||'')+' '+(r.cta||'')+' '+(r.ai_note||'')).toLowerCase().includes(q)) continue;
+    if(noEvent&&EVENT.has(String(r.sequence_id))){hiddenEvents++;continue;}
+    const m=metricsFor(r,seg);
+    if(!m.has) continue;                 // no contacts of this segment in the sequence (or Instantly under a segment)
+    list.push(Object.assign({},r,{m}));
+  }
+  document.getElementById('ev-count').textContent=hiddenEvents?'('+hiddenEvents+' hidden)':'';
+  const sn=document.getElementById('segnote');
+  if(seg){
+    const instHidden=rows.filter(r=>isInst(r)).length;
+    sn.style.display='';
+    sn.innerHTML='Numbers per sequence for <span class="chip">'+R.esc(seg.label)+': '+R.esc(seg.dim==='icp'?prettyIcp(seg.val):seg.val)+'</span>'+
+      ' · enrolled / sends / open / reply count only contacts of this segment · sequences without such contacts are hidden'+
+      (instHidden?' · '+instHidden+' Instantly campaign'+(instHidden>1?'s':'')+' hidden (no HubSpot persona data)':'')+
+      ' · <span class="x" id="seg-clear">clear</span>';
+    document.getElementById('seg-clear').onclick=()=>{for(const id of ['f-icp','f-persona','f-sen'])document.getElementById(id).value='';render();};
+  } else sn.style.display='none';
+
+  R.metrics(document.getElementById('metrics'),[
+    {label:'Sequences', val:list.length+(list.some(isInst)?' <span class="mini">('+list.filter(isInst).length+' Instantly)</span>':'')},
+    {label:seg?'Contacts enrolled (segment)':'Contacts enrolled', val:R.num(list.reduce((s,r)=>s+r.m.enrolled,0))},
+    {label:seg?'Real replies (segment)':'Real replies', val:R.num(list.reduce((s,r)=>s+r.m.replies,0))},
+    {label:'📅 → 💼 → 🏆', val:['disc','deal','cust'].map(k=>list.reduce((s,r)=>s+((after[r.sequence_id]||{})[k]||[]).length,0)).join(' · ')}
+  ]);
+  const el=document.getElementById('content');
+  R.table(el,[
+    {key:'exp',label:'',cell:r=>(steps&&steps.some(s=>s.sequence_id===r.sequence_id))?'<span class="expander" data-seq="'+R.esc(r.sequence_id)+'" style="cursor:pointer;user-select:none">▸</span>':''},
+    {key:'sequence_name',label:'Sequence',cell:r=>'<span class="sdot '+(isInst(r)?'inst':'hs')+'" title="'+(isInst(r)?'Sent via Instantly':'Sent via HubSpot')+'"></span><strong>'+R.esc(r.sequence_name||r.sequence_id)+'</strong>'+
+      (EVENT.has(String(r.sequence_id))?' '+R.badge('event','b-warn'):'')+
+      (r.status?' '+R.badge(r.status,/finish|complete|done|beendet|paus|draft/i.test(r.status)?'b-neutral':'b-good'):'')+
+      '<div class="mini">'+R.fmtDate(r.first_send)+(r.last_send?' – '+R.fmtDate(r.last_send):'')+'</div>'},
+    {key:'outcomes',label:'Outcomes',sortVal:r=>{const a=after[r.sequence_id]||{};return ((a.cust||[]).length*10000+(a.deal||[]).length*100+(a.disc||[]).length);},
+      cell:r=>{const a=after[r.sequence_id];if(!a) return '<span class="mini">—</span>';
+        const p=[];if(a.disc.length)p.push('📅'+a.disc.length);if(a.deal.length)p.push('💼'+a.deal.length);if(a.cust.length)p.push('🏆'+a.cust.length);
+        return p.length?p.join(' '):'<span class="mini">—</span>';}},
+    {key:'steps',label:'Steps',num:true,cell:r=>r.steps!=null?r.steps:'—'},
+    {key:'enrolled',label:'Enrolled',num:true,sortVal:r=>r.m.enrolled,cell:r=>R.num(r.m.enrolled)},
+    {key:'delivered',label:'Sends',num:true,sortVal:r=>r.m.delivered,cell:r=>R.num(r.m.delivered)},
+    {key:'open_rate',label:'Open',num:true,sortVal:r=>r.m.open_rate||0,cell:r=>r1(r.m.open_rate)},
+    {key:'reply_rate',label:'Reply',num:true,sortVal:r=>r.m.reply_rate||0,cell:r=>r1(r.m.reply_rate)+(r.m.replies&&seg?' <span class="mini">('+r.m.replies+')</span>':'')},
+    {key:'main_icp',label:'ICP',cell:r=>isInst(r)?'<span class="mini">—</span>':R.esc(prettyIcp(r.main_icp)||'—')},
+    {key:'main_persona',label:'Persona',cell:r=>isInst(r)?'<span class="mini">—</span>':R.esc(r.main_persona||'—')},
+    {key:'first_send',label:'Created',sortVal:r=>r.first_send||'',cell:r=>R.fmtDate(r.first_send)}
+  ],list,{sort:{key:'first_send',dir:-1},rowClick:openDetails,decorate:bindExpanders});
+}
+function bindExpanders(el){
+  el.querySelectorAll('.expander').forEach(x=>x.addEventListener('click',e=>{
+    e.stopPropagation();
+    const tr=x.closest('tr');
+    const nx=tr.nextElementSibling;
+    if(nx&&nx.classList.contains('dealdetail')){nx.remove();x.textContent='▸';return;}
+    x.textContent='▾';
+    const ss=steps.filter(s=>s.sequence_id===x.dataset.seq);
+    const inst=String(x.dataset.seq).startsWith('instantly:');
+    const det=document.createElement('tr');det.className='dealdetail';
+    det.innerHTML='<td colspan="12"><table class="data" style="margin:.3rem 0">'+
+      '<tr><th>Step</th><th>Subject</th>'+(inst?'':'<th>CTA</th><th>Collateral</th>')+'<th class="num">Sends</th><th class="num">Open</th><th class="num">Reply</th></tr>'+
+      ss.map(s=>'<tr><td>'+s.step_rank+(inst&&s.variant?' <span class="mini">v'+(s.variant+1)+'</span>':'')+'</td><td>'+R.esc(s.subject)+'</td>'+
+        (inst?'':'<td>'+R.esc(s.cta||'—')+'</td><td>'+R.esc(s.collateral&&s.collateral!=='none'?s.collateral:'—')+'</td>')+
+        '<td class="num">'+R.num(s.sends)+'</td><td class="num">'+R.pct(s.opens,s.sends)+'</td><td class="num">'+R.pct(s.replies,s.sends)+'</td></tr>').join('')+
+      (inst?'<tr><td colspan="5" class="mini">Instantly: open / reply = unique leads per emails sent in that step</td></tr>':'')+'</table></td>';
+    tr.after(det);
+  }));
+}
+async function openDetails(r,tr){
+  document.querySelectorAll('#content tr.open').forEach(x=>x.classList.remove('open'));
+  tr.classList.add('open');
+  const el=document.getElementById('engagers');
+  document.getElementById('eng-title').innerHTML='Details <span>· '+R.esc(r.sequence_name||r.sequence_id)+'</span>';
+  el.className='empty'; el.textContent='Loading…';
+  if(isInst(r)){
+    const x=INST[r.sequence_id]||{};
+    el.className='';
+    el.innerHTML='<div class="mini" style="margin-bottom:.3rem">Instantly campaign · '+R.esc(x.status_label||'')+' · created '+R.fmtDate(x.created_at)+' · synced '+R.fmtDate(x.synced_at)+'</div>'+
+      '<div class="kv">'+[['Leads',x.leads],['Contacted',x.contacted],['Emails sent',x.sent],['Unique opens',x.unique_opens],['Opens (all)',x.opens],
+        ['Real replies',x.unique_replies],['Auto-replies',x.auto_replies],['Clicks',x.unique_clicks],['Bounced',x.bounced],['Unsubscribed',x.unsubscribed],['Completed sequence',x.completed],['Opportunities',x.opportunities]]
+        .map(([k,v])=>'<span class="k">'+k+'</span><span class="v">'+R.num(v)+'</span>').join('')+'</div>'+
+      '<div class="mini">Bounce rate '+r1(x.bounce_rate)+' · Instantly leads are not linked to HubSpot contacts, so outcomes (📅💼🏆) and engagers are not available here.</div>';
+    return;
+  }
+  try{
+    const eng=await R.fetchAll('v_sequence_engagers?sequence_id=eq.'+encodeURIComponent(r.sequence_id)+'&select=*&order=ts.desc');
+    const a=after[r.sequence_id]||{disc:[],deal:[],cust:[],touched:0};
+    let html='';
+    html+='<div class="mini" style="margin-bottom:.3rem">After the sequence reached them ('+a.touched+' companies touched):</div>'+
+      '<div class="winners" style="margin-bottom:.7rem">'+
+      '<span class="winner">📅 '+a.disc.length+' discoveries</span>'+
+      '<span class="winner">💼 '+a.deal.length+' deals</span>'+
+      '<span class="winner">🏆 '+a.cust.length+' customers</span></div>';
+    // segment breakdown of this sequence
+    const sg=SEG[r.sequence_id];
+    if(sg){
+      const block=(dim,title,order)=>{
+        let g=Object.values(sg[dim]||{});
+        if(!g.length) return '';
+        g=order?g.sort((x,y)=>order.indexOf(x.value)-order.indexOf(y.value)):g.sort((x,y)=>y.sends-x.sends);
+        return '<div class="mini" style="margin:.5rem 0 .2rem;font-weight:600">'+title+'</div><table class="data">'+
+          '<tr><th></th><th class="num">Contacts</th><th class="num">Sends</th><th class="num">Open</th><th class="num">Reply</th></tr>'+
+          g.map(x=>'<tr'+(x.sends<10?' style="opacity:.5"':'')+'><td>'+R.esc(dim==='icp'?prettyIcp(x.value):x.value)+'</td><td class="num">'+R.num(x.enrolled)+'</td><td class="num">'+R.num(x.sends)+'</td>'+
+            '<td class="num">'+R.pct(x.opens,x.sends)+'</td><td class="num">'+R.pct(x.replies,x.sends)+'</td></tr>').join('')+'</table>';
+      };
+      html+=block('persona','By persona')+block('seniority','By seniority',SEN_ORDER)+block('icp','By ICP type');
+    }
+    const sect=(title,arr,fmt)=>arr.length?'<div class="mini" style="margin:.5rem 0 .2rem">'+title+'</div>'+
+      [...arr].sort((x,y)=>x.date<y.date?1:-1).slice(0,12).map(fmt).join(''):'';
+    html+=sect('Discoveries',a.disc,x=>'<div class="co"><div><div class="nm">'+R.esc(x.name)+'</div><div class="meta">'+R.fmtDate(x.date)+' · '+R.esc(x.extra||'')+'</div></div></div>');
+    html+=sect('Deals',a.deal,x=>'<div class="co"><div><div class="nm">'+(x.won?'🏆 ':'')+R.esc(x.name)+'</div><div class="meta">'+R.esc(x.extra||'')+' · '+R.fmtDate(x.date)+'</div></div></div>');
+    html+=sect('Customers',a.cust,x=>'<div class="co"><div><div class="nm">🏆 '+R.esc(x.name)+'</div><div class="meta">since '+R.fmtDate(x.date)+'</div></div></div>');
+    if(eng.length){
+      html+='<div class="mini" style="margin:.7rem 0 .2rem">Engagers ('+eng.length+')</div>'+eng.slice(0,25).map(e=>
+        '<div class="co"><div style="min-width:0"><div class="nm">'+R.esc(e.contact_name||('Contact '+e.contact_id))+'</div>'+
+        '<div class="meta">'+[e.company_name,e.step?'step '+e.step:null,R.fmtDate(e.ts)].filter(Boolean).map(R.esc).join(' · ')+'</div></div>'+
+        '<span class="badge '+(e.action==='reply'?'b-good':'b-neutral')+'">'+R.esc(e.action)+'</span></div>').join('');
+    } else html+='<div class="mini">No opens/clicks/replies recorded yet.</div>';
+    el.className='';
+    el.innerHTML=html;
+  }catch(err){ el.className='empty'; el.textContent='Could not load details ('+err.message+').'; }
+}
+R.quarterOptions(document.getElementById('f-range'));
+// segment filters are exclusive: picking one clears the other two
+for(const id of ['f-icp','f-persona','f-sen']) document.getElementById(id).addEventListener('change',e=>{
+  if(e.target.value) for(const o of ['f-icp','f-persona','f-sen']) if(o!==id) document.getElementById(o).value='';
+  rows&&render();
+});
+for(const id of ['f-status','f-range','f-source','f-coll','f-noevent']) document.getElementById(id).addEventListener('change',()=>rows&&render());
+document.getElementById('f-search').addEventListener('input',()=>rows&&render());
+init();
+</script>
+</body>
+</html>

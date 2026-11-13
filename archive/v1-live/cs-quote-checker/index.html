@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS · Quote Checker · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?v=30">
+<style>
+  .filters select#quote-select{flex:1 1 420px;min-width:260px}
+  .reloadrow{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin:-.4rem 0 .8rem}
+  .linkbtn{background:none;border:0;padding:0;color:inherit;font:inherit;font-size:.82rem;text-decoration:underline;text-underline-offset:3px;cursor:pointer;opacity:.75}
+  .linkbtn:hover{opacity:1}.linkbtn:disabled{opacity:.4;cursor:default}
+  .toast{font-size:.84rem;min-height:1.2em;margin:.4rem 0 0}
+  .spin{display:inline-block;animation:qcspin .9s linear infinite}@keyframes qcspin{to{transform:rotate(360deg)}}
+  .kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.6rem 1.2rem;margin:.6rem 0 .9rem}
+  .kv div{font-size:.86rem}.kv b{display:block;font-weight:500;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;opacity:.6;margin-bottom:.1rem}
+  .vis{display:flex;flex-wrap:wrap;gap:.45rem .5rem;margin-top:.5rem}
+  .vis .chip{display:inline-flex;align-items:center;gap:.45rem;padding:.3rem .65rem;border:1px solid rgba(0,0,0,.08);border-radius:999px;font-size:.82rem;background:rgba(255,255,255,.6)}
+  .vis .chip .badge{margin:0}
+  .colset{display:grid;grid-template-columns:1fr 1fr;gap:.6rem 1.2rem;margin-top:.5rem}@media (max-width:760px){.colset{grid-template-columns:1fr}}
+  .colset .box{border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:.6rem .8rem;background:rgba(255,255,255,.6)}
+  .colset .box h4{margin:0 0 .35rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;opacity:.65}
+  .colset .box.show h4{color:#2E8B57;opacity:1}.colset .box.hide h4{color:#8A98A4;opacity:1}
+  .colset ul{margin:0;padding-left:1rem;font-size:.84rem;line-height:1.5}.colset li .lbl{font-weight:600}.colset li .why{opacity:.6;font-size:.78rem}
+  .visnotes{margin:.5rem 0 0;padding-left:1.1rem;font-size:.82rem}.visnotes li{margin:.15rem 0}
+  .verdict{display:inline-flex;align-items:center;gap:.5rem;padding:.35rem .85rem;border-radius:999px;font-weight:700;font-size:.9rem}
+  .verdict.ready{background:#E7F5EC;color:#2E8B57}.verdict.attention{background:#FBF1DC;color:#A6700C}.verdict.blocked{background:#FBE6E3;color:#C0392B}
+  .score{font-size:1.7rem;font-weight:700;line-height:1;font-family:'Instrument Sans',inherit}
+  .summary{margin:.9rem 0 0;padding:.9rem 1.1rem;border-radius:12px;background:rgba(20,80,108,.06);font-size:.95rem;line-height:1.55}
+  .summary b{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;opacity:.6;margin-bottom:.3rem}
+  .math{margin:.7rem 0 0;font-size:.86rem;line-height:1.5}
+  .totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.6rem 1.2rem;margin:.7rem 0 0}
+  .totals div{font-size:1rem;font-weight:600}.totals b{display:block;font-weight:500;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;opacity:.6;margin-bottom:.1rem}
+  /* findings: one section per category, three columns per finding */
+  .legend{display:flex;flex-wrap:wrap;gap:.4rem 1rem;align-items:center;font-size:.8rem;margin:.9rem 0 0}
+  .sev{display:inline-flex;align-items:center;gap:.35rem;padding:.12rem .55rem;border-radius:999px;font-size:.72rem;font-weight:700;white-space:nowrap;letter-spacing:.02em}
+  .sev::before{content:'';width:.5rem;height:.5rem;border-radius:50%;background:currentColor}
+  .sev.error{background:#FBE6E3;color:#B3261E}.sev.warning{background:#FBF1DC;color:#9A6700}.sev.info{background:#E3F3F5;color:#0F7C8C}
+  .fsec{margin-top:1.1rem}
+  .fsec h3{margin:0 0 .35rem;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em;opacity:.7;display:flex;align-items:center;gap:.5rem}
+  .fsec h3 .n{font-weight:500;opacity:.7;text-transform:none;letter-spacing:0}
+  .fgrid{display:grid;grid-template-columns:minmax(220px,1.1fr) minmax(220px,1.4fr) minmax(220px,1.4fr);border:1px solid rgba(0,0,0,.08);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.6)}
+  .fgrid .hd{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;opacity:.6;padding:.45rem .8rem;background:rgba(0,0,0,.025);border-bottom:1px solid rgba(0,0,0,.06)}
+  .fgrid .cell{padding:.65rem .8rem;font-size:.84rem;line-height:1.45;border-bottom:1px solid rgba(0,0,0,.06)}
+  .fgrid .cell:nth-last-child(-n+3){border-bottom:0}
+  .fgrid .c1{border-left:4px solid transparent}.fgrid .c1.error{border-left-color:#B3261E}.fgrid .c1.warning{border-left-color:#D9A01E}.fgrid .c1.info{border-left-color:#0F7C8C}
+  .fgrid .c1 strong{display:block;font-size:.9rem;margin:.15rem 0 .2rem}
+  .fgrid .c1 .where{display:block;font-size:.76rem;opacity:.65}
+  .fgrid .c3{background:rgba(20,80,108,.035)}
+  @media (max-width:900px){.fgrid{grid-template-columns:1fr}.fgrid .hd{display:none}.fgrid .cell{border-bottom:0}.fgrid .c1{padding-bottom:.2rem}.fgrid .c2{padding-top:.2rem}.fgrid .c3{border-bottom:1px solid rgba(0,0,0,.06)}.fgrid .c2::before{content:'Consequence · ';opacity:.6;font-size:.72rem;text-transform:uppercase}.fgrid .c3::before{content:'How to do it right · ';opacity:.6;font-size:.72rem;text-transform:uppercase}}
+  ul.cols2{columns:2;column-gap:2rem}@media (max-width:860px){ul.cols2{columns:1}}
+  .rule{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:.7rem;padding:.05rem .4rem;border-radius:4px;background:rgba(20,80,108,.1);color:#14506C;margin-left:.4rem;vertical-align:middle}
+  ul.plain{margin:.3rem 0 0;padding-left:1.1rem;font-size:.85rem;line-height:1.45}ul.plain li{margin:.2rem 0}
+  .bad{color:#C0392B}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="shell"></div>
+  <div class="filters">
+    <select id="quote-select"><option value="">Loading quotes…</option></select>
+    <button class="btn" id="btn-check" type="button" disabled style="margin-top:0">▶ Run check</button>
+    <button class="btn" id="btn-hubspot" type="button" disabled style="margin-top:0">Open in HubSpot ↗</button>
+  </div>
+  <div class="reloadrow">
+    <button class="linkbtn" id="btn-reload" type="button">Don't see your quote draft yet? Click here to reload the data</button>
+    <span class="mini" id="meta"></span>
+  </div>
+  <div class="toast mini" id="toast"></div>
+
+  <div class="card hidden" id="quote-card">
+    <div class="dhead"><h2 style="margin:0"><span id="q-title"></span> <span id="q-status"></span></h2><span class="mini" id="q-sync"></span></div>
+    <div class="kv" id="q-kv"></div>
+    <div id="q-items"></div>
+    <div class="dhead" style="margin-top:1rem"><h3>What the customer sees</h3><span class="mini">quote settings as stored in HubSpot</span></div>
+    <div class="vis" id="q-vis"></div>
+    <ul class="visnotes" id="q-visnotes"></ul>
+    <div class="dhead" style="margin-top:1.1rem"><h3>Column setup for this quote</h3><span class="mini">rule T-03 · set in the editor under Line items → Properties / Totals</span></div>
+    <div class="colset" id="q-cols"></div>
+  </div>
+
+  <div class="card hidden" id="result-card">
+    <div class="dhead"><div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap"><span class="verdict" id="r-verdict"></span><span class="score" id="r-score"></span></div><span class="mini" id="r-meta"></span></div>
+    <div class="summary" id="r-summary"></div>
+    <div class="math" id="r-math"></div>
+    <div id="r-schedule"></div>
+    <div class="mini" id="r-docs" style="margin-top:.6rem"></div>
+    <div class="legend" id="r-legend"></div>
+    <div id="r-issues"></div>
+    <div class="fsec"><h3>Checked and fine</h3><ul class="plain cols2" id="r-ok"></ul></div>
+  </div>
+
+  <footer>The checker refreshes the quote from HubSpot, recalculates the billing schedule (quantity × unit price × periods per line item, total contract value, first payment), runs deterministic rule checks and then lets Claude review the quote against the full text of the Quote &amp; licence rule set (source of truth; rule IDs such as L-01 point to it), the Revenue Hub / Quoting Documentation and 5.5 Services pages. Every result records the documentation versions it was checked against · Findings are grouped: deal/pipeline/template first (decides the rest), then missing properties, line items, amounts, deal & company data, presentation · Severity: red = must not go out, amber = fix before sending, teal = check · Score: 100 − 25 per red − 10 per amber finding, each root cause counted once · Column and totals settings are not exposed by HubSpot, so the page shows the recommended setup (T-03) instead of findings · Not checked: payment terms, executive summary, quotas written into descriptions · Quotes are mirrored hourly; the reload link fetches them immediately.</footer>
+</div>
+<script src="../assets/config.js?v=30"></script>
+<script src="../assets/app.js?v=30"></script>
+<script>
+R.shell('cs', { title: 'Quote Checker', subtitle: 'Check an open or draft quote against our quoting rules before it goes out', subnav: R.CS_NAV, subActive: 'cs-quote-checker' });
+const C = R.C;
+const CHECK_URL = C.QUOTE_CHECK_WEBHOOK || 'https://jentis.app.n8n.cloud/webhook/cs-quote-check';
+const RELOAD_URL = C.QUOTES_RELOAD_WEBHOOK || 'https://jentis.app.n8n.cloud/webhook/cs-quotes-reload';
+const $ = id => document.getElementById(id);
+const sel = $('quote-select'), toast = $('toast');
+let quotes = [], current = null, pollTimer = null;
+const esc = R.esc;
+const fmtDT = d => d ? new Date(d).toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+// money in the quote's currency; EUR uses the site-wide format
+const money = (n, cur) => (n === null || n === undefined || n === '') ? '—' : ((!cur || cur === 'EUR') ? '€ ' : cur + ' ') + Number(n).toLocaleString('de-AT', { minimumFractionDigits: Number(n) % 1 ? 2 : 0, maximumFractionDigits: 2 });
+const say = (msg, busy) => { toast.innerHTML = (busy ? '<span class="spin">↻</span> ' : '') + esc(msg); };
+const freqLabel = f => ({ monthly: 'monthly', quarterly: 'quarterly', per_six_months: 'every 6 months', annually: 'annually', per_two_years: 'every 2 years', per_three_years: 'every 3 years', 'one-time': 'one-time' })[f] || f || 'one-time';
+
+async function loadQuotes(keepSelection) {
+  const prev = keepSelection ? sel.value : (new URLSearchParams(location.search).get('quote') || '');
+  quotes = await R.fetchAll('v_cs_quotes?select=quote_id,title,status,company_name,owner_name,updated_at,synced_at,last_check_verdict&order=status.asc,updated_at.desc');
+  const groups = { DRAFT: 'Drafts', APPROVAL_NOT_NEEDED: 'Published, not yet signed', PENDING_APPROVAL: 'Pending approval', APPROVED: 'Approved' };
+  sel.innerHTML = '<option value="">– choose a quote –</option>' + Object.keys(groups).map(st => {
+    const list = quotes.filter(q => q.status === st);
+    if (!list.length) return '';
+    return '<optgroup label="' + esc(groups[st]) + ' (' + list.length + ')">' + list.map(q =>
+      '<option value="' + q.quote_id + '">' + esc(q.title || 'Quote ' + q.quote_id) + ' · ' + esc(q.company_name || '—') +
+      (q.owner_name ? ' · ' + esc(q.owner_name) : '') + (q.last_check_verdict ? ' · ' + esc(q.last_check_verdict) : '') + '</option>').join('') + '</optgroup>';
+  }).join('');
+  const newest = quotes.reduce((m, q) => (q.synced_at || '') > m ? q.synced_at : m, '');
+  $('meta').textContent = quotes.length + ' open quotes · data as of ' + fmtDT(newest);
+  if (prev && quotes.some(q => String(q.quote_id) === String(prev))) { sel.value = prev; await showQuote(prev); }
+}
+
+async function showQuote(id) {
+  current = null; $('quote-card').classList.add('hidden'); $('result-card').classList.add('hidden');
+  $('btn-check').disabled = !id; $('btn-hubspot').disabled = !id;
+  if (!id) return;
+  const q = (await R.fetchAll('cs_quotes?quote_id=eq.' + id + '&select=*'))[0];
+  if (!q) return;
+  current = q;
+  history.replaceState(null, '', '?quote=' + id);
+  $('q-title').textContent = q.title || 'Quote ' + q.quote_id;
+  $('q-status').innerHTML = R.badge(q.status === 'DRAFT' ? 'Draft' : 'Published', q.status === 'DRAFT' ? 'b-neutral' : 'b-info');
+  $('q-sync').textContent = 'synced ' + fmtDT(q.synced_at);
+  const signer = (q.contacts || []).filter(c => c.signer).map(c => c.name || c.email).join(', ');
+  const kv = [['Company', q.company_name], ['Deal', q.deal_name], ['Pipeline · stage', [q.pipeline_name, q.dealstage_name].filter(Boolean).join(' · ')], ['Deal type', q.dealtype], ['Owner', q.owner_name],
+    ['Amount', money(q.amount, q.currency)], ['Expires', R.fmtDate(q.expiration_date) || '—'], ['Language · template', [q.language, q.template_name].filter(Boolean).join(' · ')], ['Signer', signer || 'none selected']];
+  $('q-kv').innerHTML = kv.map(([k, v]) => '<div><b>' + esc(k) + '</b>' + esc(v || '—') + '</div>').join('');
+  const items = (q.line_items || []).map((r, i) => Object.assign({ idx: r.position ?? i }, r));
+  R.table($('q-items'), [
+    { key: 'idx', label: 'Line item', sortVal: r => r.idx, cell: r => '<strong>' + esc(r.name) + '</strong>' + (r.sku ? '<div class="mini">' + esc(r.sku) + '</div>' : '') },
+    { key: 'quantity', label: 'Qty', num: true, cell: r => R.num(r.quantity) },
+    { key: 'price', label: 'Unit price', num: true, cell: r => money(r.price, r.currency || q.currency) },
+    { key: 'discount_pct', label: 'Discount', num: true, cell: r => r.discount_pct ? r.discount_pct + ' %' : (r.discount ? money(r.discount, q.currency) : '<span class="mini">—</span>') },
+    { key: 'billing_frequency', label: 'Billing', cell: r => esc(freqLabel(r.billing_frequency)) },
+    { key: 'term_months', label: 'Term', num: true, cell: r => r.term_months ? r.term_months + ' mo' : '<span class="mini">—</span>' },
+    { key: 'billing_start_date', label: 'Start', cell: r => r.billing_start_date ? R.fmtDate(r.billing_start_date) : (r.billing_start_delay_months ? '+' + r.billing_start_delay_months + ' mo' : '<span class="mini">on acceptance</span>') },
+    { key: 'tcv', label: 'Total', num: true, cell: r => money(r.tcv, q.currency) },
+  ], items, { sort: { key: 'idx', dir: 1 } });
+  renderVisibility(q, items);
+  $('quote-card').classList.remove('hidden');
+  const ck = (await R.fetchAll('cs_quote_checks?quote_id=eq.' + id + '&order=requested_at.desc&limit=1'))[0];
+  if (ck) renderCheck(ck);
+}
+
+// The settings HubSpot exposes via the API, reduced to what matters for the customer-facing document.
+function renderVisibility(q, items) {
+  const X = q.extra || {};
+  const de = String(q.language || '').toLowerCase().startsWith('de');
+  const PS = /^JEN_PRO_SER_/;
+  const rec = items.filter(i => i.billing_frequency);
+  const PM = { monthly: 1, quarterly: 3, per_six_months: 6, annually: 12, per_two_years: 24, per_three_years: 36 };
+  const periodsOf = i => i.billing_frequency && i.term_months ? Math.round(i.term_months / (PM[i.billing_frequency] || 1)) : (i.billing_frequency ? null : 1);
+  const multiPeriod = rec.length > 1 || rec.some(i => { const n = periodsOf(i); return n === null || n > 1; });
+  const noDiscount = !X.total_discount && items.every(i => !i.discount_pct && !i.discount);
+  const chip = (label, badgeTxt, cls) => '<span class="chip">' + esc(label) + R.badge(badgeTxt, cls) + '</span>';
+  const chips = [], notes = [];
+  // signature: one chip for the chosen process
+  const nSign = X.esign_signers_required || (q.contacts || []).filter(c => c.signer).length || 0;
+  if (q.esign_enabled) chips.push(chip('Signature', 'E-signature' + (nSign ? ' · ' + nSign + ' signer' + (nSign > 1 ? 's' : '') : ''), 'b-good'));
+  else if (X.show_signature_box) chips.push(chip('Signature', 'Manual signature box', 'b-info'));
+  else { chips.push(chip('Signature', 'None', 'b-warn')); notes.push('No signature process on the quote – enable e-signature (Q-03).'); }
+  if (q.esign_enabled && X.show_signature_box) notes.push('E-signature and the manual signature box are both on – turn the box off (Q-03).');
+  if (X.total_preference === 'TOTAL_FIRST_PAYMENT') chips.push(chip('Amount shows', 'First payment', 'b-neutral'));
+  else if (X.total_preference === 'TCV') chips.push(chip('Amount shows', 'Total contract value', 'b-neutral'));
+  if (X.display_tcv === true) chips.push(chip('Total contract value', 'Shown', 'b-good'));
+  else if (X.display_tcv === false) { chips.push(chip('Total contract value', 'Hidden', multiPeriod ? 'b-bad' : 'b-neutral')); if (multiPeriod) notes.push('More than one billing period but the TCV is hidden – enable "Display TCV on quote" (T-02).'); }
+  chips.push(chip('Discount', noDiscount ? 'None' : money(X.total_discount, q.currency), noDiscount ? 'b-neutral' : 'b-info'));
+  if (q.payment_enabled) { chips.push(chip('Payment collection', 'On', 'b-bad')); notes.push('Payment collection must be off – no payment processor is connected (Q-03).'); }
+  if (X.show_bill_to === false) { chips.push(chip('Bill-to details', 'Hidden', 'b-warn')); notes.push('Bill-to details are hidden – the legal entity and address must appear on the PDF (Q-02).'); }
+  chips.push(chip('Language', [q.language, X.locale && X.locale !== q.language ? X.locale : null].filter(Boolean).join(' · ') || '—', 'b-neutral'));
+  $('q-vis').innerHTML = chips.join('');
+  $('q-visnotes').innerHTML = notes.map(n => '<li>' + esc(n) + '</li>').join('');
+  $('q-visnotes').style.display = notes.length ? '' : 'none';
+  renderColumns(q, items, { de, PS, rec, multiPeriod, noDiscount });
+}
+
+// Column setup per rule T-03 (rule set page): which columns / totals lines to show, with labels in the quote language
+function renderColumns(q, items, o) {
+  const { de, PS, rec, multiPeriod, noDiscount } = o;
+  const L = (d, e) => de ? d : e;
+  const hasPS = items.some(i => PS.test(String(i.sku || '')));
+  const onlyPS = items.length && items.every(i => PS.test(String(i.sku || '')));
+  const freqs = [...new Set(rec.map(i => i.billing_frequency))];
+  const PER = { monthly: L('Monat', 'month'), quarterly: L('Quartal', 'quarter'), annually: L('Jahr', 'year'), per_six_months: L('Halbjahr', 'half-year') };
+  const startKey = i => i.billing_start_date ? String(i.billing_start_date).slice(0, 10) : '+' + (i.billing_start_delay_months || 0);
+  const diffStarts = new Set(items.map(startKey)).size > 1;
+  // year items = the same product several times with 12-month terms and different starts
+  const bySku = {}; rec.forEach(i => (bySku[i.sku || i.name] = bySku[i.sku || i.name] || []).push(i));
+  const yearItems = Object.values(bySku).some(a => a.length > 1 && a.every(i => i.term_months === 12) && new Set(a.map(startKey)).size === a.length);
+  const show = [], hide = [];
+  const S = (col, label, why) => show.push('<li>' + esc(col) + (label && label !== col ? ' → <span class="lbl">„' + esc(label) + '“</span>' : '') + (why ? ' <span class="why">' + esc(why) + '</span>' : '') + '</li>');
+  const H = (col, why) => hide.push('<li>' + esc(col) + (why ? ' <span class="why">' + esc(why) + '</span>' : '') + '</li>');
+  S('Name', null, yearItems ? L('trägt das Jahr', 'carries the year') : '');
+  S('Description', null, L('als Zeile unter dem Item', 'as item row'));
+  if (hasPS) S('Quantity', L('Stunden', 'Hours'), L('PS: Menge = Stunden', 'PS: quantity = hours')); else H('Quantity', L('Lizenzen immer Menge 1', 'licences are always quantity 1'));
+  const priceLbl = onlyPS ? L('Preis pro Stunde', 'Price per hour') : (freqs.length === 1 && PER[freqs[0]] ? L('Preis pro ', 'Price per ') + PER[freqs[0]] : (rec.length ? L('Preis pro Periode', 'Price per period') : L('Preis', 'Price')));
+  S('Unit price', priceLbl);
+  if (noDiscount) H('Discount', L('kein Rabatt', 'no discount granted')); else S('Discount', L('Rabatt', 'Discount'));
+  if (freqs.length > 1) S('Billing frequency', L('Abrechnung', 'Billing'), L('unterschiedliche Frequenzen', 'mixed frequencies')); else H('Billing frequency', rec.length ? L('steht schon im Preis-Label', 'already in the price label') : L('nur Einmalposten', 'one-time items only'));
+  if (!rec.length) H('Term', L('nur Einmalposten', 'one-time items only'));
+  else if (yearItems) S('Term', L('Zeitraum', 'Period'), L('pro Jahres-Item', 'per year item'));
+  else S('Term', L('Laufzeit', 'Term'));
+  if (diffStarts) S('Billing start date', 'Start', L('Items starten zu unterschiedlichen Zeitpunkten', 'items start at different dates')); else H('Billing start date', L('alle starten gleich', 'all items start together'));
+  if (rec.length) S('Total contract value', yearItems ? L('Gesamt pro Jahr', 'Total per year') : L('Gesamt', 'Total')); else H('Total contract value');
+  H('Image URL');
+  if (multiPeriod) H('Totals: Subtotal', L('zeigt nur die erste Periode', 'shows the first period only')); else S('Totals: Subtotal');
+  if (noDiscount) H('Totals: Discount line', L('nie 0 % / 0 € zeigen', 'never show 0 % / 0 €')); else S('Totals: Discount line');
+  if (rec.length) S('Totals: Total contract value + Future payments');
+  $('q-cols').innerHTML = '<div class="box show"><h4>Show</h4><ul>' + show.join('') + '</ul></div><div class="box hide"><h4>Hide</h4><ul>' + hide.join('') + '</ul></div>';
+}
+
+function renderSchedule(s, cur) {
+  const el = $('r-schedule');
+  if (!s || !Array.isArray(s.line_items) || !s.line_items.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="dhead" style="margin-top:1rem"><h3>Billing schedule</h3><span class="mini">computed from quantity × unit price × periods</span></div><div id="r-sched-tbl"></div><div class="totals" id="r-totals"></div>';
+  const rows = s.line_items.map((r, i) => Object.assign({ idx: i }, r));
+  R.table($('r-sched-tbl'), [
+    { key: 'idx', label: 'Line item', sortVal: r => r.idx, cell: r => esc(r.name) },
+    { key: 'per_period', label: 'Per period', num: true, cell: r => money(r.per_period, cur) },
+    { key: 'frequency', label: 'Billed', cell: r => esc(freqLabel(r.frequency)) + (r.quantity > 1 ? ' <span class="mini">(' + r.quantity + ' × ' + money(r.unit_price, cur) + ')</span>' : '') },
+    { key: 'periods', label: 'Periods', num: true, cell: r => r.periods ?? (r.open_ended ? 'open' : '<span class="mini">—</span>') },
+    { key: 'start', label: 'Start', cell: r => r.start_date ? R.fmtDate(r.start_date) : (r.start_delay_months ? '+' + r.start_delay_months + ' mo' : 'effective date') },
+    { key: 'term_months', label: 'Term', num: true, cell: r => r.term_months ? r.term_months + ' mo' : '<span class="mini">—</span>' },
+    { key: 'total', label: 'Total', num: true, cell: r => money(r.total, cur) },
+    { key: 'hubspot_tcv', label: 'HubSpot TCV', num: true, cell: r => (r.hubspot_tcv !== null && r.total !== null && Math.abs(r.hubspot_tcv - r.total) > 1 ? '<span class="bad" title="differs from the computed total">' + money(r.hubspot_tcv, cur) + '</span>' : money(r.hubspot_tcv, cur)) },
+  ], rows, { sort: { key: 'idx', dir: 1 } });
+  const tcvOk = s.hubspot_tcv !== null && s.total_contract_value !== null && Math.abs(s.hubspot_tcv - s.total_contract_value) <= 1;
+  const tot = [
+    ['Total contract value', money(s.total_contract_value, cur), s.hubspot_tcv === null ? '' : (tcvOk ? 'matches HubSpot' : 'HubSpot: ' + money(s.hubspot_tcv, cur))],
+    ['Contract length', s.contract_span_months ? s.contract_span_months + ' months' : '—', s.recurring_items + ' recurring · ' + s.one_time_items + ' one-time'],
+    ['First payment', money(s.first_payment_estimate, cur), (s.first_period_items || []).length ? 'first period of ' + s.first_period_items.length + ' item' + (s.first_period_items.length > 1 ? 's' : '') + (s.one_time_total ? ' + one-time items' : '') : ''],
+    ['Quote Amount', money(s.quote_amount, cur), s.amount_basis === 'TOTAL_FIRST_PAYMENT' ? 'basis: first payment' : (s.amount_basis === 'TCV' ? 'basis: total contract value' : '')],
+    ['Monthly equivalent · year 1', money(s.monthly_equivalent_recurring_first_year, cur), (s.billing_frequencies || []).map(freqLabel).join(', ')],
+  ];
+  $('r-totals').innerHTML = tot.map(([k, v, n]) => '<div><b>' + esc(k) + '</b>' + v + (n ? '<span class="mini" style="display:block;font-weight:400">' + esc(n) + '</span>' : '') + '</div>').join('');
+}
+
+// Findings grouped by category; each finding = what is wrong | what it causes | how to do it right.
+const SEV = { error: 'Must not go out', warning: 'Fix before sending', info: 'Check' };
+const CATS = [
+  ['structure', 'Deal, pipeline & template', 'Which deal, which pipeline, which template; what belongs on a separate deal'],
+  ['missing', 'Missing properties', 'Fields that are empty but needed – each listed once with everything it breaks'],
+  ['items', 'Line items', 'Quantity, unit price, billing frequency, term, start, products'],
+  ['totals', 'Amounts & totals', 'Sums, quote Amount, total contract value'],
+  ['data', 'Deal & company data', 'Company, contact and deal fields that are wrong or inconsistent'],
+  ['presentation', 'What the customer sees', 'Signature, TCV display, bill-to'],
+];
+function renderIssues(issues, suggestions) {
+  issues = issues.concat((suggestions || []).map(t => ({ severity: 'info', category: 'presentation', title: 'Suggestion', problem: t })));
+  const order = { error: 0, warning: 1, info: 2 };
+  const counts = { error: 0, warning: 0, info: 0 };
+  issues.forEach(i => counts[i.severity] = (counts[i.severity] || 0) + 1);
+  $('r-legend').innerHTML = issues.length ? ['error', 'warning', 'info'].filter(s => counts[s]).map(s => '<span class="sev ' + s + '">' + SEV[s] + '</span><span class="mini">' + counts[s] + '</span>').join('') + '<span class="mini" style="margin-left:auto">each root cause listed once · fix the red and amber ones before sending</span>' : '';
+  if (!issues.length) { $('r-issues').innerHTML = '<div class="empty" style="margin-top:.8rem">Nothing to fix.</div>'; return; }
+  const legacy = (i) => ({ severity: i.severity || 'info', category: i.category || 'items', rule: i.rule || null, title: i.title, where: i.where, problem: i.problem || i.explanation || '', consequence: i.consequence || '', fix: i.fix });
+  const list = issues.map(legacy);
+  $('r-issues').innerHTML = CATS.map(([key, label, hint]) => {
+    const rows = list.filter(i => i.category === key).sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3));
+    if (!rows.length) return '';
+    return '<div class="fsec"><h3>' + esc(label) + ' <span class="n">· ' + rows.length + '</span><span class="mini" style="font-weight:400;text-transform:none;letter-spacing:0;margin-left:.3rem">' + esc(hint) + '</span></h3>' +
+      '<div class="fgrid"><div class="hd">What is wrong</div><div class="hd">Consequence</div><div class="hd">How to do it right</div>' +
+      rows.map(i => '<div class="cell c1 ' + esc(i.severity) + '"><span class="sev ' + esc(i.severity) + '">' + SEV[i.severity] + '</span><strong>' + esc(i.title) + (i.rule ? '<span class="rule" title="Rule in the quote &amp; licence rule set">' + esc(i.rule) + '</span>' : '') + '</strong>' + (i.problem && i.problem !== i.title ? '<span>' + esc(i.problem) + '</span>' : '') + (i.where ? '<span class="where">' + esc(i.where) + '</span>' : '') + '</div>' +
+        '<div class="cell c2">' + (i.consequence ? esc(i.consequence) : '<span class="mini">—</span>') + '</div>' +
+        '<div class="cell c3">' + (i.fix ? esc(i.fix) : '<span class="mini">—</span>') + '</div>').join('') + '</div></div>';
+  }).join('');
+}
+
+function renderCheck(ck) {
+  $('result-card').classList.remove('hidden');
+  const clear = () => { ['r-issues', 'r-legend', 'r-ok', 'r-schedule', 'r-docs', 'r-math'].forEach(i => $(i).innerHTML = ''); $('r-score').textContent = ''; };
+  if (ck.status === 'running' || ck.status === 'pending') { clear(); $('r-verdict').className = 'verdict attention'; $('r-verdict').innerHTML = '<span class="spin">↻</span> Checking…'; $('r-meta').textContent = 'requested ' + fmtDT(ck.requested_at); $('r-summary').innerHTML = esc('The quote is being refreshed from HubSpot, the sums are recalculated and the quote is reviewed against the documentation. This takes about a minute.'); return; }
+  if (ck.status === 'failed') { clear(); $('r-verdict').className = 'verdict blocked'; $('r-verdict').textContent = 'Check failed'; $('r-meta').textContent = fmtDT(ck.finished_at); $('r-summary').innerHTML = esc(ck.error || 'Unknown error'); return; }
+  const r = ck.result || {};
+  const v = String(r.verdict || '').toLowerCase();
+  const cls = v === 'ready' ? 'ready' : (v === 'blocked' ? 'blocked' : 'attention');
+  $('r-verdict').className = 'verdict ' + cls; $('r-verdict').textContent = v === 'ready' ? 'Ready to send' : (v === 'blocked' ? 'Blocked' : 'Needs attention');
+  $('r-score').textContent = r.score !== undefined ? r.score + ' / 100' : '';
+  $('r-meta').textContent = 'checked ' + fmtDT(ck.finished_at) + (ck.requested_by ? ' by ' + ck.requested_by : '') + (r.ai_available === false ? ' · rules only (AI unavailable)' : '');
+  $('r-summary').innerHTML = '<b>Summary for the CSM</b>' + esc(r.summary || '');
+  $('r-math').innerHTML = r.math_check ? '<strong>Do the sums fit?</strong> ' + esc(r.math_check) : '';
+  renderSchedule(r.billing_summary, (r.quote && r.quote.currency) || (current && current.currency));
+  const docs = r.docs_used || [];
+  $('r-docs').innerHTML = docs.length ? 'Checked against: ' + docs.map((d, i) => (i === 0 && d.doc_key === 'quote_rules' ? '<strong>rule set</strong> ' : '') + '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.title) + '</a> (v' + esc(d.version) + (d.status && d.status !== 'current' ? ', ' + esc(d.status) : '') + ', ' + esc(R.fmtDate(d.version_at)) + ')').join(' · ') : (r.ai_available === false ? '' : '<span class="bad">Rule digest only – documentation text not loaded for this check. Run the check again.</span>');
+  renderIssues(r.issues || [], r.suggestions || []);
+  $('r-ok').innerHTML = (r.ok || []).length ? r.ok.map(s => '<li>' + esc(s) + '</li>').join('') : '<li class="mini">—</li>';
+}
+
+async function pollCheck(id, checkId, started) {
+  clearTimeout(pollTimer);
+  const ck = (await R.fetchAll('cs_quote_checks?' + (checkId ? 'id=eq.' + checkId : 'quote_id=eq.' + id + '&order=requested_at.desc&limit=1')))[0];
+  if (ck) renderCheck(ck);
+  if (!ck || ck.status === 'running' || ck.status === 'pending') {
+    if (Date.now() - started > 240000) { say('The check is taking longer than expected. Reload the page in a minute.'); $('btn-check').disabled = false; return; }
+    pollTimer = setTimeout(() => pollCheck(id, checkId, started), 4000);
+  } else { say(''); $('btn-check').disabled = false; }
+}
+
+$('btn-check').onclick = async () => {
+  if (!current) return;
+  $('btn-check').disabled = true; say('Starting the check…', true);
+  try {
+    const r = await fetch(CHECK_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quote_id: String(current.quote_id), requested_by: C.USER_NAME || '' }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 429) { say(j.reason === 'already_running' ? 'A check for this quote is already running – the result appears below in a moment.' : 'This quote was checked less than 2 minutes ago – see the result below.'); pollCheck(current.quote_id, null, Date.now()); return; }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    say('Refreshing the quote from HubSpot and reviewing it…', true);
+    renderCheck({ status: 'running', requested_at: new Date().toISOString() });
+    pollCheck(current.quote_id, j.check_id, Date.now());
+  } catch (e) { say('Could not start the check: ' + e.message); $('btn-check').disabled = false; }
+};
+
+$('btn-hubspot').onclick = () => { if (current && current.hubspot_url) window.open(current.hubspot_url, '_blank'); };
+
+$('btn-reload').onclick = async () => {
+  const before = Date.now(); $('btn-reload').disabled = true; say('Reloading quotes from HubSpot… this takes 10–20 seconds.', true);
+  try { await fetch(RELOAD_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); }
+  catch (e) { say('Reload could not be triggered: ' + e.message); $('btn-reload').disabled = false; return; }
+  const poll = async () => {
+    const row = (await R.fetchAll('cs_quotes?select=synced_at&order=synced_at.desc&limit=1'))[0];
+    if (row && new Date(row.synced_at).getTime() > before) { await loadQuotes(true); say('Quotes reloaded.'); $('btn-reload').disabled = false; return; }
+    if (Date.now() - before > 90000) { say('The reload is still running – try again in a minute.'); $('btn-reload').disabled = false; return; }
+    setTimeout(poll, 3000);
+  };
+  setTimeout(poll, 4000);
+};
+
+sel.onchange = () => showQuote(sel.value);
+loadQuotes(false).catch(e => { sel.innerHTML = '<option value="">Could not load quotes</option>'; say(e.message); });
+</script>
+</body>
+</html>

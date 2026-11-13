@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer Success · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css?v=28">
+<style>
+.me-chips{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center}
+.me-chip{border:1px solid var(--hair);background:#fff;border-radius:999px;padding:.35rem .8rem .35rem .4rem;cursor:pointer;display:inline-flex;align-items:center;gap:.45rem;font-size:.85rem;color:var(--ink)}
+.me-chip .avatar{width:24px;height:24px;font-size:.62rem}
+.me-chip:hover{border-color:#1FA294}
+.me-chip.on{background:#14506C;border-color:#14506C;color:#fff}
+.me-hero{background:linear-gradient(135deg,#14506C 0%,#1FA294 100%);color:#fff;border-radius:14px;padding:1.2rem 1.4rem;margin-top:.8rem}
+.me-hero h2{color:#fff;font-size:1.35rem;margin:0 0 .2rem}
+.me-hero .sub{opacity:.85;font-size:.9rem}
+.me-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-top:1rem}
+.me-tile{background:rgba(255,255,255,.14);border-radius:10px;padding:.6rem .8rem}
+.me-tile .k{font-size:.72rem;opacity:.85;text-transform:none}
+.me-tile .v{font-size:1.45rem;font-weight:700;line-height:1.2}
+.me-tile .n{font-size:.72rem;opacity:.9;margin-top:.1rem}
+.me-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-top:1rem}
+@media (max-width:760px){.me-grid{grid-template-columns:1fr}}
+.assign-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:0 1.4rem}
+.assign-grid .co{padding:.4rem 0}
+.tg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:0 1.6rem}
+.me-block h3{font-size:.9rem;margin:0 0 .5rem;display:flex;align-items:center;gap:.4rem}
+.me-block .co{padding:.45rem 0}
+.me-note{font-size:.8rem;color:var(--slate);padding:.3rem 0}
+.chip{display:inline-block;font-size:.68rem;padding:.1rem .45rem;border-radius:999px;border:1px solid var(--hair);margin-left:.3rem;white-space:nowrap}
+.chip.ok{background:#E6F6F3;color:#0F6B61;border-color:#B9E6DD}
+.chip.warn{background:#FDECE4;color:#A2431F;border-color:#F5C9B4}
+.chip.muted{color:var(--faint)}
+.chip.new{background:#EAF2FB;color:#14506C;border-color:#C7DCEF}
+.chip.green{background:#E3F4E8;color:#1E6B3A;border-color:#B7E0C4}
+.chip.type{background:#F3F4F6;color:#374151;border-color:#E5E7EB}
+.chip.nb{background:#E3F4E8;color:#1E6B3A;border-color:#B7E0C4}
+.chip.up{background:#EAF2FB;color:#14506C;border-color:#C7DCEF}
+.me-block.wide{grid-column:1 / -1}
+.mt-row{display:grid;grid-template-columns:150px 120px 1fr;gap:.8rem;align-items:start;padding:.55rem 0;border-bottom:1px solid var(--hair)}
+.mt-row:last-child{border-bottom:0}
+.mt-when{font-weight:700;font-size:.85rem}
+.mt-when small{display:block;font-weight:400;color:var(--slate)}
+.kind{display:inline-block;font-size:.7rem;font-weight:700;padding:.2rem .55rem;border-radius:6px;letter-spacing:.02em}
+.kind.disc{background:#1FA294;color:#fff}
+.kind.cust{background:#14506C;color:#fff}
+.kind.other{background:#9AA4AD;color:#fff}
+.mt-body .nm{font-weight:700}
+.mt-body .meta{margin-top:.1rem}
+.mt-body .note{font-size:.8rem;color:var(--slate);margin-top:.2rem}
+.mt-body .todo{font-size:.78rem;color:#A2431F;margin-top:.15rem}
+@media (max-width:700px){.mt-row{grid-template-columns:1fr}}
+.tg{padding:.55rem 0;border-bottom:1px solid var(--hair)}
+.tg:last-child{border-bottom:0}
+.tg-head{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.tg-head .nm{font-weight:700}
+.tg-head .cnt{font-size:.75rem;color:var(--slate)}
+.tg-list{margin:.3rem 0 0 .9rem;border-left:2px solid var(--hair);padding-left:.6rem}
+.tg-item{display:flex;justify-content:space-between;gap:.6rem;align-items:center;padding:.22rem 0;font-size:.82rem}
+.tg-item .sub{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tg-item .side{display:flex;gap:.3rem;align-items:center;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="shell"></div>
+  <div class="metrics" id="metrics"></div>
+
+  <div class="sechead">My book</div>
+  <div class="card">
+    <div class="me-chips" id="me-chips"><span class="mini">Loading owners…</span></div>
+    <div id="me-panel"></div>
+  </div>
+
+  <div class="sechead">Team</div>
+  <div class="icpgrid" id="owners"><div class="card"><div id="content" class="empty">Loading…</div></div></div>
+  <div class="grid2" style="margin-top:1.1rem">
+    <div class="card"><h2>⏳ Renewals next 4 months <span>· by licence end</span></h2><div id="renewals" class="empty">—</div></div>
+    <div class="card"><h2>🎫 Open tickets <span>· by company, renewal flagged</span></h2><div id="tickets" class="empty">—</div></div>
+  </div>
+  <footer>Tickets are attributed to the <em>owner of the customer company</em>, not the ticket owner · renewals are dated by the active licence's end date; the linked deal is the open renewal / early-renewal deal for that company, "no renewal deal" flags a licence ending without one, "auto" marks Auto Renewal = Yes · "renewed ✓" (green) means a won renewal deal already covers the licence · a POC or JENTIS Light ending is shown as "trial ending" with the open licence deal linked ("→ Full License in talks") · "new" marks customers assigned to an owner within the last 14 days · tickets are grouped by company, each line shows days since creation, and a company whose licence ends within 4 months is flagged on its ticket group · wins and renewals cover companies at lifecycle stage <em>customer</em> only (partner agencies excluded) · wins = deals closed won in the last 4 months where the person was the deal owner at closing (deals reassigned after closing are excluded) · Goodwill, Upsell, Downsell and Expansion deals never define a renewal date.</footer>
+</div>
+<script src="../assets/config.js?v=28"></script>
+<script src="../assets/app.js?v=28"></script>
+<script>
+R.shell('cs', { title: 'Customer Success', subtitle: 'The book of business per owner — health, renewals, tickets',
+  subnav: R.CS_NAV, subActive: 'cs' });
+
+const H4M = 122;            // "next 4 months" window in days
+const NEW_DAYS = 14;        // "newly assigned" window
+const iso = t => String(t || '').slice(0, 10);
+const first = n => String(n || '').trim().split(/\s+/)[0] || '';
+let D = null;
+
+async function init(){
+  const c = document.getElementById('content');
+  const rows = await R.loadViewOrPending('v_cs_customers?select=*', c, {
+    title: 'Customer Success pipeline not connected yet',
+    text: 'The cs-sync workflows fill these tables. Pages and data contract are ready.',
+    view: 'v_cs_customers' });
+  if (!rows) return;
+  const nowIso = new Date().toISOString();
+  const errors = {};
+  const safe = (name, q) => R.fetchAll(q).catch(e => { errors[name] = e.message; console.warn('CS overview: ' + name + ' failed', e); return []; });
+  const [ren, tix, meta, wins, disc, mtgs] = await Promise.all([
+    safe('renewals', 'v_cs_renewals?select=*'),
+    safe('tickets', 'v_cs_tickets?select=*&is_open=eq.true'),
+    safe('owner meta', 'company_owner_meta?select=company_id,owner_assigned_at'),
+    safe('wins', 'v_cs_wins?select=*&owner_at_close=eq.true&order=close_date.desc'),
+    safe('discoveries', 'discoveries?select=meeting_id,company_id,company_name,contact_name,owner_name,participants,meeting_start,activity_type,topic&meeting_start=gte.' + nowIso + '&order=meeting_start.asc'),
+    safe('meetings', 'cs_meetings?select=meeting_id,company_id,company_name,contact_name,owner_name,participants,meeting_start,meeting_type,status,notes_summary,next_todo&meeting_start=gte.' + nowIso + '&order=meeting_start.asc')
+  ]);
+  const assigned = {}; for (const m of meta) assigned[m.company_id] = m.owner_assigned_at;
+  D = { rows, ren, tix, assigned, wins, disc, mtgs, errors };
+  renderAll();
+}
+
+const inWindow = r => r.days_to_end != null && r.days_to_end >= 0 && r.days_to_end <= H4M;   // ending in 4 months, renewed or not
+const dueSoon = r => inWindow(r) && !r.is_closed;                                                 // still open
+// one line per company + licence end (a company can hold several active licences ending the same day)
+function groupRenewals(list){
+  const g = {};
+  for (const r of list) {
+    const k = r.company_id + '|' + r.license_end + '|' + r.renewal_status;
+    if (!g[k]) g[k] = { ...r, licences: 0, amount_sum: 0 };
+    g[k].licences++; g[k].amount_sum += Number(r.amount) || 0;
+    g[k].auto_renewal = g[k].auto_renewal || !!r.auto_renewal;
+  }
+  return Object.values(g).sort((a, b) => a.days_to_end - b.days_to_end);
+}
+const daysOpen = t => t.created_at ? Math.max(0, Math.round((Date.now() - Date.parse(t.created_at)) / 864e5)) : null;
+const dealTypeChip = dt => {
+  const t = String(dt || '');
+  if (/new business|full license/i.test(t)) return '<span class="chip nb">New Business</span>';
+  if (/upsell|expansion/i.test(t)) return '<span class="chip up">' + R.esc(t) + '</span>';
+  if (/renewal/i.test(t)) return '<span class="chip type">' + R.esc(t) + '</span>';
+  return t ? '<span class="chip type">' + R.esc(t) + '</span>' : '';
+};
+const isNew = r => { const a = D.assigned[r.company_id]; return a && (Date.now() - Date.parse(a)) <= NEW_DAYS * 864e5; };
+const ownerOf = x => x.company_owner_name || x.owner_name || 'Unassigned';
+
+function renderAll(){
+  const { rows, ren, tix } = D;
+  const mrr = rows.reduce((s, r) => s + (Number(r.mrr) || 0), 0);
+  const r90 = ren.filter(r => dueSoon(r) && r.days_to_end <= 90);
+  const openT = tix;
+  R.metrics(document.getElementById('metrics'), [
+    { label: 'Customers', val: R.num(rows.length) },
+    { label: 'MRR (book)', val: R.eur(mrr) },
+    { label: 'Renewals ≤ 90d', val: r90.length, warn: r90.length > 0 },
+    { label: '⚠ Renewals without deal', val: ren.filter(r => dueSoon(r) && r.renewal_status === 'missing').length, warn: ren.some(r => dueSoon(r) && r.renewal_status === 'missing') },
+    { label: 'Open tickets', val: openT.length, warn: openT.length > 5 },
+    { label: '🔴 Health red', val: rows.filter(r => /red/i.test(r.health || '')).length, warn: rows.some(r => /red/i.test(r.health || '')) }
+  ]);
+
+  // ---- My book: owner chips + personal panel
+  const owners = [...new Set(rows.map(r => r.owner_name || 'Unassigned'))].filter(o => o !== 'Unassigned').sort();
+  let me = null;
+  try { me = new URLSearchParams(location.search).get('me') || localStorage.getItem('cs_me'); } catch (e) {}
+  if (me && !owners.includes(me)) me = null;
+  const chips = document.getElementById('me-chips');
+  chips.innerHTML = '<span class="mini" style="margin-right:.3rem">Who are you?</span>' + owners.map(o =>
+    '<button class="me-chip' + (o === me ? ' on' : '') + '" data-o="' + R.esc(o) + '"><span class="avatar">' + R.initials(o) + '</span>' + R.esc(o) + '</button>').join('');
+  chips.querySelectorAll('.me-chip').forEach(b => b.addEventListener('click', () => {
+    const o = b.dataset.o; try { localStorage.setItem('cs_me', o); } catch (e) {}
+    chips.querySelectorAll('.me-chip').forEach(x => x.classList.toggle('on', x === b));
+    renderMe(o);
+  }));
+  renderMe(me);
+
+  // ---- Team cards
+  const byO = {};
+  for (const r of rows) (byO[r.owner_name || 'Unassigned'] = byO[r.owner_name || 'Unassigned'] || []).push(r);
+  document.getElementById('owners').innerHTML = Object.entries(byO)
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([o, cs]) => {
+      const om = cs.reduce((s, r) => s + (Number(r.mrr) || 0), 0);
+      const oren = ren.filter(r => dueSoon(r) && (r.owner_name || 'Unassigned') === o).length;
+      const otix = openT.filter(t => ownerOf(t) === o).length;
+      const red = cs.filter(r => /red/i.test(r.health || '')).length;
+      const nw = cs.filter(isNew).length;
+      return '<div class="icpcard"><div class="ocard-top"><span class="avatar">' + R.initials(o) + '</span>' +
+        '<div><div style="font-weight:700">' + R.esc(o) + '</div><div class="mini">' + cs.length + ' customers' + (nw ? ' <span class="chip new">+' + nw + ' new</span>' : '') + '</div></div></div>' +
+        '<div class="ocard-stats">' +
+        '<span class="k">MRR</span><span class="v">' + R.eur(om) + '</span>' +
+        '<span class="k">Renewals ≤4 mo</span><span class="v">' + oren + '</span>' +
+        '<span class="k">Open tickets</span><span class="v">' + otix + '</span>' +
+        '<span class="k">🔴 red health</span><span class="v">' + red + '</span></div>' +
+        '<div style="margin-top:.6rem"><a class="mini" href="../cs-customers/index.html?owner=' + encodeURIComponent(o) + '">View book →</a></div></div>';
+    }).join('') || '<div class="card"><div class="empty">No customers synced yet.</div></div>';
+
+  // ---- Urgent panels (all owners)
+  const rEl = document.getElementById('renewals');
+  const rr = groupRenewals(ren.filter(inWindow)).slice(0, 12);
+  rEl.className = rr.length ? '' : 'empty';
+  rEl.innerHTML = rr.map(renewalLine).join('') || 'No licences ending in the next 4 months.';
+  const tEl = document.getElementById('tickets');
+  const groups = ticketGroups(openT, ren).slice(0, 10);
+  tEl.className = groups.length ? '' : 'empty';
+  tEl.innerHTML = groups.map(ticketGroupHtml).join('') || 'No open tickets.';
+}
+
+const isTrial = r => /poc|light/i.test(r.active_dealtype || '');
+function renewalLine(r){
+  const trial = isTrial(r);
+  const flags = (trial ? '<span class="chip type" title="Active licence is a ' + R.esc(r.active_dealtype) + '">' + R.esc(r.active_dealtype) + ' ending</span>' : '') +
+    (r.renewal_status === 'renewed' ? '<span class="chip green" title="A won renewal deal already covers this licence">renewed ✓</span>' : '') +
+    (r.renewal_status === 'conversion' ? '<span class="chip up" title="An open licence deal is in progress for this company">→ ' + R.esc(r.follow_up_dealtype || 'licence') + ' in talks</span>' : '') +
+    (r.auto_renewal && !trial ? '<span class="chip new" title="Auto Renewal = Yes">auto</span>' : '') +
+    (r.renewal_status === 'missing' ? '<span class="chip warn" title="' + (trial ? 'Trial ends and no follow-up deal exists' : 'Licence ends but no renewal / early-renewal deal exists') + '">' + (trial ? 'no follow-up deal' : 'no renewal deal') + '</span>' : '') +
+    (r.licences > 1 ? '<span class="chip type">' + r.licences + ' licences</span>' : '');
+  const dealLink = r.renewal_deal_id
+    ? '<a href="' + R.hs('0-3', r.renewal_deal_id) + '" target="_blank" rel="noopener">' + R.esc(r.renewal_deal_name || 'deal') + '</a>' + (r.stage_label ? ' · ' + R.esc(r.stage_label) : '')
+    : '<a href="' + R.hs('0-2', r.company_id) + '" target="_blank" rel="noopener">open company in HubSpot</a>';
+  const amt = (r.amount_sum || Number(r.amount)) ? ' · ' + R.eur(r.amount_sum || Number(r.amount)) : '';
+  return '<div class="co"><div style="min-width:0"><div class="nm">' + R.esc(r.company_name || r.deal_name) + flags + '</div>' +
+    '<div class="meta">' + R.esc(r.owner_name || '—') + amt + ' · ' + dealLink + '</div></div>' +
+    '<div class="side"><span class="lag">' + r.days_to_end + 'd</span>' + R.badge(R.fmtDate(r.license_end), r.renewal_status === 'renewed' ? 'b-ok' : (r.days_to_end <= 30 ? 'b-warn' : 'b-neutral')) + '</div></div>';
+}
+// tickets grouped by company; the company (and whether it is up for renewal) matters more than the ticket text
+function ticketGroups(list, ren){
+  const due = {};
+  for (const r of ren) if (inWindow(r) && r.renewal_status !== 'renewed' && (!due[r.company_id] || r.days_to_end < due[r.company_id].days_to_end)) due[r.company_id] = r;
+  const g = {};
+  for (const t of list) {
+    const k = t.company_id || 'none';
+    if (!g[k]) g[k] = { company_id: t.company_id, company_name: t.company_name || 'No company', owner: ownerOf(t), tickets: [], renewal: due[t.company_id] || null };
+    g[k].tickets.push(t);
+  }
+  return Object.values(g)
+    .map(x => ({ ...x, oldest: Math.max(...x.tickets.map(t => daysOpen(t) || 0)) }))
+    .sort((a, b) => (a.company_id ? 0 : 1) - (b.company_id ? 0 : 1) || (b.renewal ? 1 : 0) - (a.renewal ? 1 : 0) || b.tickets.length - a.tickets.length || b.oldest - a.oldest);
+}
+function ticketGroupHtml(gr){
+  const co = gr.company_id ? '<a href="' + R.hs('0-2', gr.company_id) + '" target="_blank" rel="noopener">' + R.esc(gr.company_name) + '</a>' : R.esc(gr.company_name);
+  const renewal = gr.renewal ? '<span class="chip warn" title="Licence ends ' + R.fmtDate(gr.renewal.license_end) + (gr.renewal.renewal_status === 'missing' ? ' — no renewal deal yet' : '') + '">renewal in ' + gr.renewal.days_to_end + 'd' + (gr.renewal.renewal_status === 'missing' ? ' · no deal' : '') + '</span>' : '';
+  const items = gr.tickets.sort((a, b) => (daysOpen(b) || 0) - (daysOpen(a) || 0)).map(t =>
+    '<div class="tg-item"><a class="sub" href="' + R.hs('0-5', t.ticket_id) + '" target="_blank" rel="noopener">' + R.esc(t.subject || '—') + '</a>' +
+    '<span class="side">' + (daysOpen(t) != null ? '<span class="lag">' + daysOpen(t) + 'd</span>' : '') + (t.priority && /high|urgent/i.test(t.priority) ? R.badge(t.priority, 'b-bad') : '') + R.badge(t.status || 'open', 'b-info') + '</span></div>').join('');
+  return '<div class="tg"><div class="tg-head"><span class="nm">' + co + '</span><span class="cnt">' + gr.tickets.length + ' open · oldest ' + gr.oldest + 'd · ' + R.esc(gr.owner) + '</span>' + renewal + '</div><div class="tg-list">' + items + '</div></div>';
+}
+function ticketLine(t){
+  return '<div class="co"><div style="min-width:0"><div class="nm"><a href="' + R.hs('0-5', t.ticket_id) + '" target="_blank" rel="noopener">' + R.esc(t.subject || '—') + '</a></div>' +
+    '<div class="meta">' + R.esc(t.company_name || 'no company') + ' · ' + R.esc(ownerOf(t)) + '</div></div>' +
+    '<div class="side">' + (daysOpen(t) != null ? '<span class="lag" title="days since the ticket was created">' + daysOpen(t) + 'd open</span>' : '') +
+    (t.priority ? R.badge(t.priority, /high|urgent/i.test(t.priority) ? 'b-bad' : 'b-neutral') : '') +
+    R.badge(t.status || 'open', 'b-info') + '</div></div>';
+}
+
+function renderMe(o){
+  const el = document.getElementById('me-panel');
+  if (!o) { el.innerHTML = '<div class="me-note" style="margin-top:.6rem">Pick your name to see your personal overview — customers, renewals, tickets, wins and upcoming discoveries in one place.</div>'; return; }
+  const { rows, ren, tix, wins, disc } = D;
+  const mine = rows.filter(r => (r.owner_name || 'Unassigned') === o);
+  const newOnes = mine.filter(isNew);
+  const myTix = tix.filter(t => ownerOf(t) === o);
+  const myRenAll = groupRenewals(ren.filter(r => inWindow(r) && (r.owner_name || 'Unassigned') === o));
+  const myRen = myRenAll.filter(r => r.renewal_status !== 'renewed');
+  const myRenewed = myRenAll.filter(r => r.renewal_status === 'renewed');
+  const myWinsAll = wins.filter(w => (w.owner_name || '') === o);   // last 4 months, owner at closing
+  const myWins90 = myWinsAll.filter(w => Date.now() - Date.parse(w.close_date) <= 30 * 864e5);
+  const fn = first(o).toLowerCase();
+  const involves = x => (x.owner_name || '') === o || String(x.participants || '').split(/[,;]/).map(s => s.trim().toLowerCase()).includes(fn);
+  const myMeet = [
+    ...disc.filter(involves).map(d => ({ kind: 'disc', label: d.activity_type || 'Discovery', ts: d.meeting_start, company_name: d.company_name, company_id: d.company_id, contact: d.contact_name, topic: d.topic, participants: d.participants, note: null, todo: null })),
+    ...D.mtgs.filter(involves).map(m => ({ kind: 'cust', label: m.meeting_type || 'Customer meeting', ts: m.meeting_start, company_name: m.company_name, company_id: m.company_id, contact: m.contact_name, topic: null, participants: m.participants, note: m.notes_summary, todo: m.next_todo, status: m.status }))
+  ].sort((a, b) => a.ts < b.ts ? -1 : 1).slice(0, 12);
+  const myDisc = myMeet;
+  const red = mine.filter(r => /red/i.test(r.health || ''));
+  const mrr = mine.reduce((s, r) => s + (Number(r.mrr) || 0), 0);
+  const missing = myRen.filter(r => r.renewal_status === 'missing');
+
+  const greet = myWins90.length ? 'Nice work — ' + myWins90.length + ' deal' + (myWins90.length > 1 ? 's' : '') + ' closed in the last 30 days.' :
+    (myRen.length ? 'Renewal season: ' + myRen.length + ' licence' + (myRen.length > 1 ? 's' : '') + ' ending in the next 4 months.' : 'Here is your book at a glance.');
+
+  el.innerHTML = '<div class="me-hero"><h2>Hi ' + R.esc(first(o)) + ' 👋</h2><div class="sub">' + R.esc(greet) + '</div>' +
+    '<div class="me-tiles">' +
+    tile('Customers', mine.length, newOnes.length ? '+' + newOnes.length + ' new in the last 2 weeks' : 'none newly assigned') +
+    tile('MRR in your book', R.eur(mrr), '') +
+    tile('Open tickets', myTix.length, myTix.length ? 'at ' + new Set(myTix.map(t => t.company_name)).size + ' customers' + (ticketGroups(myTix, ren).filter(g => g.renewal).length ? ' · ' + ticketGroups(myTix, ren).filter(g => g.renewal).length + ' up for renewal ⚠' : '') : 'all quiet') +
+    tile('Renewals · 4 months', myRen.length, (myRen.filter(r => r.auto_renewal && !isTrial(r)).length + ' auto') + (myRen.filter(r => r.renewal_status === 'conversion').length ? ' · ' + myRen.filter(r => r.renewal_status === 'conversion').length + ' trial → licence' : '') + (myRenewed.length ? ' · ' + myRenewed.length + ' renewed ✓' : '') + (missing.length ? ' · ' + missing.length + ' without deal ⚠' : '')) +
+    tile('Wins · 4 months', myWinsAll.length, myWinsAll.length ? (myWins90.length ? myWins90.length + ' in the last 30 days 🎉' : 'congrats 🎉') : (D.errors.wins ? 'could not load wins' : 'next one is coming')) +
+    tile('Upcoming meetings', myMeet.length, myMeet.length ? myMeet.filter(m => m.kind === 'disc').length + ' discoveries · ' + myMeet.filter(m => m.kind === 'cust').length + ' customer' : 'none scheduled') +
+    '</div></div>' +
+    '<div class="me-grid">' +
+    block('🎉 Your wins · last 4 months', myWinsAll.slice(0, 12).map(w => '<div class="co"><div style="min-width:0"><div class="nm"><a href="' + R.hs('0-3', w.deal_id) + '" target="_blank" rel="noopener">' + R.esc(w.company_name || w.deal_name) + '</a>' + dealTypeChip(w.dealtype) + '</div><div class="meta">' + R.esc(w.deal_name || '') + '</div></div><div class="side">' + (w.amount_display ? '<span class="lag">' + R.esc(w.amount_display) + '</span>' : '') + R.badge(R.fmtDate(w.close_date), Date.now() - Date.parse(w.close_date) <= 30 * 864e5 ? 'b-ok' : 'b-neutral') + '</div></div>')
+      .concat(myWinsAll.length > 12 ? ['<div class="me-note">+ ' + (myWinsAll.length - 12) + ' more</div>'] : []), D.errors.wins ? 'Wins could not be loaded (' + D.errors.wins + ').' : 'No won deals in the last 4 months yet — next one is coming.') +
+    block('⏳ Your renewals · next 4 months', myRenAll.slice(0, 10).map(renewalLine), 'No licences ending in the next 4 months.') +
+    blockWide('📅 Upcoming meetings you are part of', myMeet.map(meetingRow), 'No upcoming discoveries or customer meetings with you as participant.') +
+    (newOnes.length ? blockWide('🆕 Newly assigned to you · last 2 weeks', ['<div class="assign-grid">' + newOnes.map(r => '<div class="co"><div><div class="nm"><a href="' + R.hs('0-2', r.company_id) + '" target="_blank" rel="noopener">' + R.esc(r.company_name) + '</a></div><div class="meta">assigned ' + R.fmtDate(iso(D.assigned[r.company_id])) + (r.mrr ? ' · ' + R.eur(r.mrr) : '') + '</div></div><div class="side"><span class="chip new">new</span></div></div>').join('') + '</div>'], '') : '') +
+    blockWide('🎫 Open tickets at your customers', ticketGroups(myTix, ren).length ? ['<div class="tg-grid">' + ticketGroups(myTix, ren).map(ticketGroupHtml).join('') + '</div>'] : [], 'No open tickets — nice.') +
+    (red.length ? blockWide('🔴 Needs your attention', red.map(r => '<div class="co"><div><div class="nm"><a href="' + R.hs('0-2', r.company_id) + '" target="_blank" rel="noopener">' + R.esc(r.company_name) + '</a></div><div class="meta">' + R.esc(r.sentiment_note || r.health || '') + '</div></div></div>'), '') : '') +
+    '</div>';
+}
+const tile = (k, v, n) => '<div class="me-tile"><div class="k">' + k + '</div><div class="v">' + v + '</div>' + (n ? '<div class="n">' + R.esc(n) + '</div>' : '') + '</div>';
+const block = (title, items, empty) => '<div class="card me-block"><h3>' + title + '</h3>' + (items.length ? items.join('') : '<div class="me-note">' + R.esc(empty) + '</div>') + '</div>';
+const blockWide = (title, items, empty) => '<div class="card me-block wide"><h3>' + title + '</h3>' + (items.length ? items.join('') : '<div class="me-note">' + R.esc(empty) + '</div>') + '</div>';
+function meetingRow(m){
+  const d = String(m.ts);
+  const kind = m.kind === 'disc' ? '<span class="kind disc">DISCOVERY</span>' : '<span class="kind cust">CUSTOMER</span>';
+  const label = m.label && !/discovery|customer meeting/i.test(m.label) ? '<div class="mini" style="margin-top:.25rem">' + R.esc(m.label) + '</div>' : '';
+  const co = m.company_id ? '<a href="' + R.hs('0-2', m.company_id) + '" target="_blank" rel="noopener">' + R.esc(m.company_name || '—') + '</a>' : R.esc(m.company_name || '—');
+  return '<div class="mt-row"><div class="mt-when">' + R.fmtDate(iso(d)) + '<small>' + d.slice(11, 16) + (m.status ? ' · ' + R.esc(m.status) : '') + '</small></div>' +
+    '<div>' + kind + label + '</div>' +
+    '<div class="mt-body"><div class="nm">' + co + '</div>' +
+    '<div class="meta">' + R.esc(m.contact || '') + (m.participants ? (m.contact ? ' · ' : '') + 'with ' + R.esc(m.participants) : '') + '</div>' +
+    (m.topic ? '<div class="note">' + R.esc(m.topic) + '</div>' : '') +
+    (m.note ? '<div class="note">' + R.esc(m.note) + '</div>' : '') +
+    (m.todo ? '<div class="todo">→ ' + R.esc(m.todo) + '</div>' : '') + '</div></div>';
+}
+
+init();
+</script>
+</body>
+</html>
