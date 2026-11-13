@@ -1,5 +1,7 @@
-# Copies the live v1 dashboard (vibe-reports.jentis.info) into archive/v1-live/ so pages can be ported to v2
-# from the exact code that is deployed. Run it by hand (Actions -> Snapshot v1 -> Run workflow).
+# Copies the deployed v1 dashboard (web root of vibe-reports.jentis.info, same FTP account as the v2 deploy) into
+# archive/v1-live/ so pages can be ported to v2 from the exact code that is live.
+# Only .html / .js / .css are copied; config.js (keys), dot-files and the v2 folders are left out.
+# Run it by hand: Actions -> Snapshot v1 -> Run workflow.
 name: Snapshot v1
 on:
   workflow_dispatch:
@@ -13,27 +15,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch pages
+      - name: Download over FTPS
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          set -u
-          B=https://vibe-reports.jentis.info
-          OUT=archive/v1-live; rm -rf "$OUT"; mkdir -p "$OUT/assets"
-          get() { curl -sSL --max-time 40 -A "v1-snapshot" -w "%{http_code} %{size_download} $1\n" -o "$2" "$B/$1" || true; }
-          for f in app.js app.css config.js; do get "assets/$f" "$OUT/assets/$f"; done
-          # pages named in the v1 menu + the ones v2 links to
-          PAGES="$(grep -oE "['\"][a-z0-9-]+/['\"]" "$OUT/assets/app.js" | tr -d "'\"" | sort -u | tr '\n' ' ')"
-          PAGES="$PAGES overview/ leads/ responded/ calls/ discoveries/ journeys/ deals/ sequences/ subjects/ subject-lines/ instantly/ linkedin/ outreach/ cs/ cs-customers/ cs-renewals/ cs-tickets/ cs-capacity/ cs-quote-checker/ cs-meetings/ cs-services/ docs/ goals/"
-          get "" "$OUT/index.html"
-          for p in $(echo $PAGES | tr ' ' '\n' | sort -u); do
-            mkdir -p "$OUT/$p"; get "$p" "$OUT/${p}index.html"
-            # drop anything that is not a real page (404 pages, empty files)
-            if ! grep -qi "<script" "$OUT/${p}index.html" 2>/dev/null; then rm -rf "$OUT/$p"; fi
-          done
-          # further scripts / styles the pages load from /assets
-          for a in $(grep -rhoE "assets/[A-Za-z0-9_.-]+\.(js|css)" "$OUT" | sort -u); do [ -f "$OUT/$a" ] || get "$a" "$OUT/$a"; done
-          find "$OUT" -type f | sort | xargs wc -c
+          sudo apt-get -qq install -y lftp >/dev/null
+          OUT=archive/v1-live; rm -rf "$OUT"; mkdir -p "$OUT"
+          lftp -u "$FTP_USER","$FTP_PASSWORD" "$FTP_HOST" -e "
+            set ftp:ssl-force true; set ftp:ssl-protect-data true; set ssl:verify-certificate no; set net:max-retries 2; set net:timeout 30;
+            mirror --verbose=1 --parallel=4 --no-perms -i '\.(html|js|css)$' -x '^v2' -x '^v2-staging' -x '(^|/)\.' -x 'config\.js$' / $OUT;
+            bye"
+          find "$OUT" -type d -empty -delete
+          find "$OUT" -type f | sort | xargs wc -c | tail -80
       - name: Commit
         run: |
           git config user.name "v1-snapshot"; git config user.email "actions@users.noreply.github.com"
-          git add archive/v1-live
+          git add -A archive/v1-live
           git diff --cached --quiet && echo "no changes" || { git commit -q -m "Snapshot of the live v1 dashboard"; git push -q; }
