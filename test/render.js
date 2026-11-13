@@ -5,7 +5,7 @@ const { chromium } = require('playwright'); const fs = require('fs'); const path
 const arg = n => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : null; };
 const ROOT = path.join(__dirname, '..', 'site'), FX = arg('--fixtures') || '/home/claude/fixtures', SHOTS = arg('--shots'), ONLY = arg('--only');
 const PAGES = ['/', '/me/', '/funnel/', '/changes/', '/marketing/', '/marketing/leads/', '/email-outreach/', '/email-outreach/subjects/', '/marketing/responses/',
-  '/bd/', '/bd/calls/', '/bd/discoveries/', '/bd/journeys/', '/bd/celebrations/', '/sales/', '/sales/deals/', '/sales/quote-checker/', '/sales/celebrations/',
+  '/bd/calls/', '/bd/discoveries/', '/bd/journeys/', '/bd/celebrations/', '/sales/', '/sales/deals/', '/sales/quote-checker/', '/sales/celebrations/',
   '/cs/', '/cs/customers/', '/cs/renewals/', '/cs/tickets/', '/cs/professional-services/', '/cs/celebrations/'];
 const cache = {};
 const load = v => { if (!(v in cache)) { const f = path.join(FX, v + '.json'); cache[v] = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null; } return cache[v]; };
@@ -30,7 +30,7 @@ function query(view, params) {           // a small part of PostgREST: eq/neq/gt
   const lim = params.get('limit'); if (lim) rows = rows.slice(0, Number(lim));
   return rows;
 }
-const SF = [], TD = [], ASK = [];   // TD: shared to-dos (emulates api.todos + rpc/todo_op)   // shared saved filters (emulates api.saved_filters + rpc/filter_op)
+const SF = [], TD = [], ASK = [], PJ = [];   // PJ: projects (emulates api.projects + rpc/project_op)   // TD: shared to-dos (emulates api.todos + rpc/todo_op)   // shared saved filters (emulates api.saved_filters + rpc/filter_op)
 const wire = (page, errs, missing404) => page.route('**/*', async route => {
       const u = new URL(route.request().url());
       if (u.hostname === 'local.test') {
@@ -57,6 +57,24 @@ const wire = (page, errs, missing404) => page.route('**/*', async route => {
             row = TD[k]; if (j.op === 'done') Object.assign(row, { done: j.done, done_at: j.done ? now : null, done_by: j.done ? j.by : null }); else ['title', 'assignee', 'due', 'kpi', 'sort'].forEach(f => { if (f in j) row[f] = j[f] === '' ? null : j[f]; }); }
           return route.fulfill({ contentType: 'application/json', body: JSON.stringify(row) });
         }
+        if (u.pathname === '/rpc/project_op') {
+          if (route.request().method() !== 'POST' || (route.request().headers()['content-type'] || '').indexOf('text/plain') !== 0) { errs.push('project_op: not a simple POST'); return route.fulfill({ status: 400, body: '{}' }); }
+          const j = JSON.parse(route.request().postData()), now = new Date().toISOString(), bad = m => route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: m }) });
+          if ('name' in j && !String(j.name || '').trim()) return bad('the project needs a name (up to 160 characters)');
+          if (j.start_date && j.end_date && j.end_date < j.start_date) return bad('the end lies before the start');
+          const F = ['name', 'status', 'owner', 'start_date', 'end_date', 'description', 'sort'];
+          let p;
+          if (j.op === 'add') { p = { id: PJ.length ? Math.max(...PJ.map(x => x.id)) + 1 : 1, scope: j.scope, status: 'planned', sort: PJ.length + 1, created_by: j.by, created_at: now, done_at: null, subtasks: [] }; F.forEach(f => { if (f in j) p[f] = j[f] === '' ? null : j[f]; }); PJ.push(p); }
+          else if (j.op === 'update' || j.op === 'delete' || j.op === 'task_add') { p = PJ.find(x => x.id === j.id); if (!p) return bad('project not found');
+            if (j.op === 'delete') { PJ.splice(PJ.indexOf(p), 1); return route.fulfill({ contentType: 'application/json', body: '{"deleted":true}' }); }
+            if (j.op === 'update') { F.forEach(f => { if (f in j) p[f] = j[f] === '' ? null : j[f]; }); p.done_at = p.status === 'done' ? (p.done_at || now) : null; }
+            else p.subtasks.push({ id: 1 + Math.max(0, ...PJ.flatMap(x => x.subtasks.map(t => t.id))), title: j.title, done: false, done_at: null, done_by: null }); }
+          else { p = PJ.find(x => x.subtasks.some(t => t.id === j.task_id)); if (!p) return bad('subtask not found'); const t = p.subtasks.find(t => t.id === j.task_id);
+            if (j.op === 'task_done') Object.assign(t, { done: j.done, done_at: j.done ? now : null, done_by: j.done ? j.by : null });
+            else if (j.op === 'task_edit') t.title = j.title; else p.subtasks.splice(p.subtasks.indexOf(t), 1); }
+          return route.fulfill({ contentType: 'application/json', body: JSON.stringify(p) });
+        }
+        if (u.pathname === '/projects') return route.fulfill({ contentType: 'application/json', body: JSON.stringify(PJ.filter(x => 'eq.' + x.scope === u.searchParams.get('scope')).sort((a, b) => a.sort - b.sort)) });
         if (u.pathname === '/todos') return route.fulfill({ contentType: 'application/json', body: JSON.stringify(TD.filter(x => 'eq.' + x.scope === u.searchParams.get('scope')).sort((a, b) => (a.done - b.done) || (a.sort - b.sort))) });
         if (u.pathname === '/saved_filters') return route.fulfill({ contentType: 'application/json', body: JSON.stringify(SF.filter(x => 'eq.' + x.page === u.searchParams.get('page'))) });
         const view = u.pathname.slice(1); const rows = query(view, u.searchParams);
@@ -72,7 +90,7 @@ const wire = (page, errs, missing404) => page.route('**/*', async route => {
       if (/supabase|vibe-reports/.test(u.hostname)) { errs.push('still calls ' + u.hostname + u.pathname); return route.fulfill({ status: 500, body: '' }); }
       return route.fulfill({ status: 200, body: '' });
     });
-module.exports = { wire, SF, TD, ASK };
+module.exports = { wire, SF, TD, ASK, PJ };
 if (require.main === module) (async () => {
   const b = await chromium.launch(); const out = {};
   for (const p of PAGES) {

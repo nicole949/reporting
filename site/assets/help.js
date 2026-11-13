@@ -78,14 +78,26 @@
 
   // ---------------------------------------------------------------- marketing overview
   H.add('mkt-overview', [
-    { m: 'To-dos & targets', calc: 'A shared list for the marketing team: everyone who opens this page sees and edits the same items. Tick an item when it is done; done items stay under “Show done”. A to-do with “KPI target” tracks a number by itself: the bar fills with the same numbers as the tiles below, the thin mark shows where you should be by today (share of the period that has passed), “ahead / behind” compares the two.', src: 'Entered on this page; stored in the reporting database (table app.todos). The numbers of a target come from the same sources as the tile of that metric.', note: 'There is no login yet: anyone with access to the dashboard can change or delete items. “Every week / month / quarter” targets start again with each new period.' },
-    { m: 'Goals', calc: 'The goals of the chosen quarter (and the year) and how far we are. The bar fills with the actual number, the thin mark shows how much of the quarter has passed; “ahead / behind” compares the two (5 points either way count as on track). Discoveries = companies that entered the stage Discovery. Qualified = companies that entered Qualified, but only if their discovery was in the same period. Responded = contacts set to lead status Responded. Click a goal for the companies or contacts behind it.', src: 'goals' },
-    { m: 'Marketing KPIs', calc: 'The marketing numbers of the chosen period, each compared with the period of the same length before it. The bars show how the number developed: solid = the chosen period, pale = the time before it (“Charts go back”). Click a tile for the records.', src: 'lifecycle' },
-    { m: 'Contacts → lead status Responded', calc: 'Contacts whose HubSpot lead status was set to Responded in the period — one per contact, dated by the first time.' + PREV, src: 'responded' },
+    { m: 'To-dos & targets', calc: 'A shared list for the Go-To-Market team: everyone who opens this page sees and edits the same items. Tick an item when it is done; done items stay under “Show done”. A to-do with “KPI target” tracks a number by itself: the bar fills with the same numbers as the tiles below, the thin mark shows where you should be by today (share of the period that has passed), “ahead / behind” compares the two.', src: 'Entered on this page; stored in the reporting database (table app.todos). The numbers of a target come from the same sources as the tile of that metric.', note: 'There is no login yet: anyone with access to the dashboard can change or delete items. “Every week / month / quarter” targets start again with each new period.' },
+    { m: 'Goals', calc: 'The goals of the chosen quarter (and the year) and how far we are. The orange bar fills with the actual number; “Time elapsed” shows how much of the quarter has passed, and “ahead / behind” compares the two (5 points either way count as on track). Pick another quarter in the drop-down to see its final result. Click a goal for the companies or contacts behind it.', src: 'goals' },
+    { m: 'days left in the quarter', calc: 'Calendar days until the end of the quarter shown.', src: 'Calendar.' },
+    { m: 'Goal: discoveries', calc: 'Companies that entered the lifecycle stage Discovery in the goal period. ' + STAGE, src: 'goals' },
+    { m: 'Goal: qualified', calc: 'Companies that entered Qualified in the goal period — but only if their discovery was in the same period. Conversions until the end of the following month still count (e.g. January for a Q4 goal) to allow for the delay between discovery and qualification.', src: 'goals', note: 'Builds on the Discoveries goal: a company qualified this quarter whose discovery was last quarter does not count here.' },
+    { m: 'Goal: responded', calc: 'Unique contacts whose HubSpot lead status was set to Responded in the goal period, each counted once (first time).', src: 'goals' },
+    { m: 'Goal: opportunities', calc: 'Companies that entered the lifecycle stage Opportunity in the goal period. ' + STAGE, src: 'goals' },
+    { m: 'Goal: customers', calc: 'New customers: won deals of type Full License (New Business) in the goal period. Renewals, upsells and agency deals do not count; several deals of one company in the same week count once.', src: 'goals' },
+    { m: 'Goal: calls', calc: 'Calls logged in HubSpot in the goal period, whatever the outcome.', src: 'goals' },
+    { m: 'Goal: won value', calc: 'Sum of the amounts of new-business deals closed won in the goal period. ' + NBDEF, src: 'goals' },
+    { m: 'Goal: stage', calc: 'Companies that entered this lifecycle stage in the goal period.', src: 'goals' },
+    { m: 'Projects', calc: 'A shared project list for the Go-To-Market team: name, status, owner, timeframe, a description and subtasks (both open as drop-downs). Change the status right in the list with the coloured pill; tick subtasks off, double-click a subtask to rename it. Open projects are sorted by status (in progress, blocked, planned, on hold, idea) and then by end date; finished ones sit under “Show done”.', src: 'Entered on this page; stored in the reporting database (tables app.projects and app.project_tasks).', note: 'There is no login yet: anyone with access to the dashboard can change or delete projects. “Overdue” = the end date has passed and the project is not done.' },
+    { m: 'Outreach & responses', calc: 'The top of the funnel in the chosen period: new leads, contact form submissions, outreach volume and the responses it produced, each compared with the period of the same length before. The bars show how the number developed: solid = the chosen period, pale = the time before it (“Charts go back”). Click a tile for the records.', src: 'lifecycle' },
+    { m: 'Calls & discoveries', calc: 'From response to discovery: call activity and the discovery meetings it leads to, compared with the period of the same length before. Click a tile for the records.', src: 'calls' },
+    { m: 'Contact form submissions', calc: 'Submissions of the website contact form in the period, one per submission, stacked by form.' + PREV, src: 'HubSpot form submissions.', note: 'Not connected yet: the data source for this number is still being built, so the tile shows “—” until then.' },
+        { m: 'Contacts → lead status Responded', calc: 'Contacts whose HubSpot lead status was set to Responded in the period — one per contact, dated by the first time.' + PREV, src: 'responded' },
     { m: 'Outreach emails sent', calc: 'Emails sent per day by HubSpot sequences (stacked by sequence) and Instantly (one block, Instantly reports per day only). Counts emails, not people. Click a bar or “Records” for the sequences with emails sent and new recipients.' + PREV, src: 'email' },
     { m: 'LinkedIn actions', calc: 'Connection requests, messages and follows that LaGrowthMachine sent successfully, stacked by type.' + PREV, src: 'linkedin' },
     { m: 'Responses', calc: 'Connected calls, email replies to a sequence and LinkedIn replies, stacked by type. Replies only count when the AI check rated them positive or neutral.' + PREV, src: 'responded' }
-  ].concat(H.pages.overview.filter(e => /^(New leads|Engaged|Entered Discovery)/.test(e.m))));
+  ].concat(H.pages.overview.filter(e => /^(New leads|Engaged|Entered Discovery|Calls$|Connected calls|Discoveries booked|Discoveries held)/.test(e.m))));
 
   // ---------------------------------------------------------------- leads
   const TREND = st => ({ m: st + ' ·', calc: 'Companies entering the stage ' + st + ' per period (the grouping chosen in the filter bar) for the periods in view. “in view” is their total.', src: 'lifecycle' });
@@ -129,19 +141,6 @@
     { m: '📞 Connected calls', calc: 'Calls with the outcome Connected for these companies within three weeks before or after their response date.', src: 'calls' },
     { m: '🔗 LinkedIn replies', calc: 'LinkedIn replies received through LaGrowthMachine in the period.', src: 'linkedin', note: 'LinkedIn replies do not make a company “Responded” in the lifecycle on purpose.' },
     { m: 'Responses ·', calc: 'One row per company with who answered, through which channel and what they said.', src: 'responded' }
-  ]);
-
-  // ---------------------------------------------------------------- BD overview
-  H.add('bd-overview', [
-    { m: 'Calls', calc: 'Calls logged in the period (of the selected SDRs).' + PREV + ' In “This quarter” the line below shows the quarter target.', src: 'calls' },
-    { m: 'Connected', calc: 'Calls where a person was reached: outcome Connected, Meeting Booked or a rejection. No answer, wrong number and voicemail do not count.' + PREV, src: 'calls' },
-    { m: 'Connect rate', calc: 'Connected ÷ calls in the period.', src: 'calls' },
-    { m: 'Meetings booked from calls', calc: 'Calls in the period with the outcome “Meeting Booked”.' + PREV, src: 'calls' },
-    { m: 'Discoveries booked', calc: 'Discovery meetings created in the period by the selected SDRs, without cancelled ones.' + PREV, src: 'discoveries' },
-    { m: 'Responded', calc: 'Companies that entered the stage Responded in the period, through any channel. Not filtered by SDR.', src: 'lifecycle' },
-    { m: 'Per SDR', calc: 'The same numbers per call owner / meeting owner for the period.', src: 'calls' },
-    { m: 'Calls per week', calc: 'Calls per ISO week for the 13 weeks up to the end of the period; the dark part is the connected calls.', src: 'calls' },
-    { m: 'Discoveries booked in the period', calc: 'The discovery meetings behind the tile: meeting date, company, contact, who booked it, status.', src: 'discoveries' }
   ]);
 
   // ---------------------------------------------------------------- calls

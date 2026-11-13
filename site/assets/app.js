@@ -17,22 +17,21 @@
       { key: 'overview', label: 'Commercial overview', href: BASE, ic: 'grid', status: 'live' },
       { key: 'funnel', label: 'Full funnel', href: BASE + 'funnel/', ic: 'funnel', status: 'live' },
       { key: 'changes', label: 'Change notes', href: BASE + 'changes/', ic: 'list', status: 'live' } ] },
-    { key: 'marketing', label: 'Marketing', color: '#9DDCFF', items: [
+    // Go-To-Market = Marketing + Business Development (merged 13.11.2026); section key stays 'marketing' so older change notes still match
+    { key: 'marketing', label: 'Go-To-Market', color: '#9DDCFF', items: [
       { key: 'mkt-overview', label: 'Overview', href: BASE + 'marketing/', ic: 'grid', status: 'live' },
       { key: 'leads', label: 'Leads', href: BASE + 'marketing/leads/', ic: 'users', status: 'live' },
       { key: 'email', label: 'Email outreach', href: BASE + 'email-outreach/', ic: 'mail', status: 'live' },
       { key: 'linkedin', label: 'LinkedIn outreach', href: '#', ic: 'linkedin', status: 'planned' },
+      { key: 'calls', label: 'Calls', href: BASE + 'bd/calls/', ic: 'phone', status: 'live' },
       { key: 'social', label: 'Social posts', href: '#', ic: 'chat', status: 'planned' },
       { key: 'campaigns', label: 'Campaigns & ads', href: '#', ic: 'megaphone', status: 'planned' },
-      { key: 'responses', label: 'Responses', href: BASE + 'marketing/responses/', ic: 'reply', status: 'live' } ] },
-    { key: 'bd', label: 'Business Development', color: '#F38C62', items: [
-      { key: 'bd-overview', label: 'Overview', href: BASE + 'bd/', ic: 'grid', status: 'live' },
-      { key: 'calls', label: 'Calls', href: BASE + 'bd/calls/', ic: 'phone', status: 'live' },
-      { key: 'discoveries', label: 'Discoveries', href: BASE + 'bd/discoveries/', ic: 'calendar', status: 'live' },
+      { key: 'responses', label: 'Responses', href: BASE + 'marketing/responses/', ic: 'reply', status: 'live' },
       { key: 'journeys', label: 'Journeys', href: BASE + 'bd/journeys/', ic: 'route', status: 'live' },
       { key: 'celebrations', label: 'Celebration board', href: BASE + 'bd/celebrations/', ic: 'star', status: 'live' } ] },
     { key: 'sales', label: 'Sales pipeline', color: '#C4B5F0', items: [
       { key: 'sales-overview', label: 'Overview', href: BASE + 'sales/', ic: 'grid', status: 'live' },
+      { key: 'discoveries', label: 'Discoveries', href: BASE + 'bd/discoveries/', ic: 'calendar', status: 'live' },
       { key: 'qualification', label: 'Qualification', href: '#', ic: 'check', status: 'planned' },
       { key: 'deals', label: 'Deals', href: BASE + 'sales/deals/', ic: 'briefcase', status: 'live' },
       { key: 'forecast', label: 'Forecast', href: '#', ic: 'trend', status: 'planned' },
@@ -124,7 +123,8 @@
     markSeen: () => { if (CHANGES[0]) LS.set('seenVersion', CHANGES[0].version); renderNav(); },
     load: () => fetch(C.ASSET_BASE + 'changelog.json?b=' + encodeURIComponent(C.BUILD || '')).then(r => r.ok ? r.json() : []).then(j => { CHANGES = Array.isArray(j) ? j : []; return CHANGES; }).catch(() => CHANGES)
   };
-  const unreadFor = (section, page) => R.changes.unread().flatMap(r => r.items.filter(i => i.section === section && (!page || i.page === page)).map(i => i.summary || i.text));
+  const unreadFor = (section, page) => { const sec = R.NAV.find(s => s.key === section), keys = sec ? sec.items.map(i => i.key) : [];
+    return R.changes.unread().flatMap(r => r.items.filter(i => page ? i.page === page : (i.section === section || keys.includes(i.page))).map(i => i.summary || i.text)); };
 
   // ---------- shell ----------
   let CUR = {};

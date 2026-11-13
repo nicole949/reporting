@@ -1,4 +1,4 @@
-// Marketing overview: to-dos & KPI targets (add, KPI progress, edit, done, delete), goals, chart cards.
+// Go-To-Market overview: to-dos & KPI targets (add, KPI progress, edit, done, delete), goals, chart cards.
 //   node test/todos.js [--shots DIR]
 const { chromium } = require('playwright'); const fs = require('fs'); const path = require('path');
 const { wire, TD } = require('./render.js');
@@ -10,9 +10,10 @@ const res = []; const ok = (n, c, x) => res.push((c ? 'ok   ' : 'FAIL ') + n + (
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message.slice(0, 200)));
   await wire(p, errs, new Set()); await p.goto('http://local.test/v2-staging/marketing/'); await p.waitForTimeout(2500);
   const shot = async n => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await p.screenshot({ path: path.join(SHOTS, n + '.png') }); } };
-  ok('tiles', await p.evaluate(() => document.querySelectorAll('#kg .tile.clk').length) === 7);
-  ok('chart cards', await p.evaluate(() => document.querySelectorAll('.ccard .cc-chart svg').length) === 4);
-  ok('goals', await p.evaluate(() => document.querySelectorAll('.goal2').length) >= 1, String(await p.evaluate(() => document.querySelectorAll('.goal2').length)));
+  ok('tiles', await p.evaluate(() => document.querySelectorAll('#kg .tile.clk').length) === 11, String(await p.evaluate(() => document.querySelectorAll('#kg .tile.clk').length)));
+  ok('contact form tile waits for its source', await p.evaluate(() => !!document.querySelector('#kg .tile.pend[data-m="forms"]')));
+  ok('chart cards', await p.evaluate(() => document.querySelectorAll('.ccard .cc-chart svg').length) === 6);
+  ok('goals banner on top', await p.evaluate(() => document.getElementById('page').firstElementChild.id === 'goals' && document.querySelectorAll('.ghero .goal').length >= 1), String(await p.evaluate(() => document.querySelectorAll('.ghero .goal').length)));
   // plain to-do
   await p.fill('.tdadd input[name=title]', 'Send the DMEXCO follow-up'); await p.fill('.tdadd input[name=assignee]', 'Laila'); await p.click('.tdadd button[type=submit]'); await p.waitForTimeout(300);
   ok('add a to-do', TD.length === 1 && TD[0].scope === 'marketing' && TD[0].created_by === 'Sebastian Tapinos', JSON.stringify(TD[0]));
@@ -55,7 +56,7 @@ const res = []; const ok = (n, c, x) => res.push((c ? 'ok   ' : 'FAIL ') + n + (
   await p.hover('li.td.done'); await p.click('li.td.done .del'); await p.click('li.td.done .del'); await p.waitForTimeout(300);
   ok('delete', TD.length === 2);
   // goal panel
-  await p.click('.goal2'); await p.waitForTimeout(300);
+  await p.click('.ghero .goal'); await p.waitForTimeout(300);
   ok('goal opens its records', await p.evaluate(() => document.getElementById('drill').classList.contains('open')));
   await p.keyboard.press('Escape');
   // chart card bar

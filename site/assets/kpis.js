@@ -20,13 +20,15 @@
     calls: 'v_calls?select=ts,bucket,company_id,company_name,contact_name,owner_name,disposition_label',
     discos: 'v_discoveries?select=meeting_id,created_at,meeting_start,status,company_id,company_name,contact_name,owner_name',
     deals: 'v_deals?select=deal_id,deal_name,company_id,company_name,owner_name,partner_name,dealtype,create_date,close_date,is_closed,is_won,amount,stage_label',
+    // contact form submissions (website) — view api.v_contact_forms is not built yet; until then the tile says so instead of showing 0
+    forms: 'v_contact_forms?select=submitted_at,form_name,contact_id,contact_name,company_id,company_name',
     tickets: 'cs_tickets?select=ticket_id,subject,company_name,created_at,status',
     renewals: 'v_cs_renewals?select=company_name,license_end,renewal_status,mrr,stage_label,owner_name',
     goals: 'v_goals?select=*'
   };
   // which sources each metric needs
   const NEEDS = { leads: ['entries', 'dims'], st_responded: ['entries', 'dims'], st_discovery: ['entries', 'dims'], st_qualified: ['entries', 'dims'], st_opp: ['entries', 'dims'], st_customer: ['entries', 'dims'],
-    emails: ['seqDaily', 'email', 'inst'], linkedin: ['outreach'], responses: ['resp'], lsr: ['lsr'], calls: ['calls'], connected: ['calls'], booked: ['discos'], held: ['discos'],
+    emails: ['seqDaily', 'email', 'inst'], linkedin: ['outreach'], responses: ['resp'], lsr: ['lsr'], forms: ['forms'], calls: ['calls'], connected: ['calls'], booked: ['discos'], held: ['discos'],
     created: ['deals'], won: ['deals'], won_value: ['deals'], pipe: ['deals'], onb: ['deals'], renwon: ['deals'], ps: ['deals'], rendue: ['renewals'], tix: ['tickets'], tixopen: ['tickets'] };
   const COMMERCIAL = [
     { key: 'mkt', name: 'Marketing', st: 'awareness → lead → response', tiles: ['leads', 'emails', 'linkedin', 'responses', 'st_responded'] },
@@ -71,6 +73,8 @@
         cols: [C_DATE('Date', x => x.ts), ['Response', x => esc(RT[x.channel] || x.channel)], ['Contact', x => esc(x.contact_name || '—')], ['Company', x => co(x.company_id, x.company_name)]], more: ['marketing/responses/', 'Responses page'] },
       { key: 'lsr', label: 'Contacts → lead status Responded', rows: L('lsr'), d: x => x.responded_at,
         cols: [C_DATE('Responded', x => x.responded_at), ['Contact', x => link('0-1', x.contact_id, x.contact_name || 'Contact ' + x.contact_id)], ['Company', x => co(x.company_id, x.company_name)], ['Source', x => esc(String(x.source || '—').replace(/^history:/, ''))]], more: ['marketing/responses/', 'Responses page'] },
+      { key: 'forms', label: 'Contact form submissions', soon: true, rows: L('forms'), d: x => x.submitted_at, s: x => x.form_name || 'Contact form',
+        cols: [C_DATE('Submitted', x => x.submitted_at), ['Form', x => esc(x.form_name || '—')], ['Contact', x => link('0-1', x.contact_id, x.contact_name || (x.contact_id ? 'Contact ' + x.contact_id : '—'))], ['Company', x => co(x.company_id, x.company_name)]] },
       stage('st_responded', 'Engaged → Responded (stage)', 'responded'),
       { key: 'calls', label: 'Calls', rows: L('calls'), d: c => c.ts, s: c => CB[c.bucket] || 'Other', order: Object.values(CB), who, cols: callCols, more: ['bd/calls/', 'Calls page'] },
       { key: 'connected', label: 'Connected calls', rows: L('calls').filter(c => c.bucket === 'connected' || c.bucket === 'rejected'), d: c => c.ts, s: c => CB[c.bucket], order: Object.values(CB), who, cols: callCols, more: ['bd/calls/', 'Calls page'] },
@@ -183,7 +187,9 @@ function prep(m, r, p) {                         // the numbers of one metric fo
   const wrows = BK.length ? between(m, BK[0].from, BK[BK.length - 1].to) : [], ser = seriesOf(m, wrows);
   m._c = { wrows, ser, grid: matrix(m, wrows, BK, ser) };
 }
+const pending = m => m.soon && (NEEDS[m.key] || []).some(s => (K.failed || []).includes(s));   // only for sources that are not built yet
 function tileHtml(m, r, p) {
+  if (pending(m)) return '<div class="tile soft pend" data-m="' + m.key + '"><div class="k">' + esc(m.label) + '</div><div class="v">—</div><div class="s">not connected yet · the data source for this number is still being built</div></div>';
   prep(m, r, p);
   let val, sub, spark = '';
   if (m.now) { val = fmt(m, m._cur); sub = m.sub || 'as of today'; }
@@ -315,7 +321,7 @@ function drill(key, keep) {
     const m = ALL[key]; if (!m || m.now) return []; f = f || {};
     return between(m, from, to).filter(x => (!f.owner || !m.who || m.who(x) === f.owner) && (!f.series || !m.s || m.s(x) === f.series));
   };
-  K.targetable = () => Object.values(ALL).filter(m => !m.now && (NEEDS[m.key] || []).every(s => D && D[s] !== undefined) && m.key !== 'onb');
+  K.targetable = () => Object.values(ALL).filter(m => !m.now && !pending(m) && (NEEDS[m.key] || []).every(s => D && D[s] !== undefined) && m.key !== 'onb');
   K.owners = key => { const m = ALL[key]; return m && m.who ? [...new Set(m.rows.map(m.who))].filter(Boolean).sort() : []; };
   K.series = key => { const m = ALL[key]; return m && m.order ? m.order.slice() : []; };
   K.metric = metric; K.fmt = fmt; K.show = (key, rows, title) => { const m = ALL[key]; if (!m) return; const keep = m._rows; m._rows = rows; drill(key); m._rows = keep; };
