@@ -343,3 +343,36 @@ svg .ax { stroke: var(--hair); stroke-width: 1; } svg .hit { fill: transparent; 
 .ccard .cc-leg { display: flex; flex-wrap: wrap; gap: .25rem .9rem; font-size: .74rem; color: var(--slate); margin-top: .45rem; } .ccard .cc-leg:empty { display: none; }
 .ccard .cc-leg i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: .3rem; } .ccard .cc-leg b { color: var(--text); }
 #drill h3.ph { font-size: 1.05rem; margin: -.2rem 0 .2rem; }
+
+/* Ask AI */
+button.ai { border: 0; background: transparent; color: var(--sky); cursor: pointer; padding: 0 .1rem; margin-left: .15rem; vertical-align: middle; line-height: 1; opacity: .75; }
+button.ai:hover, button.ai:focus-visible { opacity: 1; color: var(--navy); } :root[data-theme="dark"] button.ai:hover { color: var(--sky-light); }
+button.ai .i { width: 13px; height: 13px; } .tile .k button.ai .i { width: 11px; height: 11px; }
+.tool.askbtn { display: inline-flex; align-items: center; gap: .3rem; color: var(--navy); border-color: rgba(79,163,216,.5); background: var(--sky-tint); }
+:root[data-theme="dark"] .tool.askbtn { color: var(--sky-light); background: rgba(157,220,255,.08); }
+.tool.askbtn .i { width: 13px; height: 13px; }
+#ask-bg { display: none; position: fixed; inset: 0; background: rgba(10,25,38,.32); z-index: 96; } #ask-bg.open { display: block; }
+#ask { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); background: var(--panel); color: var(--text); border-left: 1px solid var(--hair); box-shadow: -24px 0 60px -30px rgba(0,40,70,.5); z-index: 97; overflow: auto; padding: 1.1rem 1.3rem 1.6rem; transform: translateX(105%); transition: transform .18s ease; box-sizing: border-box; font-size: .86rem; }
+#ask.open { transform: none; }
+#ask .ah { display: flex; justify-content: space-between; align-items: center; } #ask .ah h3 { margin: 0; font-size: 1.05rem; display: flex; align-items: center; gap: .4rem; } #ask .ah h3 .i { color: var(--sky); width: 18px; height: 18px; }
+#ask .x { border: 1px solid var(--hair); background: var(--panel); color: var(--slate); border-radius: 999px; width: 30px; height: 30px; cursor: pointer; }
+#ask .actx { margin: .55rem 0 .8rem; font-size: .76rem; color: var(--slate); background: var(--paper); border-radius: 8px; padding: .35rem .6rem; display: flex; align-items: center; gap: .3rem; flex-wrap: wrap; }
+#ask .aclr { border: 0; background: transparent; color: var(--faint); cursor: pointer; margin-left: auto; font-size: .75rem; }
+#ask .aq { font-weight: 600; margin: .9rem 0 .35rem; padding-left: .6rem; border-left: 3px solid var(--sky); }
+#ask .aa { line-height: 1.5; } #ask .aa p { margin: .3rem 0; } #ask .aa ul, #ask .aplan ul { margin: .3rem 0; padding-left: 1.1rem; } #ask .aa li { margin: .15rem 0; }
+#ask .ameta { margin-top: .5rem; font-size: .74rem; color: var(--slate); display: grid; gap: .2rem; padding-top: .45rem; border-top: 1px dashed var(--hair); }
+#ask .athread { border-bottom: 1px solid var(--hair); padding-bottom: .7rem; }
+#ask .aplan { background: var(--paper); border-radius: 12px; padding: .7rem .85rem .8rem; margin-top: .3rem; } #ask .aplan p { margin: .15rem 0 .4rem; }
+#ask .al { font-size: .62rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; color: var(--faint); margin-top: .45rem; }
+#ask .awarn, #ask .ahint2 { display: flex; gap: .45rem; align-items: flex-start; font-size: .8rem; border-radius: 8px; padding: .45rem .55rem; margin: .45rem 0; }
+#ask .awarn { background: var(--orange-tint); color: #8A3A12; } #ask .ahint2 { background: var(--sky-tint); color: #164E73; }
+:root[data-theme="dark"] #ask .awarn { background: rgba(237,69,2,.14); color: #F9C9B4; } :root[data-theme="dark"] #ask .ahint2 { background: rgba(79,163,216,.14); color: var(--sky-light); }
+#ask .awarn .i, #ask .ahint2 .i { width: 15px; height: 15px; flex: 0 0 15px; margin-top: .1rem; }
+#ask .acost { margin-top: .6rem; padding-top: .55rem; border-top: 1px solid var(--hair); } #ask .acost .small { display: block; margin-top: .15rem; }
+#ask .arow { display: flex; justify-content: flex-end; align-items: center; gap: .5rem; margin-top: .6rem; } #ask .arow .small { margin-right: auto; }
+#ask .aform { margin-top: .9rem; } #ask textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--hair); border-radius: 10px; padding: .55rem .65rem; font: inherit; font-size: .86rem; color: var(--text); background: var(--panel); resize: vertical; }
+#ask textarea:focus { outline: 2px solid rgba(79,163,216,.45); border-color: var(--sky); }
+#ask .astate { color: var(--slate); margin: .6rem 0; display: flex; gap: .45rem; align-items: center; } #ask .spin { display: inline-block; animation: askspin 1s linear infinite; }
+@keyframes askspin { to { transform: rotate(360deg); } }
+#ask .aerr { background: var(--red-tint); color: var(--orange); border-radius: 8px; padding: .5rem .6rem; margin-top: .6rem; }
+#ask .bad { color: var(--orange); }

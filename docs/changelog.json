@@ -1,5 +1,30 @@
 [
   {
+    "version": "2026.11.13-7",
+    "date": "2026-11-13",
+    "title": "Ask AI on every number and page",
+    "items": [
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "New ✦ next to every \"?\" and an \"Ask AI\" button at the top of every page: ask a question about a number, a chart, a list or the whole page, e.g. \"Why is this company here?\" or \"Which subject lines worked best with the subscription persona in the last 3 months?\".",
+        "details": "First the AI says how it understood the question, what it will read, what it will cost (in credits, 1 credit = 1 cent) and how long it takes, plus any limitation of the data or a better way. Only after \"Continue\" does it answer — short, only from the data, with what it is based on. The page, the number you clicked, what you see there, your filters and the page's explanations are sent along, so you don't have to explain the context.",
+        "departments": [
+          "all"
+        ]
+      },
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "The AI only reads the data the dashboard itself shows (same access as your browser) plus the data-model documentation. Every question, plan, answer and cost is logged.",
+        "details": "Daily budget for all questions together: 5 €; a single answer above 0.60 € is refused (ask a narrower question).",
+        "departments": [
+          "all"
+        ]
+      }
+    ]
+  },
+  {
     "version": "2026.11.13-6",
     "date": "2026-11-13",
     "title": "Marketing overview rebuilt, with to-dos and KPI targets",

@@ -30,7 +30,7 @@ function query(view, params) {           // a small part of PostgREST: eq/neq/gt
   const lim = params.get('limit'); if (lim) rows = rows.slice(0, Number(lim));
   return rows;
 }
-const SF = [], TD = [];   // TD: shared to-dos (emulates api.todos + rpc/todo_op)   // shared saved filters (emulates api.saved_filters + rpc/filter_op)
+const SF = [], TD = [], ASK = [];   // TD: shared to-dos (emulates api.todos + rpc/todo_op)   // shared saved filters (emulates api.saved_filters + rpc/filter_op)
 const wire = (page, errs, missing404) => page.route('**/*', async route => {
       const u = new URL(route.request().url());
       if (u.hostname === 'local.test') {
@@ -64,10 +64,15 @@ const wire = (page, errs, missing404) => page.route('**/*', async route => {
         const range = (route.request().headers()['range'] || '0-999').split('-').map(Number);
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rows.slice(range[0], range[1] + 1)) });
       }
+      if (u.hostname === 'jentis.app.n8n.cloud' && u.pathname === '/webhook/reporting-ask') {
+        const j = JSON.parse(route.request().postData() || '{}'); ASK.push(j);
+        if (j.step === 'plan') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, step: 'plan', status: 'ok', id: '3a1f81dc-d40e-4310-9759-3c5342ae1bc2', understood: 'Which calls connected in Q4 2026', plan: 'I will read the calls of Q4 and count the connected ones per owner.', reads: [{ what: 'Calls in Q4 2026', rows: 618 }], issues: 'Calls without an owner are counted as Unassigned.', better_way: null, estimate: { eur: 0.03, credits: 3, seconds: 12 }, plan_cost: { eur: 0.012, credits: 1 } }) });
+        return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, step: 'run', answer: '**41 calls connected in Q4 2026.**\n\n- Sebastian Tapinos: 30\n- Eddie May: 11', basis: 'v_calls, 01.10.–13.11.2026', issue: null, suggestion: 'The Calls page shows this per week.', cost: { eur: 0.03, credits: 3, total_eur: 0.042, total_credits: 4 }, seconds: 9 }) });
+      }
       if (/supabase|vibe-reports/.test(u.hostname)) { errs.push('still calls ' + u.hostname + u.pathname); return route.fulfill({ status: 500, body: '' }); }
       return route.fulfill({ status: 200, body: '' });
     });
-module.exports = { wire, SF, TD };
+module.exports = { wire, SF, TD, ASK };
 if (require.main === module) (async () => {
   const b = await chromium.launch(); const out = {};
   for (const p of PAGES) {

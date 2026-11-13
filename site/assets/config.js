@@ -11,6 +11,7 @@ window.RCONFIG = {
   V1_URL: 'https://vibe-reports.jentis.info',
   HUBSPOT_PORTAL: '144226702',
   FEEDBACK_WEBHOOK: 'https://jentis.app.n8n.cloud/webhook/reporting-feedback',
+  ASK_WEBHOOK: 'https://jentis.app.n8n.cloud/webhook/reporting-ask',      // ✦ Ask AI (n8n "Reporting v2 — Ask AI"); empty = buttons hidden
   SITE_BASE: location.pathname.indexOf('/v2-staging/') === 0 ? '/v2-staging/' : location.pathname.indexOf('/v2/') === 0 ? '/v2/' : '/'
 };
 window.RCONFIG.ASSET_BASE = window.RCONFIG.SITE_BASE + 'assets/';

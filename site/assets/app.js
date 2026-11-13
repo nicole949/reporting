@@ -132,7 +132,7 @@
     CUR = opts || {};
     document.title = (CUR.title ? CUR.title + ' · ' : '') + 'JENTIS Reporting';
     const app = document.createElement('div'); app.className = 'app';
-    app.innerHTML = '<aside class="side" id="side"></aside><main class="main"><div class="topbar"><button class="burger" onclick="document.getElementById(\'side\').classList.toggle(\'open\')">☰</button><div class="ttl"><h1>' + esc(CUR.title || '') + '</h1>' + (CUR.subtitle ? '<div class="sub">' + esc(CUR.subtitle) + '</div>' : '') + '</div><div class="spacer"></div><div class="runmeta" id="runmeta"></div><div class="tools" id="tools"><button class="tool" onclick="R.feedback.open()" title="Feedback, bug, idea…">✎ Feedback</button></div></div>' + (CUR.tabs ? '<div class="tabs" id="tabs">' + CUR.tabs.map(t => '<a href="' + BASE + t.href + '" class="' + (t.on ? 'on' : '') + '">' + esc(t.label) + '</a>').join('') + '</div>' : '') + '<div class="filters" id="filters" hidden></div><div id="page"></div></main>';
+    app.innerHTML = '<aside class="side" id="side"></aside><main class="main"><div class="topbar"><button class="burger" onclick="document.getElementById(\'side\').classList.toggle(\'open\')">☰</button><div class="ttl"><h1>' + esc(CUR.title || '') + '</h1>' + (CUR.subtitle ? '<div class="sub">' + esc(CUR.subtitle) + '</div>' : '') + '</div><div class="spacer"></div><div class="runmeta" id="runmeta"></div><div class="tools" id="tools">' + (C.ASK_WEBHOOK ? '<button class="tool askbtn" onclick="R.ask.open(null)" title="Ask a question about this page — the AI checks the data and the documentation">' + R.icon('sparkle') + ' Ask AI</button>' : '') + '<button class="tool" onclick="R.feedback.open()" title="Feedback, bug, idea…">✎ Feedback</button></div></div>' + (CUR.tabs ? '<div class="tabs" id="tabs">' + CUR.tabs.map(t => '<a href="' + BASE + t.href + '" class="' + (t.on ? 'on' : '') + '">' + esc(t.label) + '</a>').join('') + '</div>' : '') + '<div class="filters" id="filters" hidden></div><div id="page"></div></main>';
     document.getElementById('shell').replaceWith(app);
     document.body.insertAdjacentHTML('beforeend', '<div class="modal" id="fb-modal"></div>');
     renderNav();
@@ -663,6 +663,123 @@
     return V;
   })();
 
+
+  // ---- Ask AI ----------------------------------------------------------------------------------------
+  // ✦ next to every explanation and "Ask AI" in the top bar. Two steps against the n8n workflow
+  // "Reporting v2 — Ask AI": plan (what will be read, cost, time — the user confirms) and run (the answer).
+  // Sent along: the page, the element the question is about, what is visible there, the filters and the
+  // page's own explanations, so the AI knows what is meant.
+  R.ask = (function () {
+    let ctxEl = null, ctxI = -1, plan = null, busy = false, history = [];
+    const md = t => esc(t || '').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').split(/\n{2,}/).map(par => {
+      const lines = par.split('\n');
+      if (lines.every(l => /^\s*[-•]\s+/.test(l))) return '<ul>' + lines.map(l => '<li>' + l.replace(/^\s*[-•]\s+/, '') + '</li>').join('') + '</ul>';
+      return '<p>' + lines.map(l => /^\s*[-•]\s+/.test(l) ? '• ' + l.replace(/^\s*[-•]\s+/, '') : l).join('<br>') + '</p>';
+    }).join('');
+    const cr = (n, eur) => n + ' credit' + (n === 1 ? '' : 's') + ' <span class="muted">(' + (Number(eur) || 0).toLocaleString('de-AT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 3 }) + ')</span>';
+    function label(el) {
+      if (!el) return '';
+      return [...el.childNodes].filter(n => n.nodeType === 3 || (n.nodeType === 1 && !/^(BUTTON|SELECT|INPUT)$/.test(n.tagName))).map(n => n.textContent).join(' ').replace(/\s+/g, ' ').trim();
+    }
+    function context() {
+      const page = CUR.help || CUR.page, docs = (R.help.pages[page] || []).map(e => ({ m: e.m, calc: String(e.calc || '').replace(/<[^>]+>/g, ''), src: String((e.src && R.help.sources[e.src]) || e.src || '').replace(/<[^>]+>/g, ''), note: String(e.note || '').replace(/<[^>]+>/g, '') }));
+      const filters = {};
+      document.querySelectorAll('#filters .f').forEach(f => {
+        if (f.closest('[hidden]') || f.classList.contains('views')) return;
+        const l = (f.querySelector('.fl, span:first-child') || {}).textContent || '', sel = f.querySelector('select'), inp = f.querySelector('input[type=search], input[type=text]');
+        const on = f.querySelector('.opill.on'), checks = [...f.querySelectorAll('input[type=checkbox]:checked')].map(c => (c.parentNode.textContent || c.value).trim());
+        const v = sel ? (sel.options[sel.selectedIndex] || {}).text : inp ? inp.value : on ? on.textContent : checks.length ? checks.join(', ') : '';
+        if (v && l) filters[l.trim()] = v.trim();
+      });
+      const period = Object.keys(filters).find(k => /period/i.test(k));
+      let element = null;
+      if (ctxEl) {
+        const box = ctxEl.closest('.tile, .ccard, .card, .goal2, .metric, .kgroup, section, .mc') || ctxEl.parentNode;
+        element = { label: label(ctxEl), kind: box.classList.contains('tile') ? 'number tile' : box.classList.contains('ccard') ? 'chart' : box.querySelector('table') ? 'table' : 'section',
+          text: (box.innerText || '').replace(/[?✦]/g, '').replace(/\n{3,}/g, '\n\n').trim().slice(0, 3000) };
+        if (ctxI >= 0 && docs[ctxI]) element.definition = docs[ctxI];
+      }
+      return { page, page_title: CUR.title || '', url: location.pathname + location.search, period: period ? filters[period] : '', filters, element, docs, history: history.slice(-3) };
+    }
+    async function post(body) {
+      const r = await fetch(C.ASK_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error('The AI service did not answer (' + r.status + ').');
+      const j = await r.json();
+      if (!j || j.ok === false) throw new Error((j && j.error) || 'Something went wrong.');
+      return j;
+    }
+    const el = () => document.getElementById('ask');
+    function shell() {
+      if (el()) return;
+      document.body.insertAdjacentHTML('beforeend', '<div id="ask-bg"></div><aside id="ask" aria-label="Ask AI"></aside>');
+      document.getElementById('ask-bg').onclick = close;
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && el().classList.contains('open') && !busy) close(); });
+    }
+    function draw(stage, extra) {
+      const box = el(), lab = ctxEl ? label(ctxEl) : '';
+      const thread = history.map(h => '<div class="aq">' + esc(h.q) + '</div><div class="aa">' + md(h.a) + (h.meta ? '<div class="ameta">' + h.meta + '</div>' : '') + '</div>').join('');
+      box.innerHTML = '<div class="ah"><h3>' + R.icon('sparkle') + ' Ask AI</h3><button class="x" type="button" aria-label="Close">✕</button></div>' +
+        '<div class="actx">About: <b>' + esc(lab || 'this page') + '</b> · ' + esc(CUR.title || '') + (lab ? ' <button type="button" class="aclr" title="Ask about the whole page instead">✕</button>' : '') + '</div>' +
+        (thread ? '<div class="athread">' + thread + '</div>' : '') + (extra || '');
+      box.querySelector('.ah .x').onclick = close;
+      const clr = box.querySelector('.aclr'); if (clr) clr.onclick = () => { ctxEl = null; ctxI = -1; draw(stage, extra); wire(); };
+    }
+    function form(q) {
+      return '<form class="aform"><textarea rows="3" maxlength="1500" placeholder="' + (history.length ? 'Ask a follow-up …' : 'e.g. “Why is this company in the list?” or “Which subject lines worked best with the subscription persona in the last 3 months?”') + '">' + esc(q || '') + '</textarea>' +
+        '<div class="arow"><span class="small muted">The AI reads only the dashboard data. You see what it will read and what it costs before it answers.</span><button class="btn primary" type="submit">Check</button></div></form>';
+    }
+    function wire() {
+      const f = el().querySelector('.aform'); if (!f) return;
+      const ta = f.querySelector('textarea'); ta.focus();
+      ta.onkeydown = e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); f.requestSubmit(); } };
+      f.onsubmit = e => { e.preventDefault(); const q = ta.value.trim(); if (q.length >= 3) doPlan(q); };
+    }
+    async function doPlan(q) {
+      busy = true; draw('plan', '<div class="aq">' + esc(q) + '</div><div class="astate"><span class="spin">↻</span> Checking which data is needed …</div>');
+      try {
+        const p = await post({ step: 'plan', question: q, asked_by: R.userName() || '', context: context() });
+        plan = Object.assign({ q }, p); busy = false;
+        const reads = (p.reads || []).map(r => '<li>' + esc(r.what || '') + (r.error ? ' — <span class="bad">could not be read</span>' : ' — ' + R.num(r.rows) + ' row' + (r.rows === 1 ? '' : 's')) + '</li>').join('');
+        let h = '<div class="aq">' + esc(q) + '</div><div class="aplan">';
+        if (p.status === 'clarify') h += '<p><b>The AI needs one detail:</b> ' + esc(p.clarify || '') + '</p>';
+        else if (p.status !== 'ok') h += '<p><b>This cannot be answered from the dashboard data.</b> ' + esc(p.issues || p.error || '') + '</p>';
+        else {
+          h += '<div class="al">Understood as</div><p>' + esc(p.understood || '') + '</p><div class="al">How</div><p>' + esc(p.plan || '') + '</p>' + (reads ? '<div class="al">Reads</div><ul>' + reads + '</ul>' : '') +
+            (p.issues ? '<div class="awarn">' + R.icon('chat') + '<span><b>Limitation:</b> ' + esc(p.issues) + '</span></div>' : '') +
+            (p.better_way ? '<div class="ahint2">' + R.icon('sparkle') + '<span><b>Better way:</b> ' + esc(p.better_way) + '</span></div>' : '') +
+            '<div class="acost">Answering costs about <b>' + cr(p.estimate.credits, p.estimate.eur) + '</b> and takes about <b>' + p.estimate.seconds + ' s</b>.<span class="small muted"> Checking used ' + cr(p.plan_cost.credits, p.plan_cost.eur) + '. 1 credit = 1 cent.</span></div>' +
+            '<div class="arow"><button class="btn" type="button" data-a="edit">Change question</button><button class="btn primary" type="button" data-a="go">Continue</button></div>';
+        }
+        h += '</div>';
+        if (p.status !== 'ok') h += form(q);
+        draw('plan', h); wire();
+        const go = el().querySelector('[data-a="go"]'); if (go) { go.focus(); go.onclick = doRun; }
+        const ed = el().querySelector('[data-a="edit"]'); if (ed) ed.onclick = () => { draw('ask', form(q)); wire(); };
+      } catch (err) { busy = false; draw('ask', '<div class="aerr">' + esc(err.message) + '</div>' + form(q)); wire(); }
+    }
+    async function doRun() {
+      const p = plan; if (!p) return;
+      busy = true; draw('run', '<div class="aq">' + esc(p.q) + '</div><div class="astate"><span class="spin">↻</span> Reading the data and writing the answer … about ' + p.estimate.seconds + ' s</div>');
+      try {
+        const a = await post({ step: 'run', id: p.id }); busy = false;
+        const meta = (a.basis ? '<div><b>Based on:</b> ' + esc(a.basis) + '</div>' : '') + (a.issue ? '<div class="bad"><b>Data issue:</b> ' + esc(a.issue) + '</div>' : '') + (a.suggestion ? '<div><b>Suggestion:</b> ' + esc(a.suggestion) + '</div>' : '') +
+          '<div class="muted">Used ' + cr(a.cost.total_credits, a.cost.total_eur) + ' in total · ' + a.seconds + ' s</div>';
+        history.push({ q: p.q, a: a.answer || '', meta });
+        plan = null;
+        draw('done', form('')); wire();
+        const th = el().querySelector('.athread'); if (th) th.lastElementChild.scrollIntoView({ block: 'start' });
+      } catch (err) { busy = false; draw('ask', '<div class="aerr">' + esc(err.message) + '</div>' + form(p.q)); wire(); }
+    }
+    function open(target, i) {
+      shell();
+      if (target !== undefined) { ctxEl = target || null; ctxI = i == null ? -1 : i; history = []; plan = null; }
+      el().classList.add('open'); document.getElementById('ask-bg').classList.add('open');
+      if (!busy) { draw('ask', form('')); wire(); }
+    }
+    function close() { if (!el()) return; el().classList.remove('open'); document.getElementById('ask-bg').classList.remove('open'); }
+    return { open, close };
+  })();
+
   // ---- "?" explanations ------------------------------------------------------------------------------
   // assets/help.js registers, per page, where each number comes from and how it is calculated:
   //   R.help.add('page-key', [{ m: 'start of the label', src: '…', calc: '…', note: '…' }, …])
@@ -687,6 +804,10 @@
         const b = document.createElement('button'); b.type = 'button'; b.className = 'q'; b.textContent = '?'; b.dataset.i = i;
         b.title = 'Where does this come from?'; b.setAttribute('aria-label', 'Where does this come from?');
         el.appendChild(b);
+        if (C.ASK_WEBHOOK && !el.closest('#ask')) {
+          const a = document.createElement('button'); a.type = 'button'; a.className = 'ai'; a.innerHTML = R.icon('sparkle'); a.dataset.i = i;
+          a.title = 'Ask AI about this'; a.setAttribute('aria-label', 'Ask AI about this'); el.appendChild(a);
+        }
       });
     },
     missing() {   // labels on the page without an explanation (used by the tests)
@@ -717,6 +838,8 @@
       document.addEventListener('click', e => {
         const b = e.target.closest && e.target.closest('button.q');
         if (b) { e.preventDefault(); e.stopPropagation(); this.open(b); return; }
+        const a = e.target.closest && e.target.closest('button.ai');
+        if (a && R.ask) { e.preventDefault(); e.stopPropagation(); this.close(); R.ask.open(a.parentNode, Number(a.dataset.i)); return; }
         if (!(e.target.closest && e.target.closest('#qpop'))) this.close();
       }, true);
       document.addEventListener('keydown', e => { if (e.key === 'Escape') this.close(); });

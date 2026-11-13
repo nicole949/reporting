@@ -300,7 +300,7 @@ function drill(key, keep) {
     K.panel('<h3 class="ph">' + esc(title || m.label) + '</h3>' + (sub ? '<div class="small muted">' + sub + '</div>' : '') + listHtml(m, rows.slice()));
   };
   if (EL) {
-    EL.addEventListener('click', e => { if (e.target.closest('.q, a')) return; const t = e.target.closest('.tile.clk'); if (t) drill(t.dataset.m); });
+    EL.addEventListener('click', e => { if (e.target.closest('.q, .ai, a')) return; const t = e.target.closest('.tile.clk'); if (t) drill(t.dataset.m); });
     EL.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('clk')) { e.preventDefault(); drill(e.target.dataset.m); } });
   }
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrill(); });
