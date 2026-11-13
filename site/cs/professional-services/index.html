@@ -4,20 +4,639 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Professional services · JENTIS Reporting</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../assets/app.css?b=__BUILD__">
 <link rel="stylesheet" href="../../assets/legacy.css?b=__BUILD__">
+<style>
+.v1 .cap-top{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-top:.6rem}
+.v1 .seg{display:inline-flex;border:1px solid var(--hair);border-radius:999px;overflow:hidden;background:#fff}
+.v1 .seg button{border:0;background:transparent;padding:.35rem .75rem;font:inherit;font-size:.78rem;cursor:pointer;color:var(--slate);white-space:nowrap}
+.v1 .seg button.on{background:#004771;color:#fff}
+.v1 .seg-lbl{font-size:.72rem;color:var(--faint);margin-right:.2rem;text-transform:uppercase;letter-spacing:.04em}
+.v1 .cap-dates{display:inline-flex;align-items:center;gap:.35rem;font-size:.76rem;color:var(--slate)}
+.v1 .cap-dates input,.v1 .cap-top select,.v1 .cap-top input[type=search]{border:1px solid var(--hair);border-radius:8px;padding:.3rem .45rem;font:inherit;font-size:.8rem;color:var(--ink);background:#fff}
+.v1 .f-check{display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;color:var(--slate);border:1px solid var(--hair);border-radius:999px;padding:.32rem .7rem;background:#fff;cursor:pointer;white-space:nowrap}
+.v1 .f-check input{margin:0}
+.v1 .f-check.on{border-color:#004771;color:#004771;font-weight:600}
+.v1 .chip{display:inline-flex;align-items:center;gap:.4rem;background:#004771;color:#fff;border-radius:999px;padding:.3rem .4rem .3rem .75rem;font-size:.78rem;font-weight:600}
+.v1 .chip button{border:0;background:rgba(255,255,255,.2);color:#fff;border-radius:50%;width:18px;height:18px;line-height:18px;cursor:pointer;font-size:.7rem;padding:0}
+.v1 .btn.ghost{background:#fff;border:1px solid var(--hair);color:#004771;font-size:.78rem;padding:.32rem .75rem;border-radius:999px;cursor:pointer}
+.v1 .cap-wrap{display:grid;grid-template-columns:1fr 240px;gap:1rem;align-items:start}
+@media (max-width:900px){
+.v1 .cap-wrap{grid-template-columns:1fr}
+}
+.v1 .cap-chart{width:100%;display:block;font-family:inherit}
+.v1 .cap-chart .ax{font-size:10px;fill:var(--faint)}
+.v1 .cap-chart .lbl{font-size:10.5px;fill:var(--slate);font-weight:600}
+.v1 .cap-chart .lbl.neg{fill:#8E5A47}
+.v1 .cap-chart .num{font-size:9.5px;fill:#fff;font-weight:600;pointer-events:none}
+.v1 .cap-chart .num.dark{fill:#272727;paint-order:stroke;stroke:#fff;stroke-width:2.5px;stroke-linejoin:round}
+.v1 .cap-chart .bar{cursor:pointer}
+.v1 .cap-chart .bar:hover{opacity:.85}
+.v1 .cap-chart .grid{stroke:var(--hair);stroke-width:1}
+.v1 .cap-chart .cap{stroke:#272727;stroke-width:1.8;fill:none;stroke-dasharray:5 3}
+.v1 .legend-side{background:var(--paper);border-radius:12px;padding:.8rem .9rem;position:sticky;top:1rem}
+.v1 .legend-side h3{font-size:.8rem;margin:0 0 .5rem;text-transform:uppercase;letter-spacing:.05em;color:var(--slate)}
+.v1 .lg{display:flex;align-items:center;gap:.5rem;padding:.3rem .2rem;cursor:pointer;font-size:.8rem;border-radius:8px;user-select:none}
+.v1 .lg:hover{background:#fff}
+.v1 .lg.off{opacity:.4;text-decoration:line-through}
+.v1 .lg .sw{width:14px;height:14px;border-radius:3px;flex:0 0 14px;border:1px solid rgba(0,0,0,.08);position:relative;overflow:hidden}
+.v1 .lg .sw.line{height:0;border:0;border-top:2px dashed #272727;border-radius:0}
+.v1 .lg .sw.hatch{background:repeating-linear-gradient(45deg,#C98A5B 0 3px,#fff 3px 6px)}
+.v1 .lg .sw.dual{background:linear-gradient(to top,var(--c) 0 55%,color-mix(in srgb,var(--c) 28%,#fff) 55%)}
+.v1 .lg .hint{font-size:.68rem;color:var(--faint);margin-left:auto}
+.v1 .lg-note{font-size:.7rem;color:var(--faint);margin:.3rem .2rem 0;line-height:1.4}
+.v1 .settings{margin-top:.8rem;border-top:1px solid var(--hair);padding-top:.6rem}
+.v1 .settings label{display:flex;justify-content:space-between;align-items:center;gap:.5rem;font-size:.76rem;color:var(--slate);padding:.2rem 0}
+.v1 .settings input{width:64px;border:1px solid var(--hair);border-radius:6px;padding:.2rem .35rem;font:inherit;font-size:.78rem;text-align:right}
+.v1 .cap-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-top:.8rem}
+.v1 .tile{background:#fff;border:1px solid var(--hair);border-radius:12px;padding:.65rem .85rem}
+.v1 .tile .k{font-size:.7rem;color:var(--slate);text-transform:uppercase;letter-spacing:.04em}
+.v1 .tile .v{font-size:1.35rem;font-weight:700;color:#004771;margin-top:.1rem}
+.v1 .tile .v.warn{color:#8E5A47}
+.v1 .tile .v.good{color:#4FA3D8}
+.v1 .tile .s{font-size:.72rem;color:var(--faint)}
+.v1 .sample{background:#FFF4E5;border:1px solid #F0C48A;color:#7A4B12;border-radius:10px;padding:.55rem .85rem;font-size:.82rem;margin-top:.7rem}
+.v1 .drill{position:fixed;top:0;right:0;height:100vh;width:min(520px,94vw);background:#fff;box-shadow:-8px 0 28px rgba(20,40,60,.18);padding:1rem 1.1rem;overflow:auto;z-index:50;display:none}
+.v1 .drill.open{display:block}
+.v1 .drill h3{display:flex;justify-content:space-between;align-items:center;font-size:.95rem;margin:0 0 .6rem;gap:.5rem}
+.v1 .drill .dclose{border:0;background:transparent;font-size:1.1rem;cursor:pointer;color:var(--faint)}
+.v1 .drill .co{padding:.5rem 0;border-bottom:1px solid var(--hair)}
+.v1 .drill .co.click{cursor:pointer}
+.v1 .drill .co.click:hover{background:var(--paper)}
+.v1 .drill .nm{font-weight:600;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.v1 .drill .meta{font-size:.76rem;color:var(--slate);line-height:1.45}
+.v1 .drill .hrs{float:right;font-weight:700;color:#004771;text-align:right;font-size:.85rem}
+.v1 .drill .hrs small{display:block;font-weight:400;color:var(--faint);font-size:.68rem}
+.v1 .drill .svc{margin:.25rem 0 0 .6rem;padding-left:.6rem;border-left:2px solid var(--hair);font-size:.76rem;color:var(--slate)}
+.v1 .drill .svc b{color:var(--ink)}
+.v1 .drill .grp{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin:.8rem 0 .2rem}
+.v1 .ubar{height:5px;background:#E6ECF0;border-radius:3px;margin-top:.25rem;overflow:hidden;position:relative}
+.v1 .ubar i{display:block;height:100%;background:#4FA3D8}
+.v1 .ubar i.over{background:#8E5A47}
+.v1 .badge.b-type{background:#E8F1F6;color:#004771}
+.v1 .badge.b-agency{background:#F3EDE4;color:#7A4B12}
+.v1 .badge.b-open{background:#FFF4E5;color:#7A4B12}
+.v1 table.cap{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:.4rem}
+.v1 table.cap th,.v1 table.cap td{padding:.35rem .45rem;border-bottom:1px solid var(--hair);text-align:right;white-space:nowrap}
+.v1 table.cap th:first-child,.v1 table.cap td:first-child{text-align:left}
+.v1 table.cap th{font-size:.7rem;color:var(--slate);text-transform:uppercase;letter-spacing:.03em;font-weight:600}
+.v1 table.cap td.neg{color:#8E5A47;font-weight:600}
+.v1 table.cap tr.past td{color:var(--faint)}
+.v1 .foot{font-size:.76rem;color:var(--slate);margin-top:.6rem;line-height:1.5}
+.v1 .lg .sw.plan{background:linear-gradient(to top,#7B5EA7 0 55%,#E4DCEF 55%)}
+.v1 .plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem .8rem;margin-top:.6rem;align-items:end}
+.v1 .plan-grid label{display:flex;flex-direction:column;gap:.25rem;font-size:.72rem;color:var(--slate);text-transform:uppercase;letter-spacing:.04em}
+.v1 .plan-grid input,.v1 .plan-grid select{border:1px solid var(--hair);border-radius:8px;padding:.38rem .5rem;font:inherit;font-size:.84rem;color:var(--ink);background:#fff;text-transform:none;letter-spacing:0}
+.v1 .plan-grid .chk{flex-direction:row;align-items:center;gap:.4rem;padding-bottom:.45rem;text-transform:none;letter-spacing:0;font-size:.8rem}
+.v1 .plan-grid .chk input{margin:0}
+.v1 .scen{margin-top:.9rem;border:1px solid var(--hair);border-radius:12px;padding:.7rem .9rem;background:#fff}
+.v1 .scen .hd{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.v1 .scen .hd .nm{font-weight:700;font-size:.95rem}
+.v1 .scen .hd .meta{font-size:.76rem;color:var(--slate)}
+.v1 .scen .hd .rm{margin-left:auto;border:0;background:transparent;color:var(--faint);cursor:pointer;font-size:.8rem}
+.v1 .verdict{display:inline-flex;align-items:center;gap:.35rem;border-radius:999px;padding:.2rem .7rem;font-size:.76rem;font-weight:700}
+.v1 .verdict.ok{background:#E3F4F1;color:#157A6E}
+.v1 .verdict.warn{background:#FFF4E5;color:#9A5B0C}
+.v1 .verdict.bad{background:#F9E7E4;color:#A33A2F}
+.v1 .flags{list-style:none;margin:.5rem 0 0;padding:0;display:grid;gap:.3rem}
+.v1 .flags li{display:flex;gap:.5rem;font-size:.8rem;line-height:1.45;align-items:flex-start}
+.v1 .flags .dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px;margin-top:.38rem}
+.v1 .flags .dot.bad{background:#ED4502}
+.v1 .flags .dot.warn{background:#E9A23B}
+.v1 .flags .dot.ok{background:#4FA3D8}
+.v1 .flags .dot.info{background:#9AAAB5}
+.v1 .minibar{display:flex;gap:2px;margin-top:.5rem;align-items:flex-end;height:34px}
+.v1 .minibar div{flex:1;background:#DCE5EB;border-radius:2px 2px 0 0;position:relative;min-width:6px;height:100%}
+.v1 .minibar div i{display:block;position:absolute;bottom:0;left:0;right:0;border-radius:2px 2px 0 0}
+.v1 .minibar div b{position:absolute;left:0;right:0;border-top:2px dashed #272727}
+.v1 .minibar div i.ex{background:#9FB3C0}
+.v1 .minibar div i.pl{background:#7B5EA7}
+.v1 .minibar div.over{outline:2px solid #ED4502;outline-offset:-2px}
+.v1 .minibar-l{display:flex;gap:2px;font-size:.6rem;color:var(--faint)}
+.v1 .minibar-l span{flex:1;text-align:center;min-width:6px;overflow:hidden;white-space:nowrap}
+.v1 .note{font-size:.76rem;color:var(--slate);margin-top:.4rem}
+</style>
 </head>
 <body>
+<!-- GENERATED by tools/port_v1.py from archive/v1-live/cs-capacity/index.html — change the generator or the v1 source, not this file. -->
 <div id="shell"></div>
+<div id="page-content" class="v1" hidden>
+<div id="sample" class="sample" hidden></div>
+  <div class="card" style="margin-top:1rem">
+    <div class="cap-top">
+      <span class="seg-lbl">View</span>
+      <div class="seg" id="view">
+        <button data-v="week">This week</button><button data-v="nweek">Next week</button><button data-v="4w">Next 4 weeks</button>
+        <button data-v="month">This month</button><button data-v="3m">Next 3 months</button><button data-v="6m" class="on">Next 6 months</button>
+        <button data-v="12m">Next 12 months</button><button data-v="year">This year</button><button data-v="custom">Custom</button>
+      </div>
+      <label class="cap-dates" id="customwrap" hidden><span>from</span><input type="date" id="c-from"><span>to</span><input type="date" id="c-to"></label>
+    </div>
+    <div class="cap-top">
+      <span class="seg-lbl">Grid</span>
+      <div class="seg" id="grid">
+        <button data-g="week">Week</button><button data-g="2week">2 weeks</button><button data-g="month" class="on">Month</button>
+        <button data-g="quarter">Quarter</button><button data-g="half">Half-year</button><button data-g="year">Year</button>
+      </div>
+      <label class="f-check" id="ovwrap" title="One-time packages and stackable allowances may be drawn faster than their even allocation — up to the factor × the period's allocation"><input type="checkbox" id="overuse"> incl. potential overusage</label>
+      <label class="f-check" title="Open (not yet won) professional-service deals as potential demand"><input type="checkbox" id="potential" checked> incl. open deals</label>
+      <label class="f-check" id="numwrap" title="Print the hours into the bar segments"><input type="checkbox" id="numbers"> numbers</label>
+      <select id="f-source" title="Who delivers the hours"><option value="internal">Internal (JENTIS team)</option><option value="external_agency">External agency</option><option value="all">All</option></select>
+      <select id="f-owner"><option value="">All owners</option></select>
+      <input type="search" id="f-co" placeholder="Find customer…">
+      <span id="selchip" hidden></span>
+      <button class="btn ghost" id="btn-cust" style="margin-left:auto">Customers ▸</button>
+    </div>
+    <div class="cap-tiles" id="tiles"></div>
+    <div class="cap-wrap" style="margin-top:.9rem">
+      <div><div id="chart" class="state">Loading…</div><div class="foot" id="chartfoot"></div></div>
+      <aside class="legend-side">
+        <h3>Series · click to toggle</h3>
+        <div id="legend"></div>
+        <div class="lg-note">Solid part of a segment = hours already used in that period, light part = still open. A dark cap on top = used beyond what the contract allows.</div>
+        <div class="settings">
+          <h3>Assumptions</h3>
+          <label title="Hours per week the JENTIS team can spend on professional services (manual until the capacity sheet is linked)">Team capacity h/week <input type="number" id="s-cap" min="0" step="1"></label>
+          <label title="One-time packages and stackable allowances may be drawn up to this factor × the period's allocation">Overusage factor <input type="number" id="s-ov" min="1" step="0.1"></label>
+          <label title="A one-time package without an expiration date is spread over this many months from its start">Default validity (months) <input type="number" id="s-val" min="1" step="1"></label>
+          <label>&nbsp;<button class="btn" id="s-reset" style="font-size:.72rem;padding:.2rem .5rem">reset</button></label>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <div class="card" style="margin-top:1rem">
+    <h2>Plan an offer · does it fit?</h2>
+    <div class="note">Enter what you are about to quote. It is added to the chart as a planned offer (purple) and checked month by month against capacity, existing commitments and the overusage every customer could still draw. Planned offers live only in this browser until you remove them.</div>
+    <div class="plan-grid">
+      <label>Customer <input id="p-co" placeholder="Company name" list="p-co-list"><datalist id="p-co-list"></datalist></label>
+      <label>Package type <select id="p-type"><option value="one_time">One-time package</option><option value="monthly_allowance">Monthly allowance</option></select></label>
+      <label><span id="p-hours-l">Hours (total)</span> <input id="p-hours" type="number" min="0" step="0.5" placeholder="e.g. 24"></label>
+      <label>Start <input id="p-start" type="date"></label>
+      <label><span id="p-exp-l">Expiry</span> <input id="p-exp" type="date"></label>
+      <label id="p-cap-w">Monthly cap (h) <input id="p-cap" type="number" min="0" step="0.5" placeholder="none"></label>
+      <label class="chk" id="p-stack-w" hidden><input id="p-stack" type="checkbox"> stackable (may draw up to the factor)</label>
+      <label>Delivery <select id="p-del"><option value="internal">Internal (JENTIS team)</option><option value="external_agency">External agency</option></select></label>
+      <label>&nbsp;<button class="btn" id="p-add">Add to chart & check</button></label>
+    </div>
+    <div id="p-err" class="note" style="color:#A33A2F"></div>
+    <div id="scenarios"></div>
+  </div>
+  <div class="card" style="margin-top:1rem">
+    <h2>Per period <span id="tbl-sub"></span></h2>
+    <div id="table"></div>
+  </div>
+  <footer>Hours per period from the HubSpot <strong>Services</strong> object · <strong>allowances</strong> = monthly hour allowances (included hours per month, from start until expiration or cancellation) · <strong>packages</strong> = one-time hour packages spread evenly from start to expiration · <strong>used</strong> = hours logged against the service (Jira sync) · <strong>potential overusage</strong> = what one-time packages and stackable allowances may additionally draw in a period (factor × the period's allocation, limited by the monthly cap) · <strong>open deals</strong> = professional-service deals not yet won · capacity = team hours available for professional services. Click a bar for the services behind it, “Customers ▸” for everyone with running professional services.</footer>
+
+<aside class="drill" id="drill"><h3><span id="drill-h"></span><button class="dclose" id="drill-close">✕</button></h3><div id="drill-list"></div></aside>
+</div>
 <script src="../../assets/config.js?b=__BUILD__"></script>
 <script src="../../assets/app.js?b=__BUILD__"></script>
+<script src="../../assets/help.js?b=__BUILD__"></script>
 <script>
-const TABS = [{ key: 'capacity', label: 'Capacity planner', v1: 'https://vibe-reports.jentis.info/cs-capacity/' }, { key: 'open', label: 'Open services', note: 'Open professional services per customer (HubSpot Services object) — planned, comes with the v2 database.' }];
-const page = R.shell({ page: 'ps', title: 'Professional services', subtitle: 'Sold, used and sellable hours; open services; capacity planning' });
-const cur = location.hash.slice(1) || TABS[0].key;
-page.innerHTML = '<div class="tabs">' + TABS.map(t => '<a href="#' + t.key + '" class="' + (t.key === cur ? 'on' : '') + '" onclick="setTimeout(() => location.reload(), 0)">' + t.label + (t.v1 ? ' <span class="badge">v1</span>' : '') + '</a>').join('') + '</div>' +
-  (() => { const t = TABS.find(x => x.key === cur) || TABS[0]; return t.v1 ? '<p class="small muted">Shown from the current dashboard until this page is ported — <a href="' + t.v1 + '" target="_blank" rel="noopener">open it in its own tab</a>.</p><iframe class="embed" src="' + t.v1 + '"></iframe>' : '<div class="card"><div class="state">' + t.note + '</div></div>'; })();
+const C = window.RCONFIG;
+R.shell({"page": "ps", "title": "Professional services", "subtitle": "Capacity planning: sold, used and sellable hours of the JENTIS team per period"});
+R.legacyFilters({"period": {}, "labels": {}, "hints": {}, "next": [], "stash": []});
+
+</script>
+<script>
+// ---------- settings (kept in this browser) ----------
+const DEF = { cap: 25, ov: 2, val: 12 };
+let S = { ...DEF };
+try { Object.assign(S, JSON.parse(localStorage.getItem('cap-settings') || '{}')); } catch (e) {}
+function saveS() { try { localStorage.setItem('cap-settings', JSON.stringify(S)); } catch (e) {} }
+
+// ---------- data ----------
+// Target views (sync of the HubSpot Services object → Supabase, not built yet):
+//   v_ps_services : id, company_id, company_name, owner, name, type (one_time|monthly_allowance), delivery (internal|external_agency),
+//                   hours (included_hours), monthly_cap, start, expiration, used_total, used_month, used_prior, remaining,
+//                   stage (new|active|closed), close_reason, stackable
+//   v_ps_open_deals: id, company_id, company_name, owner, name, delivery, hours, start (expected close), type
+//   v_ps_usage    : service_id, company_id, date, hours, note          (Jira sync — until then used_* of the service is spread)
+//   ps_capacity   : from, to, hours_per_week                          (Google Sheet later; until then the setting on the right)
+let items = [], usage = [], capacity = [], SAMPLE = false;
+const DAY = 864e5;
+const iso = d => new Date(d).toISOString().slice(0, 10);
+const addM = (ds, n) => { const d = new Date(ds); d.setUTCMonth(d.getUTCMonth() + n); return iso(d); };
+const d0 = ds => new Date(String(ds).slice(0, 10) + 'T00:00:00Z');
+function sampleData() {
+  const t = iso(Date.now()), y = t.slice(0, 4);
+  const svc = (o) => { const x = { status: 'won', stage: 'active', delivery: 'internal', stackable: false, used_month: 0, used_prior: 0, ...o }; if (x.used_total == null) x.used_total = x.used_month + x.used_prior; return x; };
+  const C = [
+    // the Services records that exist in HubSpot today
+    svc({ id: 'S1430684827836', company_name: 'stroetmann', owner: 'Chris', name: 'Professional Service - Stroetmann', type: 'one_time', delivery: 'external_agency', hours: 18, start: '2026-11-04', expiration: null, stage: 'closed', close_reason: 'exhausted', closed_at: '2026-11-04', used_total: 18, used_month: 18 }),
+    svc({ id: 'S1421317406964', company_name: 'BoD – Books on Demand', owner: 'Chris', name: 'Professional Service - BoD GmbH', type: 'one_time', delivery: 'external_agency', hours: 2, start: '2026-10-29', expiration: null }),
+    // won PS deals without a Services record yet
+    svc({ id: 'd-tbs', company_name: 'THE BRITISH SHOP', owner: 'Chris', name: 'THE BRITISH SHOP - Professional Service', type: 'one_time', hours: 4, start: '2026-10-28', expiration: null, used_total: 1.5, used_month: 1.5 }),
+    // open PS deal = potential
+    { id: 'D-cornelsen', company_name: 'Cornelsen Verlag', owner: 'Moritz', name: 'Cornelsen - Professional Services 11-2026', status: 'open', type: 'one_time', delivery: 'internal', hours: 24, start: '2026-11-16' },
+    // made-up records to show the mechanics
+    svc({ id: 's1', company_name: 'Sample: Verlagsgruppe A', owner: 'Chris', name: 'PS allowance (license)', type: 'monthly_allowance', hours: 4, start: y + '-01-01', expiration: y + '-12-31', used_prior: 31, used_month: 2.5 }),
+    svc({ id: 's2', company_name: 'Sample: Bank D', owner: 'Moritz', name: 'PS allowance, stackable', type: 'monthly_allowance', hours: 8, stackable: true, start: addM(t, -4), expiration: null, used_prior: 36, used_month: 11 }),
+    svc({ id: 's3', company_name: 'Sample: Insurer E', owner: 'Chris', name: 'Onboarding package 40 h', type: 'one_time', hours: 40, monthly_cap: 10, start: addM(t, -2), expiration: addM(t, 4), used_prior: 14, used_month: 9 }),
+    svc({ id: 's4', company_name: 'Sample: Retailer B', owner: 'Moritz', name: 'PS package 42 h', type: 'one_time', hours: 42, start: '2026-09-21', expiration: '2027-09-20', used_prior: 12, used_month: 3 }),
+    { id: 's5', company_name: 'Sample: Media F', owner: 'Chris', name: 'PS 12 h', status: 'open', type: 'one_time', delivery: 'internal', hours: 12, start: addM(t, 1) },
+    { id: 's6', company_name: 'Sample: E-Com G', owner: 'Moritz', name: 'PS allowance 6 h/month', status: 'open', type: 'monthly_allowance', delivery: 'internal', hours: 6, start: addM(t, 2), expiration: addM(t, 14) },
+  ];
+  return { items: C, usage: [], capacity: [] };
+}
+async function load() {
+  try {
+    const [s, d, u, cap] = await Promise.all([
+      R.fetchAll('v_ps_services?select=*'), R.fetchAll('v_ps_open_deals?select=*'), R.fetchAll('v_ps_usage?select=*'), R.fetchAll('ps_capacity?select=*')]);
+    items = [...s.map(x => ({ ...x, status: 'won' })), ...d.map(x => ({ ...x, status: 'open' }))]; usage = u; capacity = cap; SAMPLE = false;
+  } catch (err) {
+    const d = sampleData(); items = d.items; usage = d.usage; capacity = d.capacity; SAMPLE = true;
+    const sb = document.getElementById('sample'); sb.hidden = false;
+    sb.innerHTML = '<strong>Prototype on sample data.</strong> The sync HubSpot Services → <code>v_ps_services</code> (+ open PS deals, Jira hours, capacity sheet) is not built yet. The two Services records and the three PS deals that exist in HubSpot today are in; everything marked “Sample:” is made up. Used hours are spread evenly until the Jira log arrives. Assumptions on the right are editable.';
+  }
+  buildOwners(); render();
+}
+
+// ---------- period helpers ----------
+const monday = d => { const x = new Date(d); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7)); return x; };
+function viewRange(v) {
+  const now = d0(iso(Date.now()));
+  const y = now.getUTCFullYear(), m = now.getUTCMonth();
+  const mon = monday(now);
+  const plus = (d, n) => new Date(d.getTime() + n * DAY);
+  const ym = (yy, mm) => new Date(Date.UTC(yy, mm, 1));
+  switch (v) {
+    case 'week': return [mon, plus(mon, 7)];
+    case 'nweek': return [plus(mon, 7), plus(mon, 14)];
+    case '4w': return [mon, plus(mon, 28)];
+    case 'month': return [ym(y, m), ym(y, m + 1)];
+    case '3m': return [ym(y, m), ym(y, m + 3)];
+    case '6m': return [ym(y, m), ym(y, m + 6)];
+    case '12m': return [ym(y, m), ym(y, m + 12)];
+    case 'year': return [ym(y, 0), ym(y + 1, 0)];
+    default: { const f = document.getElementById('c-from').value, t = document.getElementById('c-to').value;
+      return [f ? d0(f) : ym(y, m), t ? plus(d0(t), 1) : ym(y, m + 6)]; }
+  }
+}
+function buckets(from, to, g) {
+  const out = [];
+  let a;
+  if (g === 'week' || g === '2week') a = monday(from);
+  else if (g === 'month') a = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
+  else if (g === 'quarter') a = new Date(Date.UTC(from.getUTCFullYear(), Math.floor(from.getUTCMonth() / 3) * 3, 1));
+  else if (g === 'half') a = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() < 6 ? 0 : 6, 1));
+  else a = new Date(Date.UTC(from.getUTCFullYear(), 0, 1));
+  const next = d => { const x = new Date(d);
+    if (g === 'week') x.setUTCDate(x.getUTCDate() + 7); else if (g === '2week') x.setUTCDate(x.getUTCDate() + 14);
+    else if (g === 'month') x.setUTCMonth(x.getUTCMonth() + 1); else if (g === 'quarter') x.setUTCMonth(x.getUTCMonth() + 3);
+    else if (g === 'half') x.setUTCMonth(x.getUTCMonth() + 6); else x.setUTCFullYear(x.getUTCFullYear() + 1); return x; };
+  while (a < to) { const b = next(a); out.push({ from: a, to: b, label: bucketLabel(a, b, g) }); a = b; }
+  return out;
+}
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function bucketLabel(a, b, g) {
+  const dd = d => String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0') + '.';
+  if (g === 'week' || g === '2week') return dd(a) + '–' + dd(new Date(b.getTime() - DAY));
+  if (g === 'month') return MON[a.getUTCMonth()] + ' ' + String(a.getUTCFullYear()).slice(2);
+  if (g === 'quarter') return 'Q' + (Math.floor(a.getUTCMonth() / 3) + 1) + ' ' + String(a.getUTCFullYear()).slice(2);
+  if (g === 'half') return 'H' + (a.getUTCMonth() < 6 ? 1 : 2) + ' ' + String(a.getUTCFullYear()).slice(2);
+  return String(a.getUTCFullYear());
+}
+const overlapDays = (a, b, c, d) => Math.max(0, (Math.min(b, d) - Math.max(a, c)) / DAY); // days of [a,b) ∩ [c,d)
+const MONTH_DAYS = 30.4375;
+
+// ---------- allocation ----------
+const isAllowance = c => c.type === 'monthly_allowance';
+const FAR = new Date(8.64e15);
+function window_(c) {
+  const s = d0(c.start || iso(Date.now()));
+  let e;
+  if (c.expiration) e = new Date(d0(c.expiration).getTime() + DAY);
+  else if (isAllowance(c)) e = FAR;                                        // until cancelled
+  else { e = new Date(s); e.setUTCMonth(e.getUTCMonth() + Number(S.val || 12)); }
+  if (c.stage === 'closed' && c.closed_at) e = new Date(Math.min(e, d0(c.closed_at).getTime() + DAY));
+  return [s, e];
+}
+// contracted hours of c that fall into [a,b): allowance = hours per month, pro rata; package = spread evenly over its validity
+function alloc(c, a, b) {
+  const [s, e] = window_(c);
+  const ov = overlapDays(a, b, s, e);
+  if (ov <= 0) return 0;
+  if (isAllowance(c)) return ov * c.hours / MONTH_DAYS;
+  return c.hours * ov / ((e - s) / DAY);
+}
+// what c may additionally draw in [a,b) on top of its allocation: (factor − 1) × allocation, for one-time packages and stackable
+// allowances; a one-time package with a monthly cap can never exceed cap × months of the period
+function headroom(c, h, a, b, ov) {
+  if (c.status === 'open' || h <= 0) return 0;
+  if (isAllowance(c) && !c.stackable) return 0;
+  let hd = h * (ov - 1);
+  if (!isAllowance(c) && c.monthly_cap) hd = Math.min(hd, Math.max(0, c.monthly_cap * ((b - a) / DAY) / MONTH_DAYS - h));
+  return hd;
+}
+// hours used by c in [a,b): logged rows when the Jira sync exists, else used_month / used_prior of the service spread evenly
+function usedIn(c, a, b) {
+  const rows = usage.filter(u => u.service_id === c.id || (!u.service_id && u.company_id && u.company_id === c.company_id));
+  if (rows.length) return rows.reduce((t, u) => { const d = d0(u.date); return d >= a && d < b ? t + Number(u.hours || 0) : t; }, 0);
+  if (c.status !== 'won') return 0;   // open deals and planned offers have no usage yet
+  const today = d0(iso(Date.now()));
+  const m0 = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const [s] = window_(c);
+  let h = 0;
+  const cur = Number(c.used_month || 0), prior = Number(c.used_prior || 0);
+  const m1 = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1));   // spread over the whole current month
+  if (cur > 0) { const cs = s > m0 ? s : m0; const span = Math.max(1, (m1 - cs) / DAY); h += cur * overlapDays(a, b, cs, m1) / span; }
+  if (prior > 0 && s < m0) { const span = Math.max(1, (m0 - s) / DAY); h += prior * overlapDays(a, b, s, m0) / span; }
+  return h;
+}
+function capacityOf(a, b) {
+  const days = (b - a) / DAY;
+  if (!capacity.length) return days / 7 * Number(S.cap || 0);
+  let h = 0;
+  for (const r of capacity) h += overlapDays(a, b, d0(r.from), r.to ? new Date(d0(r.to).getTime() + DAY) : FAR) / 7 * Number(r.hours_per_week || 0);
+  return h;
+}
+
+// ---------- series ----------
+const SERIES = [
+  { key: 'rec', label: 'Monthly allowances', color: '#004771', dual: true },
+  { key: 'pkg', label: 'One-time packages', color: '#4FA3D8', dual: true },
+  { key: 'ovh', label: 'Potential overusage', color: '#5B8DA6', dual: true, needs: 'overuse' },
+  { key: 'pot', label: 'Open deals (potential)', color: '#C98A5B', hatch: true },
+  { key: 'plan', label: 'Planned offers (what-if)', color: '#7B5EA7', plan: true, needs: 'plan' },
+  { key: 'over', label: 'Used beyond contract', color: '#8E5A47' },
+  { key: 'cap', label: 'Team capacity', color: '#272727', line: true },
+];
+const HIDDEN = new Set();
+let LAST = null, SEL = null;   // SEL = single customer filter (company_name)
+
+function filtered() {
+  const src = document.getElementById('f-source').value, own = document.getElementById('f-owner').value, q = document.getElementById('f-co').value.trim().toLowerCase();
+  const pot = document.getElementById('potential').checked;
+  return [...items, ...SCEN].filter(c => (src === 'all' || (c.delivery || 'internal') === src) && (!own || c.owner === own) && (!SEL || c.company_name === SEL)
+    && (!q || (c.company_name || '').toLowerCase().includes(q)) && (pot || c.status !== 'open'));
+}
+function compute() {
+  const v = document.querySelector('#view button.on').dataset.v, g = document.querySelector('#grid button.on').dataset.g;
+  const [from, to] = viewRange(v);
+  const bs = buckets(from, to, g);
+  const cs = filtered();
+  const ovOn = document.getElementById('overuse').checked, ov = ovOn ? Number(S.ov || 1) : 1;
+  const today = d0(iso(Date.now()));
+  for (const b of bs) {
+    Object.assign(b, { rec: 0, pkg: 0, pot: 0, ovh: 0, plan: 0, planHd: 0, uRec: 0, uPkg: 0, uOvh: 0, over: 0, used: 0, items: [] });
+    for (const c of cs) {
+      const h = alloc(c, b.from, b.to);
+      if (h <= 0.001) continue;
+      const hd = headroom(c, h, b.from, b.to, ov);
+      const u = usedIn(c, b.from, b.to);
+      const uBase = Math.min(u, h), uHd = Math.min(Math.max(0, u - h), hd), uOver = Math.max(0, u - h - hd);
+      b.items.push({ c, h, hd, u, uBase, uHd, uOver });
+      if (c.status === 'plan') { b.plan += h; b.planHd += hd; continue; }
+      if (c.status !== 'won') { b.pot += h; continue; }
+      if (isAllowance(c)) { b.rec += h; b.uRec += uBase; } else { b.pkg += h; b.uPkg += uBase; }
+      b.ovh += hd; b.uOvh += uHd; b.over += uOver; b.used += u;
+    }
+    b.cap = capacityOf(b.from, b.to);
+    b.min = b.rec + b.pkg + b.plan;        // committed (planned offers count as if won)
+    b.max = b.min + b.ovh + b.pot + b.planHd; // what could be drawn
+    b.remMin = b.cap - b.min;
+    b.remMax = b.cap - b.max;
+    b.past = b.to <= today; b.current = b.from <= today && today < b.to;
+  }
+  return { bs, from, to, cs, ov };
+}
+
+// ---------- render ----------
+function render() {
+  const R0 = compute(); LAST = R0;
+  const { bs, from, to, cs } = R0;
+  renderTiles(bs, cs, from, to);
+  renderLegend();
+  renderChart(bs);
+  renderTable(bs);
+  renderScenarios();
+  document.getElementById('customwrap').hidden = document.querySelector('#view button.on').dataset.v !== 'custom';
+  document.getElementById('ovwrap').classList.toggle('on', document.getElementById('overuse').checked);
+  document.getElementById('numwrap').classList.toggle('on', document.getElementById('numbers').checked);
+  const chip = document.getElementById('selchip');
+  chip.hidden = !SEL;
+  if (SEL) chip.innerHTML = '<span class="chip">' + R.esc(SEL) + '<button title="clear" onclick="selectCustomer(null)">✕</button></span>';
+}
+const h1 = n => (Math.round(n * 10) / 10).toLocaleString('de-AT', { maximumFractionDigits: 1 });
+function renderTiles(bs, cs, from, to) {
+  const sum = k => bs.reduce((a, b) => a + b[k], 0);
+  const cap = sum('cap'), min = sum('min'), max = sum('max'), used = sum('used'), pot = sum('pot'), ovh = sum('ovh'), uOvh = sum('uOvh'), over = sum('over');
+  const fut = bs.filter(b => !b.past);
+  const sell = fut.reduce((a, b) => a + Math.max(0, b.remMax), 0);
+  const cos = new Set(cs.filter(c => c.status === 'won').map(c => c.company_name)).size, open = cs.filter(c => c.status !== 'won').length;
+  const tiles = [
+    { k: 'Team capacity', v: h1(cap) + ' h', s: R.fmtDate(iso(from)) + ' – ' + R.fmtDate(iso(to - DAY)) },
+    { k: 'Sold · committed', v: h1(min) + ' h', s: h1(sum('rec')) + ' allowances · ' + h1(sum('pkg')) + ' packages' + (sum('plan') ? ' · ' + h1(sum('plan')) + ' planned' : '') },
+    { k: 'Max · incl. overusage & open', v: h1(max) + ' h', s: (ovh + sum('planHd') ? '+' + h1(ovh + sum('planHd')) + ' potential overusage · ' : '') + '+' + h1(pot) + ' open deals' },
+    { k: 'Used', v: h1(used) + ' h', s: (min ? Math.round(100 * used / min) + '% of committed' : '—') + (uOvh || over ? ' · ' + h1(uOvh + over) + ' h overusage' : ''), cls: over ? 'warn' : '' },
+    { k: 'Remaining · min case', v: h1(cap - min) + ' h', s: 'capacity − committed', cls: cap - min < 0 ? 'warn' : 'good' },
+    { k: 'Remaining · max case', v: h1(cap - max) + ' h', s: 'capacity − everything that could be drawn', cls: cap - max < 0 ? 'warn' : '' },
+    { k: 'Sellable', v: h1(sell) + ' h', s: 'remaining in future periods, max case', cls: 'good' },
+    { k: 'Customers in view', v: cos, s: cs.filter(c => c.status === 'won').length + ' services · ' + open + ' open deals' },
+  ];
+  document.getElementById('tiles').innerHTML = tiles.map(t => '<div class="tile"><div class="k">' + t.k + '</div><div class="v ' + (t.cls || '') + '">' + t.v + '</div><div class="s">' + t.s + '</div></div>').join('');
+}
+function renderLegend() {
+  const ov = document.getElementById('overuse').checked;
+  document.getElementById('legend').innerHTML = SERIES.filter(s => !s.needs || (s.needs === 'overuse' && ov) || (s.needs === 'plan' && SCEN.length)).map(s =>
+    '<div class="lg' + (HIDDEN.has(s.key) ? ' off' : '') + '" data-k="' + s.key + '"><span class="sw' + (s.line ? ' line' : s.hatch ? ' hatch' : s.plan ? ' plan' : s.dual ? ' dual' : '') + '" style="--c:' + s.color + ';' + (s.line || s.hatch || s.dual || s.plan ? '' : 'background:' + s.color) + '"></span>' + s.label +
+    (s.dual ? '<span class="hint">used / open</span>' : '') + '</div>').join('');
+  document.querySelectorAll('#legend .lg').forEach(el => el.onclick = () => { const k = el.dataset.k; HIDDEN.has(k) ? HIDDEN.delete(k) : HIDDEN.add(k); render(); });
+}
+const tint = (hex, a) => { const n = parseInt(hex.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; };
+function renderChart(bs) {
+  const box = document.getElementById('chart');
+  if (!bs.length) { box.className = 'state'; box.textContent = 'Nothing in this range.'; return; }
+  box.className = '';
+  const W = 960, H = 340, padL = 44, padR = 12, padT = 18, padB = 40;
+  const n = bs.length, slot = (W - padL - padR) / n, bw = Math.min(72, slot * 0.64), GAP = 2;
+  const show = k => !HIDDEN.has(k);
+  const ovOn = document.getElementById('overuse').checked, nums = document.getElementById('numbers').checked;
+  const stackOf = b => (show('rec') ? b.rec : 0) + (show('pkg') ? b.pkg : 0) + (show('pot') ? b.pot : 0) + (ovOn && show('ovh') ? b.ovh : 0) + (show('over') ? b.over : 0) + (show('plan') ? b.plan + (ovOn ? b.planHd : 0) : 0);
+  let max = Math.max(1, ...bs.map(b => Math.max(stackOf(b), show('cap') ? b.cap : 0)));
+  max = Math.ceil(max * 1.12 / 5) * 5;
+  const y = v => padT + (H - padT - padB) * (1 - v / max);
+  let s = '<svg class="cap-chart" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#fff"/><rect width="3" height="6" fill="#C98A5B"/></pattern></defs>';
+  const ticks = 5;
+  for (let i = 0; i <= ticks; i++) { const v = max * i / ticks; s += '<line class="grid" x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(v) + '" y2="' + y(v) + '"/><text class="ax" x="' + (padL - 6) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + Math.round(v) + ' h</text>'; }
+  bs.forEach((b, i) => {
+    const x0 = padL + i * slot + (slot - bw) / 2, xm = x0 + bw / 2;
+    let top = 0;
+    const lab = k => SERIES.find(z => z.key === k).label;
+    // a stacked segment: light = contracted but still open, solid (from the bottom of the segment) = already used
+    const seg = (k, total, used, color, opts) => {
+      if (total <= 0.001) return;
+      const y1 = y(top + total), y2 = y(top), tip = '<title>' + b.label + ' · ' + lab(k) + ': ' + h1(total) + ' h' + (used != null ? ' · used ' + h1(used) + ' h' : '') + '</title>';
+      const light = opts && opts.hatch ? 'url(#hatch)' : tint(color, k === 'ovh' || (opts && opts.dashed) ? .14 : .26);
+      const hgt = Math.max(0, y2 - y1 - GAP), yb = y2 - GAP;   // GAP px of white between the segments
+      const dashed = k === 'ovh' || (opts && opts.dashed);
+      s += '<rect class="bar" x="' + x0 + '" y="' + y1 + '" width="' + bw + '" height="' + hgt + '" fill="' + light + '"' + (dashed || (opts && opts.hatch) ? ' stroke="' + color + '" stroke-width="1"' + (dashed ? ' stroke-dasharray="3 2"' : '') : '') + ' onclick="drill(' + i + ')">' + tip + '</rect>';
+      if (used > 0.001) { const yu = y(top + Math.min(used, total)); s += '<rect class="bar" x="' + x0 + '" y="' + yu + '" width="' + bw + '" height="' + Math.max(0, yb - yu) + '" fill="' + color + '" onclick="drill(' + i + ')">' + tip + '</rect>'; }
+      if (nums && y2 - y1 >= 13) s += '<text class="num' + (used > 0.001 && (y2 - y(top + Math.min(used, total))) > (y2 - y1) / 2 ? '' : ' dark') + '" x="' + xm + '" y="' + ((y1 + y2) / 2 + 3.5) + '" text-anchor="middle">' + (used > 0.001 ? h1(used) + ' / ' : '') + h1(total) + '</text>';
+      top += total;
+    };
+    if (show('rec')) seg('rec', b.rec, b.uRec, '#004771');
+    if (show('pkg')) seg('pkg', b.pkg, b.uPkg, '#4FA3D8');
+    if (ovOn && show('ovh')) seg('ovh', b.ovh, b.uOvh, '#5B8DA6');
+    if (show('pot')) seg('pot', b.pot, null, '#C98A5B', { hatch: true });
+    if (show('plan')) { seg('plan', b.plan, b.plan, '#7B5EA7'); if (ovOn) seg('plan', b.planHd, null, '#7B5EA7', { dashed: true }); }
+    if (show('over') && b.over > 0.001) { const y1 = y(top + b.over), y2 = y(top); s += '<rect class="bar" x="' + x0 + '" y="' + y1 + '" width="' + bw + '" height="' + Math.max(0, y2 - y1 - GAP) + '" fill="#8E5A47" onclick="drill(' + i + ')"><title>' + b.label + ' · used beyond contract: ' + h1(b.over) + ' h</title></rect>'; top += b.over; }
+    const rem = b.cap - top;
+    if (show('cap')) s += '<text class="lbl' + (rem < 0 ? ' neg' : '') + '" x="' + xm + '" y="' + (Math.min(y(top), y(b.cap)) - 5) + '" text-anchor="middle">' + (rem >= 0 ? '+' : '') + h1(rem) + '</text>';
+    s += '<text class="ax" x="' + xm + '" y="' + (H - padB + 14) + '" text-anchor="middle"' + (b.current ? ' font-weight="700" fill="#004771"' : '') + '>' + b.label + '</text>';
+    if (b.current) s += '<text class="ax" x="' + xm + '" y="' + (H - padB + 26) + '" text-anchor="middle" fill="#8E5A47">now</text>';
+  });
+  if (show('cap')) {
+    let d = '';
+    bs.forEach((b, i) => { const xa = padL + i * slot + 2, xb = padL + (i + 1) * slot - 2; d += (i ? 'L' : 'M') + xa + ',' + y(b.cap) + ' L' + xb + ',' + y(b.cap) + ' '; });
+    s += '<path class="cap" d="' + d + '"><title>team capacity</title></path>';
+  }
+  s += '</svg>';
+  box.innerHTML = s;
+  document.getElementById('chartfoot').innerHTML = 'Numbers above the bars = capacity minus the stacked hours of that period (negative = oversold). An allowance of 4 h/month shows as 4 h per month, 12 h per quarter, 48 h per year; a one-time package is spread evenly from start to expiration (' + S.val + ' months if none is set). Potential overusage = (' + S.ov + ' − 1) × the period\'s allocation for one-time packages and stackable allowances, capped by the monthly cap.' + (usage.length ? '' : ' Used hours are the service\'s used-this-month / prior-months figures spread evenly over the elapsed days — exact per-day values come with the Jira log.');
+}
+function renderTable(bs) {
+  const ovOn = document.getElementById('overuse').checked;
+  document.getElementById('tbl-sub').textContent = '· ' + bs.length + ' periods';
+  let h = '<table class="cap"><tr><th>Period</th><th>Capacity</th><th>Allowances</th><th>Packages</th><th>Committed</th>' + (ovOn ? '<th>Pot. overusage</th>' : '') + '<th>Open deals</th><th>Planned</th><th>Max</th><th>Used</th><th>of it overusage</th><th>Remaining min</th><th>Remaining max</th><th>Services</th></tr>';
+  for (const b of bs) h += '<tr class="' + (b.past ? 'past' : '') + '"><td>' + b.label + (b.current ? ' <span class="badge b-neutral">now</span>' : '') + '</td><td>' + h1(b.cap) + '</td><td>' + h1(b.rec) + '</td><td>' + h1(b.pkg) + '</td><td><strong>' + h1(b.min) + '</strong></td>' + (ovOn ? '<td>' + h1(b.ovh) + '</td>' : '') + '<td>' + h1(b.pot) + '</td><td>' + h1(b.plan) + '</td><td>' + h1(b.max) + '</td><td>' + h1(b.used) + '</td><td class="' + (b.over > 0.001 ? 'neg' : '') + '">' + h1(b.uOvh + b.over) + (b.over > 0.001 ? ' (' + h1(b.over) + ' beyond)' : '') + '</td><td class="' + (b.remMin < 0 ? 'neg' : '') + '">' + h1(b.remMin) + '</td><td class="' + (b.remMax < 0 ? 'neg' : '') + '">' + h1(b.remMax) + '</td><td>' + b.items.length + '</td></tr>';
+  document.getElementById('table').innerHTML = h + '</table>';
+}
+
+// ---------- side panel: period drill & customer list ----------
+const typeTxt = c => isAllowance(c) ? h1(c.hours) + ' h / month' + (c.stackable ? ', stackable' : '') : h1(c.hours) + ' h one-time' + (c.monthly_cap ? ', max ' + h1(c.monthly_cap) + ' h/month' : '');
+const spanTxt = c => R.fmtDate(c.start) + ' – ' + (c.expiration ? R.fmtDate(c.expiration) : isAllowance(c) ? 'until cancelled' : '+' + S.val + ' months');
+const badges = c => (c.status === 'open' ? '<span class="badge b-open">open deal</span>' : c.status === 'plan' ? '<span class="badge b-open">planned offer</span>' : '') + (c.delivery === 'external_agency' ? '<span class="badge b-agency">agency</span>' : '') + (c.stage === 'closed' ? '<span class="badge b-neutral">closed' + (c.close_reason ? ' · ' + c.close_reason : '') + '</span>' : '');
+function usedBar(u, t) { const p = t ? Math.min(100, 100 * u / t) : 0; return '<div class="ubar"><i class="' + (u > t ? 'over' : '') + '" style="width:' + p + '%"></i></div>'; }
+function openPanel(title, html) { document.getElementById('drill-h').innerHTML = title; document.getElementById('drill-list').innerHTML = html; document.getElementById('drill').classList.add('open'); }
+function drill(i) {
+  const b = LAST.bs[i];
+  const list = [...b.items].sort((x, y) => (y.h + y.hd) - (x.h + x.hd));
+  openPanel(b.label + ' · ' + h1(b.min) + ' h committed · ' + h1(b.used) + ' h used',
+    list.length ? list.map(({ c, h, hd, u, uOver }) => '<div class="co click" onclick="selectCustomer(' + JSON.stringify(c.company_name).replace(/"/g, '&quot;') + ')"><span class="hrs">' + h1(h) + ' h' + (hd > 0.001 ? '<small>+' + h1(hd) + ' pot. overusage</small>' : '') + (c.status === 'won' ? '<small>' + h1(u) + ' h used' + (uOver > 0.001 ? ' · ' + h1(uOver) + ' beyond' : '') + '</small>' : '') + '</span><div class="nm">' + R.esc(c.company_name) + badges(c) + '</div><div class="meta">' +
+      R.esc(c.name || '') + ' · ' + typeTxt(c) + ' · ' + spanTxt(c) + (c.owner ? ' · ' + R.esc(c.owner) : '') + '</div>' + (c.status === 'won' ? usedBar(u, h + hd) : '') + '</div>').join('') : '<div class="empty">No services in this period.</div>');
+}
+function customers() {
+  const cs = items.filter(c => { const src = document.getElementById('f-source').value, own = document.getElementById('f-owner').value; return (src === 'all' || (c.delivery || 'internal') === src) && (!own || c.owner === own); });
+  const byCo = new Map();
+  for (const c of cs) { if (!byCo.has(c.company_name)) byCo.set(c.company_name, []); byCo.get(c.company_name).push(c); }
+  const today = d0(iso(Date.now()));
+  const running = [], ended = [], open = [];
+  for (const [co, list] of byCo) {
+    if (list.every(c => c.status === 'plan')) continue;
+    const won = list.filter(c => c.status === 'won');
+    const live = won.filter(c => c.stage !== 'closed' && window_(c)[1] > today);
+    if (live.length) running.push([co, list]); else if (won.length) ended.push([co, list]); else open.push([co, list]);
+  }
+  const sortCo = a => a.sort((x, y) => x[0].localeCompare(y[0]));
+  const row = ([co, list]) => '<div class="co click" onclick="selectCustomer(' + JSON.stringify(co).replace(/"/g, '&quot;') + ')"><div class="nm">' + R.esc(co) + (list[0].owner ? ' <span class="meta">· ' + R.esc(list[0].owner) + '</span>' : '') + '</div>' +
+    list.map(c => { const tot = isAllowance(c) ? c.hours : c.hours, u = isAllowance(c) ? Number(c.used_month || 0) : Number(c.used_total != null ? c.used_total : Number(c.used_month || 0) + Number(c.used_prior || 0));
+      return '<div class="svc"><b>' + typeTxt(c) + '</b> ' + badges(c) + '<br>' + R.esc(c.name || '') + ' · ' + spanTxt(c) + (c.status === 'won' ? '<br>used ' + h1(u) + ' / ' + h1(tot) + ' h' + (isAllowance(c) ? ' this month' : '') + (c.remaining != null ? ' · ' + h1(c.remaining) + ' h remaining' : isAllowance(c) ? '' : ' · ' + h1(Math.max(0, tot - u)) + ' h remaining') + usedBar(u, tot) : '') + '</div>'; }).join('') + '</div>';
+  const grp = (t, a) => a.length ? '<div class="grp">' + t + ' (' + a.length + ')</div>' + sortCo(a).map(row).join('') : '';
+  openPanel('Customers with professional services <span class="meta" style="font-weight:400">· click one to filter</span>',
+    grp('Running', running) + grp('Open deals · potential', open) + grp('Ended / exhausted', ended) + (byCo.size ? '' : '<div class="empty">Nothing matches the current filters.</div>'));
+}
+function selectCustomer(name) { SEL = name; document.getElementById('drill').classList.remove('open'); render(); }
+document.getElementById('drill-close').onclick = () => document.getElementById('drill').classList.remove('open');
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('drill').classList.remove('open'); });
+document.getElementById('btn-cust').onclick = customers;
+
+// ---------- planned offers (what-if) ----------
+let SCEN = [];
+try { SCEN = JSON.parse(localStorage.getItem('cap-scenarios') || '[]'); } catch (e) {}
+SCEN.forEach(c => { c.status = 'plan'; });
+function saveScen() { try { localStorage.setItem('cap-scenarios', JSON.stringify(SCEN)); } catch (e) {} }
+function planTypeUI() {
+  const allow = document.getElementById('p-type').value === 'monthly_allowance';
+  document.getElementById('p-hours-l').textContent = allow ? 'Hours per month' : 'Hours (total)';
+  document.getElementById('p-exp-l').textContent = allow ? 'End (empty = until cancelled)' : 'Expiry (empty = +' + S.val + ' months)';
+  document.getElementById('p-cap-w').hidden = allow;
+  document.getElementById('p-stack-w').hidden = !allow;
+}
+function addScenario() {
+  const g = id => document.getElementById(id);
+  const co = g('p-co').value.trim(), hours = Number(g('p-hours').value), start = g('p-start').value;
+  const err = g('p-err'); err.textContent = '';
+  if (!co) return err.textContent = 'Customer name is missing.';
+  if (!(hours > 0)) return err.textContent = 'Hours must be greater than 0.';
+  if (!start) return err.textContent = 'Start date is missing.';
+  const type = g('p-type').value;
+  const c = { id: 'plan-' + Date.now(), status: 'plan', company_name: co, name: 'Planned: ' + (type === 'one_time' ? h1(hours) + ' h package' : h1(hours) + ' h/month allowance'),
+    type, hours, start, expiration: g('p-exp').value || null, monthly_cap: type === 'one_time' && g('p-cap').value ? Number(g('p-cap').value) : null,
+    stackable: type === 'monthly_allowance' && g('p-stack').checked, delivery: g('p-del').value, owner: (items.find(x => x.company_name === co) || {}).owner || '' };
+  if (c.expiration && c.expiration < c.start) return err.textContent = 'Expiry is before the start.';
+  SCEN.push(c); saveScen(); g('p-hours').value = ''; render();
+}
+function removeScenario(id) { SCEN = SCEN.filter(c => c.id !== id); saveScen(); render(); }
+// month-by-month check of one planned offer against everything else with the same delivery (ignores the owner / customer filters on purpose)
+function checkScenario(c) {
+  const ov = Number(S.ov || 1), pot = document.getElementById('potential').checked;
+  const [s, e] = window_(c);
+  const end = e === FAR ? new Date(Date.UTC(s.getUTCFullYear() + 1, s.getUTCMonth(), 1)) : e;
+  const bs = buckets(s, end, 'month');
+  const others = [...items, ...SCEN].filter(x => x.id !== c.id && (x.delivery || 'internal') === (c.delivery || 'internal') && (pot || x.status !== 'open'));
+  const today = d0(iso(Date.now()));
+  for (const b of bs) {
+    b.cap = capacityOf(b.from, b.to); b.ex = 0; b.exMax = 0; b.pl = alloc(c, b.from, b.to); b.plHd = headroom(c, b.pl, b.from, b.to, ov);
+    for (const x of others) { const h = alloc(x, b.from, b.to); if (h <= 0.001) continue; if (x.status === 'open') b.exMax += h; else { b.ex += h; b.exMax += h + headroom(x, h, b.from, b.to, ov); } }
+    b.past = b.to <= today;
+  }
+  const flags = [];
+  const F = (lvl, t) => flags.push({ lvl, t });
+  const fmt = a => a.map(b => b.label).join(', ');
+  const over = bs.filter(b => b.ex + b.pl > b.cap), overMax = bs.filter(b => !over.includes(b) && b.exMax + b.pl + b.plHd > b.cap);
+  const tight = bs.filter(b => !over.includes(b) && !overMax.includes(b) && (b.ex + b.pl) / Math.max(1, b.cap) > 0.85);
+  const peak = bs.reduce((m, b) => (b.ex + b.pl) / Math.max(1, b.cap) > (m.ex + m.pl) / Math.max(1, m.cap) ? b : m, bs[0]);
+  let verdict = 'ok';
+  if (c.delivery === 'external_agency') F('info', 'Delivered by an external agency — does not consume JENTIS team hours. Checked against the other agency packages only.');
+  if (over.length) { verdict = 'bad'; F('bad', 'Does not fit: committed hours exceed capacity in ' + fmt(over) + ' (by ' + h1(Math.max(...over.map(b => b.ex + b.pl - b.cap))) + ' h at the worst point).'); }
+  if (overMax.length) { if (verdict === 'ok') verdict = 'warn'; F('warn', 'Fits only if nobody draws their overusage and open deals do not close: max case exceeds capacity in ' + fmt(overMax) + '.'); }
+  if (tight.length) { if (verdict === 'ok') verdict = 'warn'; F('warn', 'Tight (more than 85 % of capacity committed) in ' + fmt(tight) + '.'); }
+  if (!over.length && !overMax.length && !tight.length) F('ok', 'Fits in every month of its term; peak load ' + Math.round(100 * (peak.ex + peak.pl) / Math.max(1, peak.cap)) + ' % in ' + peak.label + '.');
+  if (!isAllowance(c) && !c.expiration) F('warn', 'No expiry entered — spread over ' + S.val + ' months. Add the validity you will put into the offer.');
+  if (!isAllowance(c) && c.monthly_cap && c.monthly_cap * bs.length < c.hours) F('warn', 'With a cap of ' + h1(c.monthly_cap) + ' h/month the customer can use at most ' + h1(c.monthly_cap * bs.length) + ' of ' + h1(c.hours) + ' h before expiry.');
+  if (!isAllowance(c) && !c.monthly_cap && c.hours >= 20) F('info', 'No monthly cap — the customer may draw the whole package in one month (' + h1(c.hours) + ' h). Consider a cap if that would hurt.');
+  if (isAllowance(c) && c.stackable) F('info', 'Stackable: the customer may draw up to ' + h1(c.hours * ov) + ' h in a single month.');
+  if (isAllowance(c) && !c.expiration) F('info', 'No end date — checked for the first 12 months.');
+  if (!capacity.length) F('info', 'Team capacity is the manual setting (' + S.cap + ' h/week) until the capacity sheet is linked.');
+  if (d0(c.start) < today) F('info', 'Start is in the past — months already elapsed are still counted.');
+  const otherPlans = SCEN.filter(x => x.id !== c.id && (x.delivery || 'internal') === (c.delivery || 'internal')).length;
+  if (otherPlans) F('info', 'Checked together with ' + otherPlans + ' other planned offer' + (otherPlans > 1 ? 's' : '') + ' — remove those to check this one alone.');
+  return { bs, flags, verdict, peak };
+}
+function renderScenarios() {
+  const box = document.getElementById('scenarios');
+  document.getElementById('p-co-list').innerHTML = [...new Set(items.map(c => c.company_name).filter(Boolean))].sort().map(n => '<option value="' + R.esc(n) + '">').join('');
+  if (!SCEN.length) { box.innerHTML = ''; return; }
+  box.innerHTML = SCEN.map(c => {
+    const r = checkScenario(c);
+    const vt = { ok: '✓ fits', warn: '! check', bad: '✕ does not fit' }[r.verdict];
+    return '<div class="scen"><div class="hd"><span class="nm">' + R.esc(c.company_name) + '</span><span class="verdict ' + r.verdict + '">' + vt + '</span><span class="meta">' + typeTxt(c) + ' · ' + spanTxt(c) + (c.delivery === 'external_agency' ? ' · agency' : '') + '</span><button class="rm" title="remove" onclick="removeScenario(\'' + c.id + '\')">✕ remove</button></div>' +
+      '<ul class="flags">' + r.flags.map(f => '<li><span class="dot ' + f.lvl + '"></span><span>' + f.t + '</span></li>').join('') + '</ul>' +
+      '<div class="minibar">' + r.bs.map(b => { const m = Math.max(1, b.cap, b.ex + b.pl + b.plHd); const ex = 100 * b.ex / m, pl = 100 * (b.ex + b.pl) / m; return '<div class="' + (b.ex + b.pl > b.cap ? 'over' : '') + '" title="' + b.label + ': ' + h1(b.ex) + ' h committed + ' + h1(b.pl) + ' h planned of ' + h1(b.cap) + ' h capacity"><i class="pl" style="height:' + pl + '%"></i><i class="ex" style="height:' + ex + '%"></i><b style="bottom:' + (100 * b.cap / m) + '%"></b></div>'; }).join('') + '</div>' +
+      '<div class="minibar-l">' + r.bs.map(b => '<span>' + b.label.replace(/ \d\d$/, '') + '</span>').join('') + '</div><div class="note">Grey = already committed, purple = this offer on top, dashed line = capacity of the month; red outline = oversold.</div></div>';
+  }).join('');
+}
+document.getElementById('p-type').addEventListener('change', planTypeUI);
+document.getElementById('p-add').onclick = addScenario;
+document.getElementById('p-start').value = iso(Date.now());
+planTypeUI();
+
+// ---------- wiring ----------
+function buildOwners() {
+  const sel = document.getElementById('f-owner');
+  const owners = [...new Set(items.map(c => c.owner).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All owners</option>' + owners.map(o => '<option>' + R.esc(o) + '</option>').join('');
+}
+for (const id of ['view', 'grid']) document.getElementById(id).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; document.querySelectorAll('#' + id + ' button').forEach(x => x.classList.remove('on')); b.classList.add('on'); render(); });
+for (const id of ['overuse', 'potential', 'numbers', 'f-source', 'f-owner', 'c-from', 'c-to']) document.getElementById(id).addEventListener('change', render);
+document.getElementById('f-co').addEventListener('input', render);
+const sIn = { cap: 's-cap', ov: 's-ov', val: 's-val' };
+for (const [k, id] of Object.entries(sIn)) { const el = document.getElementById(id); el.value = S[k]; el.addEventListener('change', () => { S[k] = Number(el.value); saveS(); render(); }); }
+document.getElementById('s-reset').onclick = () => { S = { ...DEF }; saveS(); for (const [k, id] of Object.entries(sIn)) document.getElementById(id).value = S[k]; render(); };
+load();
 </script>
 </body>
 </html>

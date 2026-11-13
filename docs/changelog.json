@@ -1,5 +1,58 @@
 [
   {
+    "version": "2026.11.13-1",
+    "date": "2026-11-13",
+    "title": "Every page is now a real v2 page",
+    "items": [
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "All 13 pages that were embedded from the old dashboard are now proper v2 pages: Leads, Full funnel, Email outreach, Responses, Calls, Discoveries, Journeys, Deals, Quote checker, Customers, Renewals, Tickets, Professional services.",
+        "details": "Each page shows only its own content. Full funnel is just the funnel (stage cards and conversion), Leads is the trend, matrix and company list. They read from the JENTIS database like the rest of v2.",
+        "departments": [
+          "all"
+        ]
+      },
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "One filter bar, same place on every page: period first, then the page's filters, search on the right.",
+        "details": "The period picker is identical everywhere and always offers This quarter and Last quarter plus custom dates. Your choice is remembered per page. Professional services keeps its own planning horizon controls.",
+        "departments": [
+          "all"
+        ]
+      },
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "New \"?\" next to every metric, chart and table: click it to see where the data comes from and how it is calculated.",
+        "details": "The explanation names the source system (HubSpot, Instantly, La Growth Machine, Jira ...), the counting rule and when it was last refreshed.",
+        "departments": [
+          "all"
+        ]
+      },
+      {
+        "section": "bd",
+        "page": "bd-overview",
+        "summary": "Fix: \"Connected calls\" on the overviews counted nothing for some outcomes. It now uses the same rule as the Calls page (connected + connected-but-rejected).",
+        "details": "",
+        "departments": [
+          "bd",
+          "marketing"
+        ]
+      },
+      {
+        "section": "cs",
+        "page": "cs-overview",
+        "summary": "Fix: \"Needs attention\" on the CS overview and the personal page now uses the same rule as the Customers page.",
+        "details": "",
+        "departments": [
+          "cs"
+        ]
+      }
+    ]
+  },
+  {
     "version": "2026.11.12-1",
     "date": "2026-11-12",
     "title": "v2 now runs on our own database",

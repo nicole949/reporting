@@ -12,6 +12,7 @@
 <div id="shell"></div>
 <script src="../assets/config.js?b=__BUILD__"></script>
 <script src="../assets/app.js?b=__BUILD__"></script>
+<script src="../assets/help.js?b=__BUILD__"></script>
 <script>
 const page = R.shell({ page: 'sales-overview', title: 'Sales pipeline overview', subtitle: 'Qualified → Opportunity → Closed Won — what is moving and what is open' });
 page.innerHTML = '<div id="tiles" class="tiles" style="margin-bottom:1rem"></div><div class="grid c2"><div class="card"><h2>Open new-business pipeline <span class="muted small">· by stage, as of today</span></h2><div id="stages"></div></div><div class="card"><h2>Won in the period</h2><div id="won"></div></div></div>';

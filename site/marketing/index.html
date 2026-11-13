@@ -44,7 +44,7 @@
 </head>
 <body>
 <div id="shell"></div>
-<div id="page-content" hidden>
+<div id="page-content" class="v1" hidden>
   <div class="hero">
     <div class="top">
       <div><div class="eyebrow">Goals</div><h2 id="q-label">This quarter</h2><div class="qsub" id="q-sub">Loading…</div>
@@ -81,6 +81,7 @@
 </div>
 <script src="../assets/config.js?b=__BUILD__"></script>
 <script src="../assets/app.js?b=__BUILD__"></script>
+<script src="../assets/help.js?b=__BUILD__"></script>
 <script>
 R.shell({ page: 'mkt-overview', title: 'Marketing overview', subtitle: 'Goals, the week at a glance, and 90-day trends across the funnel' });
 document.getElementById('b').textContent = R.C.BUILD;

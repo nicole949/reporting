@@ -15,38 +15,38 @@
       { key: 'me', label: 'Hello', href: BASE + 'me/', ic: 'user', status: 'live', dynamic: 'hello' } ] },
     { key: 'overview', label: 'Overview', color: '#D5DEE6', items: [
       { key: 'overview', label: 'Commercial overview', href: BASE, ic: 'grid', status: 'live' },
-      { key: 'funnel', label: 'Full funnel', href: BASE + 'funnel/', ic: 'funnel', status: 'embed' },
+      { key: 'funnel', label: 'Full funnel', href: BASE + 'funnel/', ic: 'funnel', status: 'live' },
       { key: 'changes', label: 'Change notes', href: BASE + 'changes/', ic: 'list', status: 'live' } ] },
     { key: 'marketing', label: 'Marketing', color: '#9DDCFF', items: [
       { key: 'mkt-overview', label: 'Overview', href: BASE + 'marketing/', ic: 'grid', status: 'live' },
-      { key: 'leads', label: 'Leads', href: V1 + '/leads/', ic: 'users', status: 'v1' },
-      { key: 'email', label: 'Email outreach', href: BASE + 'email-outreach/', ic: 'mail', status: 'embed' },
+      { key: 'leads', label: 'Leads', href: BASE + 'marketing/leads/', ic: 'users', status: 'live' },
+      { key: 'email', label: 'Email outreach', href: BASE + 'email-outreach/', ic: 'mail', status: 'live' },
       { key: 'linkedin', label: 'LinkedIn outreach', href: '#', ic: 'linkedin', status: 'planned' },
       { key: 'social', label: 'Social posts', href: '#', ic: 'chat', status: 'planned' },
       { key: 'campaigns', label: 'Campaigns & ads', href: '#', ic: 'megaphone', status: 'planned' },
-      { key: 'responses', label: 'Responses', href: V1 + '/responded/', ic: 'reply', status: 'v1' } ] },
+      { key: 'responses', label: 'Responses', href: BASE + 'marketing/responses/', ic: 'reply', status: 'live' } ] },
     { key: 'bd', label: 'Business Development', color: '#F38C62', items: [
       { key: 'bd-overview', label: 'Overview', href: BASE + 'bd/', ic: 'grid', status: 'live' },
-      { key: 'calls', label: 'Calls', href: V1 + '/calls/', ic: 'phone', status: 'v1' },
-      { key: 'discoveries', label: 'Discoveries', href: V1 + '/discoveries/', ic: 'calendar', status: 'v1' },
-      { key: 'journeys', label: 'Journeys', href: V1 + '/journeys/', ic: 'route', status: 'v1' },
+      { key: 'calls', label: 'Calls', href: BASE + 'bd/calls/', ic: 'phone', status: 'live' },
+      { key: 'discoveries', label: 'Discoveries', href: BASE + 'bd/discoveries/', ic: 'calendar', status: 'live' },
+      { key: 'journeys', label: 'Journeys', href: BASE + 'bd/journeys/', ic: 'route', status: 'live' },
       { key: 'celebrations', label: 'Celebration board', href: BASE + 'bd/celebrations/', ic: 'star', status: 'live' } ] },
     { key: 'sales', label: 'Sales pipeline', color: '#C4B5F0', items: [
       { key: 'sales-overview', label: 'Overview', href: BASE + 'sales/', ic: 'grid', status: 'live' },
       { key: 'qualification', label: 'Qualification', href: '#', ic: 'check', status: 'planned' },
-      { key: 'deals', label: 'Deals', href: V1 + '/deals/', ic: 'briefcase', status: 'v1' },
+      { key: 'deals', label: 'Deals', href: BASE + 'sales/deals/', ic: 'briefcase', status: 'live' },
       { key: 'forecast', label: 'Forecast', href: '#', ic: 'trend', status: 'planned' },
       { key: 'opp-meetings', label: 'Meetings', href: '#', ic: 'calendar', status: 'planned' },
-      { key: 'quotes', label: 'Quote checker', href: V1 + '/cs-quote-checker/', ic: 'filecheck', status: 'v1' },
+      { key: 'quotes', label: 'Quote checker', href: BASE + 'sales/quote-checker/', ic: 'filecheck', status: 'live' },
       { key: 'sales-celebrations', label: 'Celebration board', href: BASE + 'sales/celebrations/', ic: 'star', status: 'live' } ] },
     { key: 'cs', label: 'Customer Success', color: '#8ED1B5', items: [
       { key: 'cs-overview', label: 'Overview', href: BASE + 'cs/', ic: 'grid', status: 'live' },
-      { key: 'customers', label: 'Customers', href: V1 + '/cs-customers/', ic: 'building', status: 'v1' },
-      { key: 'renewals', label: 'Renewals & expansion', href: V1 + '/cs-renewals/', ic: 'refresh', status: 'v1' },
-      { key: 'tickets', label: 'Tickets', href: V1 + '/cs-tickets/', ic: 'ticket', status: 'v1' },
+      { key: 'customers', label: 'Customers', href: BASE + 'cs/customers/', ic: 'building', status: 'live' },
+      { key: 'renewals', label: 'Renewals & expansion', href: BASE + 'cs/renewals/', ic: 'refresh', status: 'live' },
+      { key: 'tickets', label: 'Tickets', href: BASE + 'cs/tickets/', ic: 'ticket', status: 'live' },
       { key: 'projects', label: 'Projects', href: '#', ic: 'folder', status: 'planned' },
       { key: 'pocs', label: 'POCs & free trials', href: '#', ic: 'flask', status: 'planned' },
-      { key: 'ps', label: 'Professional services', href: BASE + 'cs/professional-services/', ic: 'clock', status: 'embed' },
+      { key: 'ps', label: 'Professional services', href: BASE + 'cs/professional-services/', ic: 'clock', status: 'live' },
       { key: 'cs-celebrations', label: 'Celebration board', href: BASE + 'cs/celebrations/', ic: 'star', status: 'live' } ] },
     { key: 'partners', label: 'Partners', color: '#E8C9A0', items: [
       { key: 'partner-overview', label: 'Overview', href: '#', ic: 'grid', status: 'planned' },
@@ -129,7 +129,7 @@
     CUR = opts || {};
     document.title = (CUR.title ? CUR.title + ' · ' : '') + 'JENTIS Reporting';
     const app = document.createElement('div'); app.className = 'app';
-    app.innerHTML = '<aside class="side" id="side"></aside><main class="main"><div class="topbar"><button class="burger" onclick="document.getElementById(\'side\').classList.toggle(\'open\')">☰</button><div class="ttl"><h1>' + esc(CUR.title || '') + '</h1>' + (CUR.subtitle ? '<div class="sub">' + esc(CUR.subtitle) + '</div>' : '') + '</div><div class="spacer"></div><div class="tools" id="tools"><button class="tool" onclick="R.feedback.open()" title="Feedback, bug, idea…">✎ Feedback</button></div></div><div class="filters" id="filters" hidden></div><div id="page"></div></main>';
+    app.innerHTML = '<aside class="side" id="side"></aside><main class="main"><div class="topbar"><button class="burger" onclick="document.getElementById(\'side\').classList.toggle(\'open\')">☰</button><div class="ttl"><h1>' + esc(CUR.title || '') + '</h1>' + (CUR.subtitle ? '<div class="sub">' + esc(CUR.subtitle) + '</div>' : '') + '</div><div class="spacer"></div><div class="runmeta" id="runmeta"></div><div class="tools" id="tools"><button class="tool" onclick="R.feedback.open()" title="Feedback, bug, idea…">✎ Feedback</button></div></div>' + (CUR.tabs ? '<div class="tabs" id="tabs">' + CUR.tabs.map(t => '<a href="' + BASE + t.href + '" class="' + (t.on ? 'on' : '') + '">' + esc(t.label) + '</a>').join('') + '</div>' : '') + '<div class="filters" id="filters" hidden></div><div id="page"></div></main>';
     document.getElementById('shell').replaceWith(app);
     document.body.insertAdjacentHTML('beforeend', '<div class="modal" id="fb-modal"></div>');
     renderNav();
@@ -137,6 +137,7 @@
     const page = document.getElementById('page');
     const pc = document.getElementById('page-content');          // ported v1 pages ship their own markup
     if (pc) { pc.hidden = false; page.appendChild(pc); }
+    R.help.start();
     return page;
   };
 
@@ -172,7 +173,7 @@
 
   // ---------- filters (same bar on every page: time range first, then page-specific controls) ----------
   // R.filters({ time: true, controls: [{ key, label, type: 'select'|'multi', options: [[value,label]…], value }], onChange(state) })
-  const TIME_OPTS = [['custom', 'Custom…'], ['week', 'This week'], ['lastweek', 'Last week'], ['month', 'This month'], ['lastmonth', 'Last month'], ['quarter', 'This quarter'], ['lastquarter', 'Last quarter'], ['90d', 'Last 90 days'], ['year', 'This year'], ['12m', 'Last 12 months']];
+  const TIME_OPTS = [['custom', 'Custom…'], ['week', 'This week'], ['lastweek', 'Last week'], ['month', 'This month'], ['lastmonth', 'Last month'], ['quarter', 'This quarter'], ['lastquarter', 'Last quarter'], ['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['90d', 'Last 90 days'], ['year', 'This year'], ['12m', 'Last 12 months']];
   const iso = d => d.toISOString().slice(0, 10);
   const utc = (y, m, d) => new Date(Date.UTC(y, m, d));
   R.TIME_OPTS = TIME_OPTS;
@@ -187,6 +188,9 @@
       case 'lastmonth': return r(utc(y, m - 1, 1), utc(y, m, 1), 'Last month');
       case 'quarter': return r(utc(y, q * 3, 1), utc(y, q * 3 + 3, 1), 'Q' + (q + 1) + ' ' + y);
       case 'lastquarter': { const a = utc(y, q * 3 - 3, 1); return r(a, utc(y, q * 3, 1), 'Q' + (Math.floor(a.getUTCMonth() / 3) + 1) + ' ' + a.getUTCFullYear()); }
+      case '7d': return r(utc(y, m, now.getUTCDate() - 7), utc(y, m, now.getUTCDate() + 1), 'Last 7 days');
+      case '30d': return r(utc(y, m, now.getUTCDate() - 30), utc(y, m, now.getUTCDate() + 1), 'Last 30 days');
+      case 'nextquarter': { const a = utc(y, q * 3 + 3, 1); return r(a, utc(y, q * 3 + 6, 1), 'Q' + (Math.floor(a.getUTCMonth() / 3) + 1) + ' ' + a.getUTCFullYear()); }
       case '90d': return r(utc(y, m, now.getUTCDate() - 90), utc(y, m, now.getUTCDate() + 1), 'Last 90 days');
       case 'year': return r(utc(y, 0, 1), utc(y + 1, 0, 1), String(y));
       case '12m': return r(utc(y, m - 12, now.getUTCDate()), utc(y, m, now.getUTCDate() + 1), 'Last 12 months');
@@ -297,6 +301,17 @@
   R.fmtDate = d => { if (!d) return ''; const s = String(d); if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4); const x = new Date(d); return isNaN(x) ? s : String(x.getDate()).padStart(2, '0') + '.' + String(x.getMonth() + 1).padStart(2, '0') + '.' + x.getFullYear(); };
   R.fmtK = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + 'k' : String(n);
 
+  // A customer needs attention when: cancellation period / licence ended without renewal / renewal without a deal,
+  // usage over the contract, an unpaid add-on, or an open ticket. (Same rule as the "Needs attention" filter on Customers.)
+  R.attention = c => {
+    const why = [];
+    if (['cancellation_period', 'ended_no_renewal', 'renewal_no_deal'].includes(c.status_code)) why.push(c.status_text || c.status_code.replace(/_/g, ' '));
+    if (c.usage_flag === 'over') why.push('usage over contract');
+    if (Number(c.unpaid_count) > 0) why.push(c.unpaid_count + ' feature' + (c.unpaid_count > 1 ? 's' : '') + ' used but not in contract');
+    if (Number(c.open_tickets) > 0) why.push(c.open_tickets + ' open ticket' + (c.open_tickets > 1 ? 's' : ''));
+    return why;
+  };
+
   // ---------- celebration boards (shared) ----------
   // cards: [{ em, title, what, when (YYYY-MM-DD or YYYY-Qn), cls: 'record'|'goal'|'win' }]; scope filter 'all' | 'quarter'
   R.celebBoard = function (el, cards) {
@@ -345,13 +360,9 @@
   R.eur = n => (n === null || n === undefined || n === '') ? '—' : '€ ' + Math.round(Number(n)).toLocaleString('de-AT');
   R.hs = (type, id) => 'https://app.hubspot.com/contacts/' + C.HUBSPOT_PORTAL + '/record/' + type + '/' + id;
   R.runMeta = function (runLogRow, onReload) {
-    const el = document.getElementById('runmeta');
-    if (!el) return;
-    const btn = '<button class="btn" id="reloadbtn" title="Re-fetch everything from the database">↻ Refresh data</button>';
-    el.innerHTML = (runLogRow
-      ? '<div>Last run <strong>' + runLogRow.run_ts.slice(0, 16).replace('T', ' ') + '</strong> · ' +
-        runLogRow.mode + ' · ' + runLogRow.entries_upserted + ' entries · ' + runLogRow.restatements + ' restated</div>'
-      : '<div>No runs logged yet</div>') + btn;
+    const el = document.getElementById('runmeta'); if (!el) return;
+    el.innerHTML = (runLogRow ? '<span title="Last run of the lifecycle workflow: ' + esc(runLogRow.mode || '') + ', ' + esc(String(runLogRow.entries_upserted)) + ' entries, ' + esc(String(runLogRow.restatements)) + ' restated">Stages updated ' + R.fmtDate(runLogRow.run_ts) + ' ' + String(runLogRow.run_ts).slice(11, 16) + '</span>' : '') +
+      '<button class="tool" id="reloadbtn" title="Load the data again">↻</button>';
     document.getElementById('reloadbtn').onclick = onReload;
   };
 
@@ -380,50 +391,168 @@
              to: (q === 3 ? (y + 1) + '-01' : y + '-' + p(q * 3 + 3)) + '-01',
              label: y + '-Q' + (q + 1) };
   };
-  R.rangeTest = function (val) {
-    if (!val || val === '0') return () => true;
-    if (val === 'tq' || val === 'lq' || val === 'nq') {
-      const b = R.quarterBounds(val === 'tq' ? 0 : val === 'lq' ? -1 : 1);
-      return d => { if (!d) return false; const x = String(d).slice(0, 10); return x >= b.from && x < b.to; };
-    }
-    const cut = Date.now() - Number(val) * 86400000;
-    return d => !!d && Date.parse(d) >= cut;
+  // ---- period picker for ported pages -------------------------------------------------------------
+  // The value of a period <select> is a key of R.TIME_OPTS, 'all', or 'custom:FROM:TO'.
+  // (Old v1 values still work: tq / lq / nq and a number of days.)
+  const periodOf = val => {
+    val = String(val == null ? '' : val);
+    if (!val || val === 'all' || val === '0') return null;
+    if (val === 'tq') return R.timeRange('quarter'); if (val === 'lq') return R.timeRange('lastquarter'); if (val === 'nq') return R.timeRange('nextquarter');
+    if (val.indexOf('custom') === 0) { const p = val.split(':'); return p[1] && p[2] ? R.timeRange('custom', { from: p[1], to: p[2] }) : null; }
+    if (/^\d+$/.test(val)) { const n = new Date(); return { from: iso(new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() - Number(val)))), to: '9999-12-31', label: 'Last ' + val + ' days' }; }
+    return R.timeRange(val);
   };
-  R.overlapTest = function (val) {  // for span rows (first/last send): does the span touch the range?
-    if (val === 'tq' || val === 'lq' || val === 'nq') {
-      const b = R.quarterBounds(val === 'tq' ? 0 : val === 'lq' ? -1 : 1);
-      return (s, e) => { s = String(s || e || '').slice(0, 10); e = String(e || s || '').slice(0, 10);
-        return !!s && s < b.to && e >= b.from; };
-    }
-    const t = R.rangeTest(val);
-    return (s, e) => t(e || s);
+  R.periodRange = periodOf;
+  // opts.openEnd: keep everything after the period start (pages that also list upcoming items)
+  R.rangeTest = function (val, opts) {
+    const r = periodOf(val); if (!r) return () => true;
+    const open = opts && opts.openEnd;
+    return d => { if (!d) return false; const x = String(d).slice(0, 10); return x >= r.from && (open || x < r.to); };
   };
-  R.rangeLabel = function (val) {
-    if (!val || val === '0') return '';
-    if (val === 'tq') return R.quarterBounds(0).label;
-    if (val === 'lq') return R.quarterBounds(-1).label;
-    if (val === 'nq') return R.quarterBounds(1).label;
-    return 'last ' + val + 'd';
+  R.overlapTest = function (val) {  // for rows with a start and an end (first / last send): does the span touch the period?
+    const r = periodOf(val); if (!r) return () => true;
+    return (st, en) => { st = String(st || en || '').slice(0, 10); en = String(en || st || '').slice(0, 10); return !!st && st < r.to && en >= r.from; };
   };
+  R.rangeLabel = function (val) { const r = periodOf(val); return r ? r.label : ''; };
+  R.rangeDays = function (val) { const r = periodOf(val); return r ? Math.max(1, Math.round((Math.min(Date.parse(r.to), Date.now() + DAY) - Date.parse(r.from)) / DAY)) : 0; };
+  // Turns a v1 time <select> into the standard period picker (same options and look as R.filters).
   R.quarterOptions = function (sel, withNext) {
     if (!sel || sel.dataset.q) return; sel.dataset.q = '1';
-    const keep = sel.value;
-    const defs = [['tq', 'This quarter (' + R.quarterBounds(0).label + ')'],
-                  ['lq', 'Last quarter (' + R.quarterBounds(-1).label + ')']];
-    if (withNext) defs.push(['nq', 'Next quarter (' + R.quarterBounds(1).label + ')']);
-    defs.reverse().forEach(([v, t]) => { const o = document.createElement('option');
-      o.value = v; o.textContent = t; sel.insertBefore(o, sel.firstChild); });
-    sel.value = keep;
+    if (sel.dataset.default === undefined && !sel.closest('#filters')) sel.dataset.default = 'all';
+    const key = 'period.' + (CUR.page || 'x') + '.' + sel.id;
+    const opts = TIME_OPTS.slice(); if (withNext) opts.splice(7, 0, ['nextquarter', 'Next quarter']); opts.push(['all', 'All time']);
+    let val = LS.get(key, null) || sel.dataset.default || 'all';
+    sel.innerHTML = opts.map(o => '<option value="' + o[0] + '">' + o[1] + '</option>').join('');
+    const cust = sel.querySelector('option[value="custom"]');
+    const dates = document.createElement('span'); dates.className = 'f dates'; dates.hidden = true;
+    dates.innerHTML = '<input type="date" aria-label="from"><span>→</span><input type="date" aria-label="to">';
+    (sel.closest('.f') || sel).insertAdjacentElement('afterend', dates);
+    const [from, to] = dates.querySelectorAll('input');
+    if (String(val).indexOf('custom:') === 0) { const p = val.split(':'); from.value = p[1] || ''; to.value = p[2] || ''; cust.value = val; dates.hidden = false; }
+    sel.value = val; if (sel.selectedIndex < 0) { sel.value = sel.dataset.default || 'all'; }
+    // registered before the page's own listeners: a half-filled custom range does not re-render the page
+    sel.addEventListener('change', e => {
+      const isCustom = sel.value.indexOf('custom') === 0;
+      dates.hidden = !isCustom;
+      if (isCustom && !(from.value && to.value)) { e.stopImmediatePropagation(); from.focus(); return; }
+      LS.set(key, sel.value);
+    });
+    const setCustom = () => { if (!(from.value && to.value)) return; cust.value = 'custom:' + from.value + ':' + to.value; sel.value = cust.value; sel.dispatchEvent(new Event('change')); };
+    from.addEventListener('change', setCustom); to.addEventListener('change', setCustom);
   };
+
+  // ---- filter bar for ported pages -------------------------------------------------------------------
+  // Moves the page's own controls into the standard bar under the page title: period first, then the other
+  // filters, search last — same order, look and place on every page.
+  //   cfg.period = { selectId: defaultKey }   cfg.labels = { controlId: 'Label' }   cfg.hints = { controlId: 'tooltip' }
+  R.legacyFilters = function (cfg) {
+    cfg = cfg || {};
+    const pc = document.getElementById('page-content') || document.getElementById('page');
+    const bar = document.getElementById('filters'); if (!bar || !pc) return;
+    const olds = [...pc.querySelectorAll('.filters')]; if (!olds.length) return;
+    bar.hidden = false; bar.classList.add('v1');
+    const L = cfg.labels || {}, P = cfg.period || {}, H = cfg.hints || {};
+    const wrap = (cls, label, node, tag) => {
+      const w = document.createElement(tag || 'label'); w.className = 'f' + (cls ? ' ' + cls : '');
+      if (label) { const sp = document.createElement('span'); sp.className = 'fl'; sp.textContent = label; w.appendChild(sp); }
+      w.appendChild(node); return w;
+    };
+    const period = [], rest = [], search = [];
+    olds.forEach(old => {
+      [...old.children].forEach(el => {
+        const id = el.id || '';
+        el.removeAttribute('style');
+        if (H[id]) el.title = H[id];
+        if (el.tagName === 'SELECT') {
+          const first = el.options[0];
+          if (first && /:\s*(all|any|any time)\s*$/i.test(first.textContent)) first.textContent = 'All';
+          if (P[id] !== undefined) { el.dataset.default = P[id]; period.push(wrap('per', L[id] || 'Period', el)); }
+          else rest.push(wrap('', L[id] || '', el));
+        } else if (el.matches('input[type=search]')) { if (!el.placeholder) el.placeholder = 'Search…'; search.push(wrap('search', '', el)); }
+        else if (el.classList.contains('msel')) rest.push(wrap('', '', el, 'span'));
+        else if (el.tagName === 'LABEL') { el.classList.add('f', 'raw'); rest.push(el); }
+        else rest.push(wrap('raw', L[id] || '', el, 'span'));
+      });
+      old.remove();
+    });
+    period.concat(rest, search).forEach(n => bar.appendChild(n));
+    // controls the page logic still reads but that make no sense on this page are kept out of sight
+    (cfg.stash || []).forEach(id => { const el = document.getElementById(id); const w = el && (el.closest('.f') || el); if (w) w.hidden = true; });
+    // every period select — in the bar or inside a chart card — becomes the standard picker
+    Object.keys(P).forEach(id => { const el = document.getElementById(id); if (!el) return; if (!el.dataset.default) el.dataset.default = P[id]; R.quarterOptions(el, (cfg.next || []).includes(id)); });
+  };
+
+  // ---- "?" explanations ------------------------------------------------------------------------------
+  // assets/help.js registers, per page, where each number comes from and how it is calculated:
+  //   R.help.add('page-key', [{ m: 'start of the label', src: '…', calc: '…', note: '…' }, …])
+  // Every heading and metric label on the page that starts with `m` gets a small "?" button.
+  R.help = {
+    pages: {}, sources: {},
+    add(page, entries) { (this.pages[page] = this.pages[page] || []).push(...entries); },
+    find(text) {
+      const list = this.pages[CUR.help || CUR.page] || []; const t = String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (!t) return -1;
+      let best = -1, len = 0;
+      list.forEach((e, i) => { const m = String(e.m).toLowerCase(); if ((t.indexOf(m) === 0 || (e.any && t.indexOf(m) >= 0)) && m.length > len) { best = i; len = m.length; } });
+      return best;
+    },
+    SEL: 'h2, h3, .sechead, .metric .label, .tile .k, .gh h2, .count .l, .goal .gl > span:first-child, .mc .mh b, [data-help]',
+    decorate() {
+      const root = document.getElementById('page'); if (!root) return;
+      root.querySelectorAll(this.SEL).forEach(el => {
+        if (el.querySelector(':scope > .q') || el.closest('.qpop')) return;
+        const own = [...el.childNodes].filter(n => n.nodeType === 3 || (n.nodeType === 1 && !/^(BUTTON|SELECT|INPUT)$/.test(n.tagName))).map(n => n.textContent).join(' ');
+        const i = this.find(el.dataset.help || own); if (i < 0) return;
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'q'; b.textContent = '?'; b.dataset.i = i;
+        b.title = 'Where does this come from?'; b.setAttribute('aria-label', 'Where does this come from?');
+        el.appendChild(b);
+      });
+    },
+    missing() {   // labels on the page without an explanation (used by the tests)
+      const root = document.getElementById('page'); if (!root) return [];
+      return [...root.querySelectorAll(this.SEL)].filter(el => !el.querySelector(':scope > .q') && el.offsetParent !== null).map(el => el.textContent.replace(/\s+/g, ' ').trim().slice(0, 60)).filter(Boolean);
+    },
+    open(btn) {
+      this.close();
+      const e = (this.pages[CUR.help || CUR.page] || [])[Number(btn.dataset.i)]; if (!e) return;
+      const title = e.t || btn.parentNode.textContent.replace(/\?\s*$/, '').replace(/\s+/g, ' ').trim();
+      const src = e.src && this.sources[e.src] ? this.sources[e.src] : e.src;
+      const pop = document.createElement('div'); pop.className = 'qpop'; pop.id = 'qpop';
+      pop.innerHTML = '<button class="x" aria-label="Close">✕</button><h4>' + esc(title) + '</h4>' +
+        (e.calc ? '<div class="ql">How it is calculated</div><p>' + e.calc + '</p>' : '') +
+        (src ? '<div class="ql">Where the data comes from</div><p>' + src + '</p>' : '') +
+        (e.note ? '<div class="ql">Good to know</div><p>' + e.note + '</p>' : '');
+      document.body.appendChild(pop);
+      const r = btn.getBoundingClientRect(), w = Math.min(380, window.innerWidth - 24);
+      pop.style.width = w + 'px';
+      pop.style.left = Math.max(12, Math.min(window.innerWidth - w - 12, r.left - 20)) + window.scrollX + 'px';
+      const below = r.bottom + 8 + pop.offsetHeight < window.innerHeight || r.top < pop.offsetHeight + 16;
+      pop.style.top = (below ? r.bottom + 8 : r.top - pop.offsetHeight - 8) + window.scrollY + 'px';
+      pop.querySelector('.x').onclick = () => this.close();
+    },
+    close() { const p = document.getElementById('qpop'); if (p) p.remove(); },
+    start() {
+      if (this._on) return; this._on = true;
+      document.addEventListener('click', e => {
+        const b = e.target.closest && e.target.closest('button.q');
+        if (b) { e.preventDefault(); e.stopPropagation(); this.open(b); return; }
+        if (!(e.target.closest && e.target.closest('#qpop'))) this.close();
+      }, true);
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') this.close(); });
+      let t = null; const run = () => { t = null; this.decorate(); };
+      const root = document.getElementById('page');
+      if (root) new MutationObserver(() => { if (!t) t = setTimeout(run, 120); }).observe(root, { childList: true, subtree: true });
+      this.decorate();
+    }
+  };
+
   R.errState = function (el, err) {
     el.className = 'state err';
-    el.innerHTML = 'Build ' + C.BUILD + ': could not load data (' + R.esc(err.message) + '). ' +
-      (err.status === 401 || err.status === 403 || err.status === 404
-        ? 'If this table/view is new, run the SQL from <code>sql/reporting-views.sql</code> in Supabase (it also sets the read policies).' : '');
+    el.innerHTML = 'Could not load the data (' + R.esc(err.message) + '). Please try again in a minute — if it stays like this, send a note via Feedback (build ' + R.esc(C.BUILD || '') + ').';
   };
   R.pendingState = function (el, opts) {
-    el.innerHTML = '<div class="pending"><div class="pill">Data pipeline pending</div><h3>' + R.esc(opts.title) + '</h3>' +
-      '<p>' + opts.text + '</p><p>This page reads <code>' + R.esc(opts.view) + '</code> and lights up automatically once the n8n workflow fills it — no page changes needed.</p></div>';
+    el.innerHTML = '<div class="pending"><div class="pill">Data not connected yet</div><h3>' + R.esc(opts.title) + '</h3>' +
+      '<p>' + opts.text + '</p><p>The page fills itself as soon as the data source <code>' + R.esc(opts.view) + '</code> exists — no change to the page needed.</p></div>';
   };
   // A view exists but is empty vs missing: 404/42P01 -> pending, [] -> empty
   R.loadViewOrPending = async function (query, container, pendingOpts) {
@@ -505,6 +634,7 @@
     return s + '</svg>';
   };
 
+  R.C = C;
   R.J_ICON = { call: ['📞','Cold call'], email: ['✉️','Outreach email'], reply: ['↩️','Replied'],
     download: ['📄','Website download'], form: ['📝','Contact form'], event: ['🎪','Event'],
     web: ['🌐','Website'], ads: ['💰','Paid ads'], social: ['📱','Social'], referral: ['🔗','Referral'] };

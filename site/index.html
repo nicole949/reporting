@@ -12,6 +12,7 @@
 <div id="shell"></div>
 <script src="assets/config.js?b=__BUILD__"></script>
 <script src="assets/app.js?b=__BUILD__"></script>
+<script src="assets/help.js?b=__BUILD__"></script>
 <script>
 const page = R.shell({ page: 'overview', title: 'Commercial overview', subtitle: 'Key numbers across the whole commercial journey — Marketing → Business Development → Sales → Customer Success' });
 page.innerHTML = '<div class="kgroups" id="kg"><div class="state">Loading…</div></div><p class="small muted" style="margin-top:.8rem">Each tile compares the chosen period with the period of the same length before it. Tiles marked “now” are a snapshot and ignore the period.</p>';
@@ -48,7 +49,7 @@ function render() {
   const E = (stage, rg) => count(D.entries.filter(e => e.stage === stage), e => e.effective_date, rg);
   const emails = rg => sum(D.email, x => x.date, x => x.sends, rg) + sum(D.inst, x => x.date, x => x.sent, rg);
   const li = rg => sum(D.outreach.filter(o => /linkedin/i.test(o.channel)), o => o.ts, o => o.n || 1, rg);
-  const calls = rg => count(D.calls, c => c.ts, rg), conn = rg => count(D.calls.filter(c => c.bucket === 'counts_as_responded'), c => c.ts, rg);
+  const calls = rg => count(D.calls, c => c.ts, rg), conn = rg => count(D.calls.filter(c => (c.bucket === 'connected' || c.bucket === 'rejected')), c => c.ts, rg);
   const disc = rg => count(D.discos.filter(d => d.status !== 'canceled'), d => d.created_at || d.meeting_start, rg);
   const held = rg => count(D.discos.filter(d => d.status === 'completed'), d => d.meeting_start, rg);
   const nbDeals = D.deals.filter(d => NB.test(d.dealtype || '') || POC.test(d.dealtype || ''));

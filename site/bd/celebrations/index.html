@@ -12,6 +12,7 @@
 <div id="shell"></div>
 <script src="../../assets/config.js?b=__BUILD__"></script>
 <script src="../../assets/app.js?b=__BUILD__"></script>
+<script src="../../assets/help.js?b=__BUILD__"></script>
 <script>
 const page = R.shell({ page: 'celebrations', title: 'Celebration board', subtitle: 'Records and wins of the Business Development team — computed from calls, discoveries and goals' });
 page.innerHTML = '<div class="celebs" id="celebs"><div class="state">Loading…</div></div><p class="small muted" style="margin-top:.8rem">Records are all-time since the data starts (2026). Cards appear automatically when a record falls or a goal is reached; special notes can be added in the change notes.</p>';
@@ -31,7 +32,7 @@ async function load() {
     let best = null; for (const [k, v] of Object.entries(m)) if (!best || v > best.v) best = { k, v };
     if (best) { const [when, person] = best.k.split('|'); cards.push({ em, title: title.replace('{n}', best.v), what: what.replace('{who}', person === 'team' ? 'the whole team' : person), when, cls, sort: when }); }
   };
-  const conn = calls.filter(c => c.bucket === 'counts_as_responded'), booked = calls.filter(c => /meeting booked/i.test(c.disposition_label || ''));
+  const conn = calls.filter(c => (c.bucket === 'connected' || c.bucket === 'rejected')), booked = calls.filter(c => /meeting booked/i.test(c.disposition_label || ''));
   rec(calls, c => day(c.ts), true, '📞', '{n} calls in one day', 'personal record · {who}', 'record');
   rec(calls, c => day(c.ts), false, '🏟️', '{n} calls in one day', 'team record · {who}', 'record');
   rec(conn, c => day(c.ts), true, '🎯', '{n} connected calls in one day', 'personal record · {who}', 'record');

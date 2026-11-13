@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leads · JENTIS Reporting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/app.css?b=__BUILD__">
+<link rel="stylesheet" href="../../assets/legacy.css?b=__BUILD__">
+<style>
+.v1 .msel{position:relative;display:inline-block}
+.v1 .msel-btn{font:inherit;font-size:.85rem;padding:.45rem .8rem;border:1px solid var(--hair);border-radius:10px;background:var(--panel);cursor:pointer;color:inherit}
+.v1 .msel.on .msel-btn{border-color:var(--brand-navy);font-weight:600}
+.v1 .msel-dd{display:none;position:absolute;z-index:30;top:calc(100% + 4px);left:0;min-width:230px;max-height:300px;overflow:auto;background:var(--panel);border:1px solid var(--hair);border-radius:12px;box-shadow:0 8px 24px rgba(20,40,60,.14);padding:.4rem}
+.v1 .msel.open .msel-dd{display:block}
+.v1 .msel-dd label{display:flex;gap:.5rem;align-items:center;font-size:.83rem;padding:.28rem .45rem;border-radius:8px;cursor:pointer;white-space:nowrap}
+.v1 .msel-dd label:hover{background:var(--paper)}
+.v1 .msel-dd .msel-clear{display:block;width:100%;text-align:left;font:inherit;font-size:.78rem;color:var(--slate);background:none;border:none;border-bottom:1px solid var(--hair);padding:.3rem .45rem .45rem;margin-bottom:.25rem;cursor:pointer}
+.v1 .fun-top{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.v1 .fun-ctl{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.v1 .fun-dates{display:inline-flex;align-items:center;gap:.35rem;font-size:.76rem;color:var(--slate)}
+.v1 .fun-dates input,.v1 .fun-dates select{border:1px solid var(--hair);border-radius:8px;padding:.25rem .4rem;font:inherit;font-size:.78rem;color:var(--ink);background:#fff}
+.v1 #fun-anchor-wrap.dim{opacity:.45;pointer-events:none}
+.v1 .seg{display:inline-flex;border:1px solid var(--hair);border-radius:999px;overflow:hidden;background:#fff}
+.v1 .seg button{border:0;background:transparent;padding:.3rem .8rem;font:inherit;font-size:.78rem;cursor:pointer;color:var(--slate);white-space:nowrap}
+.v1 .seg button.on{background:#004771;color:#fff}
+.v1 .fun-tf{font-size:.78rem;color:var(--slate);margin-top:.45rem}
+.v1 .fun-tf strong{color:var(--ink);font-weight:600}
+.v1 .funnel-svg{width:100%;max-width:900px;display:block;margin:1rem auto 0;font-family:inherit}
+.v1 .funnel-svg .row{cursor:pointer}
+.v1 .funnel-svg .row:hover .trap{opacity:.85}
+.v1 .funnel-svg .row.off .trap{fill:none;stroke:#C3CDD6;stroke-dasharray:4 3;stroke-width:1.5}
+.v1 .funnel-svg .lbl{font-size:13px;font-weight:700;letter-spacing:.06em}
+.v1 .funnel-svg .lbl.dark{fill:#1F2D3A}
+.v1 .funnel-svg .lbl.light{fill:#fff}
+.v1 .funnel-svg .lbl.off{fill:var(--faint);text-decoration:line-through;font-size:11px;font-weight:600}
+.v1 .funnel-svg .sub{font-size:10px}
+.v1 .funnel-svg .sub.dark{fill:#3B4A57}
+.v1 .funnel-svg .sub.light{fill:rgba(255,255,255,.85)}
+.v1 .funnel-svg .cnt{font-size:13.5px;font-weight:700;fill:#004771}
+.v1 .funnel-svg .pct{font-size:21px;font-weight:700;fill:#004771;paint-order:stroke;stroke:#fff;stroke-width:6px;stroke-linejoin:round}
+.v1 .funnel-svg .pct.weak{fill:#8E5A47}
+.v1 .funnel-svg .pctsub{font-size:9.5px;fill:var(--faint)}
+.v1 .funnel-svg .curve{fill:none;stroke:#004771;stroke-width:1.4;opacity:.55}
+.v1 .funnel-svg .curve.weak{stroke:#8E5A47}
+.v1 .fun-bottom{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:.7rem}
+.v1 .fun-foot{font-size:.78rem;color:var(--slate)}
+.v1 .fun-foot strong{color:var(--ink)}
+.v1 .fun-hint{font-size:.72rem;color:var(--faint)}
+.v1 .fun-wrap{display:flex;gap:1rem;align-items:flex-start}
+.v1 .fun-main{flex:1 1 auto;min-width:0}
+.v1 .fun-side{flex:0 0 300px;position:sticky;top:1rem;max-height:80vh;overflow:auto;background:var(--paper);border-radius:10px;padding:.7rem .85rem}
+.v1 .fun-side h3{font-size:.85rem;margin:0 0 .5rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+.v1 .fun-side h3 button{border:0;background:transparent;font:inherit;cursor:pointer;color:var(--faint);font-size:1rem;line-height:1}
+.v1 .fun-side .co{padding:.4rem 0}
+.v1 .fun-e2e{font-size:.78rem;color:var(--slate)}
+.v1 .fun-e2e strong{color:#004771}
+.v1 .funnel-svg .cyc{font-size:12px;fill:var(--slate)}
+.v1 .funnel-svg .cyc.sub{font-size:10px;fill:var(--faint)}
+.v1 .funnel-svg .cyc tspan.b{font-weight:700;font-size:14px;fill:#004771}
+.v1 .funnel-svg .curve.lcurve{stroke:#9AA4AD;opacity:.7}
+.v1 .funnel-svg .cnt-btn{cursor:pointer}
+.v1 .funnel-svg .cnt-btn:hover circle{stroke-width:3.5}
+.v1 .f-check{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--slate);border:1px solid var(--hair);border-radius:999px;padding:.35rem .7rem;background:#fff;cursor:pointer;white-space:nowrap}
+.v1 .f-check input{margin:0}
+.v1 .msel-dd label.grp{font-weight:700;color:#004771}
+.v1 .msel-dd .msel-sep{border-top:1px solid var(--hair);margin:.25rem 0}
+.v1 .cmp-chips{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.5rem}
+.v1 .cmp-chips label{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;border:1px solid var(--hair);border-radius:999px;padding:.28rem .65rem;background:#fff;cursor:pointer;white-space:nowrap;color:var(--slate)}
+.v1 .cmp-chips label.on{border-color:#004771;color:#004771;font-weight:600}
+.v1 .cmp-chips label.grp{font-weight:600}
+.v1 .cmp-chips input{margin:0}
+.v1 .cmp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin-top:.9rem}
+.v1 .cmp-col{background:var(--paper);border-radius:12px;padding:.7rem .85rem}
+.v1 .cmp-col h4{margin:0 0 .5rem;font-size:.86rem;display:flex;justify-content:space-between;align-items:baseline;gap:.5rem}
+.v1 .cmp-col h4 span{font-weight:500;color:var(--faint);font-size:.74rem}
+.v1 .cmp-row{display:grid;grid-template-columns:44px 1fr 30px 62px;gap:.4rem;align-items:center;font-size:.76rem;margin:.3rem 0}
+.v1 .cmp-row .st{color:var(--slate);text-transform:uppercase;letter-spacing:.04em;font-size:.66rem;font-weight:600}
+.v1 .cmp-row .bar{height:16px;background:#fff;border-radius:4px;overflow:hidden;cursor:pointer}
+.v1 .cmp-row .bar i{display:block;height:100%;border-radius:4px}
+.v1 .cmp-row .bar:hover i{filter:brightness(.9)}
+.v1 .cmp-row .n{font-weight:700;color:#1F2D3A;text-align:right;cursor:pointer;font-size:.8rem}
+.v1 .cmp-row .n:hover,.v1 .cmp-row .pc:hover{text-decoration:underline}
+.v1 .cmp-row .pc{text-align:right;font-weight:700;color:#004771;cursor:pointer;line-height:1.1}
+.v1 .cmp-row.sel .n{color:#004771}
+.v1 .cmp-wrap{display:flex;gap:1rem;align-items:flex-start;margin-top:.9rem}
+.v1 .cmp-wrap .cmp-main{flex:1 1 auto;min-width:0}
+.v1 .cmp-wrap .cmp-grid{margin-top:0}
+.v1 .cmp-row .pc.weak{color:#8E5A47}
+.v1 .cmp-row .pc small{display:block;font-weight:400;color:var(--faint);font-size:.62rem}
+.v1 .cmp-e2e{margin-top:.5rem;font-size:.76rem;color:var(--slate);border-top:1px solid var(--hair);padding-top:.4rem}
+.v1 .cmp-e2e strong{color:#004771}
+.v1 .cmp-empty{font-size:.8rem;color:var(--faint)}
+#funnel,#compare,.sechead:last-of-type{display:none!important}
+</style>
+</head>
+<body>
+<!-- GENERATED by tools/port_v1.py from archive/v1-live/leads/index.html — change the generator or the v1 source, not this file. -->
+<div id="shell"></div>
+<div id="page-content" class="v1" hidden>
+<div class="filters">
+    <div class="msel" id="f-region" data-label="Region"><button type="button" class="msel-btn">Region: all</button><div class="msel-dd"></div></div>
+    <div class="msel" id="f-tier" data-label="ABM tier"><button type="button" class="msel-btn">ABM tier: all</button><div class="msel-dd"></div></div>
+    <div class="msel" id="f-icp" data-label="ICP type"><button type="button" class="msel-btn">ICP type: all</button><div class="msel-dd"></div></div>
+    <div class="msel" id="f-conv" data-label="Conversion type" title="HubSpot contact property Conversion Type of the company's converting contact (first responded contact, else earliest contact) — Inbound / Outbound group several types"><button type="button" class="msel-btn">Conversion type: all</button><div class="msel-dd"></div></div>
+    <select id="f-gran">
+      <option value="weekly">Weekly</option><option value="monthly">Monthly</option>
+      <option value="quarterly">Quarterly</option><option value="yearly">Yearly</option>
+    </select>
+    <select id="f-view">
+      <option value="effective">Corrected dates</option>
+      <option value="reported">As set in HubSpot</option>
+    </select>
+    <select id="f-range">
+      <option value="12">Last 12</option><option value="26">Last 26</option><option value="0">All</option>
+    </select>
+    <input type="search" id="f-search" placeholder="Find company…">
+    <label class="f-check" title="Partners, agencies & resellers: lifecycle stage Partner / Agency, Reseller, Reseller-Customer, or ICP type Partner / Agency & services. Selecting such an ICP type in the filter shows them again."><input type="checkbox" id="f-nopartners" checked> Hide partners &amp; agencies</label>
+  </div>
+  <div class="metrics" id="metrics"></div>
+  <div class="split">
+    <div class="card">
+      <h2 id="matrix-title">Entries by week and stage</h2>
+      <div id="matrix" class="state">Loading…</div>
+      <div class="legend">
+        <span><span class="sw"></span>darker = more entries</span>
+        <span><span class="dot"></span>restated in the last run</span>
+        <span>click a cell for the companies behind it</span>
+        <span>Disc. = first Discovery meeting entered (2025→) · Cust. = first new-business win</span>
+      </div>
+    </div>
+    <div class="card" id="drill">
+      <h2 id="drill-title">Companies</h2>
+      <div id="drill-body" class="empty">Select a cell in the matrix.</div>
+    </div>
+  </div>
+  <div class="card" id="funnel" style="margin-top:1rem">
+    <div class="fun-top">
+      <h2 style="margin:0">Funnel conversion <span id="funnel-sub"></span></h2>
+      <div class="fun-ctl">
+        <label class="fun-dates"><span>from</span><input type="date" id="fun-from"><span>to</span><input type="date" id="fun-to"></label>
+        <div class="seg" id="fun-basis">
+          <button type="button" class="on" data-b="cohort" title="Follow the companies that entered the start stage in the window, until today">Cohort</button>
+          <button type="button" data-b="flow" title="Every stage change that happened in the window, whichever cohort">Activity</button>
+        </div>
+        <label class="fun-dates" id="fun-anchor-wrap" title="Which stage entry defines the cohort. Responded = also dormant companies that were reactivated, regardless of when they became leads."><span>start at</span>
+          <select id="fun-anchor"><option value="0">Lead</option><option value="1">Engaged</option><option value="2">Responded</option><option value="3">Discovery</option><option value="4">Qualified</option><option value="5">Opportunity</option></select></label>
+      </div>
+    </div>
+    <div class="fun-tf" id="fun-tf"></div>
+    <div class="fun-wrap">
+      <div class="fun-main">
+        <div id="funnel-body" class="state">Loading…</div>
+        <div class="fun-bottom" style="justify-content:flex-end">
+          <div class="fun-hint">click a level to exclude it · click a number for the companies</div>
+        </div>
+      </div>
+      <aside class="fun-side" id="fun-side" hidden></aside>
+    </div>
+  </div>
+  <div class="card" id="compare" style="margin-top:1rem">
+    <div class="fun-top">
+      <h2 style="margin:0">Compare funnels by conversion type <span id="cmp-sub" style="font-weight:500;color:var(--faint);font-size:.8rem"></span></h2>
+    </div>
+    <div class="fun-tf">Same window, basis, start stage and filters as the funnel above — the funnels below only add the conversion type. Pick what to put next to each other:</div>
+    <div class="cmp-chips" id="cmp-chips"></div>
+    <div class="cmp-wrap"><div class="cmp-main"><div id="cmp-body" class="cmp-grid"></div></div><aside class="fun-side" id="cmp-side" hidden></aside></div>
+    <div class="fun-hint" style="margin-top:.5rem">Bar = share of the start stage · big number = conversion from the previous level · click it for the companies.</div>
+  </div>
+  <div class="sechead" style="margin-top:1.2rem">Stage entries over time</div>
+  <div class="grid" id="stage-trends" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem"></div>
+  <div class="sechead" style="margin-top:1.2rem">Funnel conversion</div>
+  <footer>Lifecycle stage entries per company (one per company and stage, corrected effective dates) · daily refresh · restatements revise past weeks as evidence improves · <strong>Discovery</strong> = the day the company's first Discovery-typed meeting was entered in HubSpot (from 2025; the HubSpot stage field was mass-stamped on 23.03.2026 by the contact→company sync and is not used) — cancelled and no-show meetings don't count · discoveries of companies that were already a customer, had a won deal, or had a deal still open that was created &gt;14 days earlier are listed as existing customers and not counted (a deal lost before the discovery doesn't block — dormant accounts coming back count) · <strong>Customer</strong> = first won Full License (New Business) or JENTIS Light deal; renewals, upsells, POCs and professional services never count · partners, agencies &amp; resellers (lifecycle stage Partner / Agency, Reseller, or a partner/agency ICP type) are hidden unless the checkbox is off or such an ICP type is selected · <strong>Conversion type</strong> = HubSpot contact property “Conversion Type” of the company's converting contact (the first contact that responded, otherwise the earliest contact with a type) — Inbound = Inbound, Download, Newsletter, Referral, Event · Outbound = Outreach, Prospecting (mapping in the sync workflow).</footer>
+</div>
+<script src="../../assets/config.js?b=__BUILD__"></script>
+<script src="../../assets/app.js?b=__BUILD__"></script>
+<script src="../../assets/help.js?b=__BUILD__"></script>
+<script>
+const C = window.RCONFIG;
+R.shell({"page": "leads", "title": "Leads", "subtitle": "Companies entering each lifecycle stage — by week, month or quarter, on corrected dates"});
+R.legacyFilters({"period": {"f-range": "90d"}, "labels": {"f-gran": "Group by", "f-view": "Dates", "f-range": "Period"}, "hints": {"f-range": "Shows the weeks / months that fall into this period", "f-view": "Corrected = the date the stage was really reached (meeting, call, reply). As set in HubSpot = the day the field was changed."}, "next": [], "stash": []});
+
+</script>
+<script>
+const STAGES = ['lead','engaged','responded','discovery','qualified','opportunity','customer'];
+const SHORT = {lead:'Lead',engaged:'Eng.',responded:'Resp.',discovery:'Disc.',qualified:'Qual.',opportunity:'Opp.',customer:'Cust.'};
+const EV = {createdate:'Created',hs_auto:'Score',hs_manual:'Manual',hs_reported:'HubSpot only',call_connected:'Call',
+  email_reply_positive:'Reply',meeting_typed:'Meeting typed',meeting_title:'Title match',meeting_inferred:'Inferred',
+  deal_create:'Deal',deal_won:'Won',monotonic_backfill:'Backfilled',manual_override:'Override'};
+let entries=[], dims={}, restated=new Set(), lastRun=null, selected=null;
+
+async function init(){
+  const mx=document.getElementById('matrix');
+  mx.className='state'; mx.textContent='Loading…';
+  try{
+    const cutoff=new Date(Date.now()-8*86400000).toISOString();
+    const [e,d,rst,rl,disc,wins,conv]=await Promise.all([
+      R.fetchAll('company_stage_entries?suppressed=eq.false&select=company_id,stage,entry_number,effective_date,reported_ts,evidence_type,confidence,lag_days,override_conflict'),
+      R.fetchAll('company_dimensions?select=company_id,name,geopolitical_region,account_tier_label,publisher_type,country,lifecyclestage_current'),
+      R.fetchAll('restatements?changed_at=gte.'+encodeURIComponent(cutoff)+'&select=company_id,stage,entry_number'),
+      R.fetchAll('run_log?order=run_ts.desc&limit=1'),
+      R.fetchAll('v_discoveries?select=company_id,company_name,meeting_start,created_at,status,contact_name'),
+      R.fetchAll('v_deals?select=company_id,company_name,deal_name,dealtype,create_date,close_date,is_closed,is_won,partner_name'),
+      R.fetchAll('company_conversion_type?select=company_id,conversion_type,conversion_group,mixed').catch(()=>[])
+    ]);
+    dims={}; for(const x of d) dims[x.company_id]=x;
+    // companies known only from meetings / deals (not yet in company_dimensions): at least carry the name
+    for(const m of disc) if(m.company_id&&!dims[m.company_id]&&m.company_name) dims[m.company_id]={company_id:m.company_id,name:m.company_name,_nodims:true};
+    for(const w of wins) if(w.company_id&&!dims[w.company_id]&&w.company_name) dims[w.company_id]={company_id:w.company_id,name:w.company_name,_nodims:true};
+    for(const c of conv){ const dm=dims[c.company_id]; if(dm){ dm.conversion_type=c.conversion_type||'Unknown'; dm.conversion_group=c.conversion_group||'other'; dm.conversion_mixed=!!c.mixed; } }
+    CONV_LOADED=conv.length>0;
+    entries=rebase(e,disc,wins);
+    restated=new Set(rst.map(r=>r.company_id+'|'+r.stage+'|'+r.entry_number));
+    lastRun=rl[0]||null;
+    buildFilters(); R.runMeta(lastRun, init); renderAll();
+  }catch(err){ R.errState(mx, err); }
+}
+
+// ---- Discovery & Customer on evidence, not on the HubSpot stage field --------------------------
+// Discovery = the day the company's first Discovery-typed meeting was entered in HubSpot (booking = entered
+// Discovery, the same rule the Overview uses; cancelled / no-show meetings don't count). The lifecycle field
+// was mass-stamped on 23.03.2026 when the contact->company stage sync went live, so it is not usable as a date.
+// A discovery of a company that was already further along (a customer, a won deal, or a deal that was
+// still open at the time and had been opened more than OPP_GRACE days earlier) is a CS / upsell conversation,
+// not a new-business discovery: it is dropped and listed under "existing customers". A deal that was lost
+// BEFORE the discovery does not block it — that is a dormant account coming back (KNAPP, 2024 → 2025).
+// Customer = first won new-business deal (Full License (New Business) or JENTIS Light); renewals,
+// upsells, POCs etc. never make a customer here.
+const DISC_FROM='2025-01-01';            // meeting data starts here; older lifecycle discovery dates stay as they are
+const OPP_GRACE=14;                      // a deal opened within N days before the discovery is the same journey
+const NB_DEALTYPES=/^(full license \(new business\)|jentis light)$/i;
+const LC_LABEL={subscriber:'Subscriber',lead:'Lead',marketingqualifiedlead:'Engaged','5048582334':'Responded',
+  salesqualifiedlead:'Discovery','6220004557':'Lost Discovery','5363445975':'Qualified',opportunity:'Opportunity',
+  '1256645873':'Lost Opportunity',customer:'Customer','5824430316':'Reseller-Customer',evangelist:'Partner / Agency',
+  '878871240':'Reseller','862115310':'Churned Customer','3781682386':'Competitor',other:'Other',
+  '4579445995':'Disqualified','850488788':'(deprecated)','6012536013':'Customer-Parent','6012536014':'Customer-Child'};
+const nowLabel=dm=>LC_LABEL[String((dm||{}).lifecyclestage_current||'')]||((dm||{}).lifecyclestage_current?String(dm.lifecyclestage_current):'');
+const nowTxt=dm=>{ const l=nowLabel(dm); return l?' · now '+R.esc(l):' · <span title="not in the lifecycle data yet (company not modified in HubSpot since 2026) — current stage unknown">stage unknown</span>'; };
+let EXCLUDED_DISC=[];                    // discoveries of companies that were already further along
+function rebase(lc,discos,wins){
+  const today=new Date().toISOString().slice(0,10);
+  const byCo={};
+  const add=(cid,k,v)=>{ const c=byCo[cid]||(byCo[cid]={}); if(!c[k]||v<c[k]) c[k]=v; };
+  for(const e of lc){
+    if(e.stage==='customer'&&e.effective_date) add(e.company_id,'lcCust',e.effective_date);
+    if(e.stage==='opportunity'&&e.effective_date) add(e.company_id,'lcOpp',e.effective_date);
+  }
+  const firstWin={}, anyWin={}, dealsOf={};
+  for(const w of wins||[]){
+    (dealsOf[w.company_id]||(dealsOf[w.company_id]=[])).push(w);
+    if(!w.is_won||!w.close_date) continue;
+    const d=String(w.close_date).slice(0,10);
+    if(!anyWin[w.company_id]||d<anyWin[w.company_id]) anyWin[w.company_id]=d;
+    if(NB_DEALTYPES.test(w.dealtype||'')&&(!firstWin[w.company_id]||d<firstWin[w.company_id].d)) firstWin[w.company_id]={d,name:w.deal_name,type:w.dealtype};
+  }
+  // a deal that was open at the time of the discovery (opened > OPP_GRACE days before, not closed before it)
+  const openDealAt=(cid,d,g)=>(dealsOf[cid]||[]).find(w=>w.create_date&&String(w.create_date).slice(0,10)<g&&(!w.is_closed||!w.close_date||String(w.close_date).slice(0,10)>=d));
+  const firstMeet={};
+  for(const m of discos||[]){
+    if(m.status==='canceled'||m.status==='no_show'||m.status==='rescheduled') continue;
+    const d=String(m.created_at||m.meeting_start||'').slice(0,10);
+    if(!d||d>today) continue;
+    if(!firstMeet[m.company_id]||d<firstMeet[m.company_id].d) firstMeet[m.company_id]={d,contact:m.contact_name,held:String(m.meeting_start||'').slice(0,10)};
+  }
+  const out=lc.filter(e=>!(e.stage==='customer')&&!(e.stage==='discovery'&&e.effective_date>=DISC_FROM));
+  EXCLUDED_DISC=[];
+  const grace=d=>new Date(Date.parse(d)-OPP_GRACE*864e5).toISOString().slice(0,10);
+  for(const [cid,m] of Object.entries(firstMeet)){
+    const c=byCo[cid]||{};
+    let why=null;
+    if(c.lcCust&&c.lcCust<m.d) why='customer since '+R.fmtDate(c.lcCust);
+    else if(anyWin[cid]&&anyWin[cid]<m.d) why='deal won '+R.fmtDate(anyWin[cid]);
+    else { const od=openDealAt(cid,m.d,grace(m.d)); if(od) why='open deal since '+R.fmtDate(String(od.create_date).slice(0,10))+' ('+R.esc(od.deal_name||'')+')'; }
+    if(why){ EXCLUDED_DISC.push({company_id:cid,date:m.d,why}); continue; }
+    out.push({company_id:cid,stage:'discovery',entry_number:1,effective_date:m.d,reported_ts:m.d,
+      evidence_type:'meeting_typed',confidence:'verified',lag_days:null,override_conflict:null,_contact:m.contact,_held:m.held});
+  }
+  for(const [cid,w] of Object.entries(firstWin))
+    out.push({company_id:cid,stage:'customer',entry_number:1,effective_date:w.d,reported_ts:w.d,
+      evidence_type:'deal_won',confidence:'verified',lag_days:null,override_conflict:null,_deal:w.name,_dealtype:w.type});
+  return out;
+}
+
+function buildFilters(){
+  msel('f-region',new Set(Object.values(dims).map(d=>d.geopolitical_region||'Unknown')));
+  msel('f-tier',new Set(Object.values(dims).map(d=>d.account_tier_label||'Unknown')));
+  msel('f-icp',new Set(Object.values(dims).map(d=>d.publisher_type||'Unknown')),ICP_LABELS);
+  const types=[...new Set(Object.values(dims).map(d=>d.conversion_type||'Unknown'))].sort((a,b)=>String(CONV_LABELS[a]||a).localeCompare(String(CONV_LABELS[b]||b)));
+  msel('f-conv',[CONV_IN,CONV_OUT,...types],CONV_LABELS,true);
+  buildCompareChips(types);
+}
+// Conversion type (HubSpot contact property conversion_type, company level from company_conversion_type).
+// The two group entries select several types at once; the inbound/outbound mapping lives in the sync workflow Config.
+let CONV_LOADED=false;
+const CONV_IN='__inbound', CONV_OUT='__outbound';
+const CONV_LABELS={[CONV_IN]:'Inbound (all inbound types)',[CONV_OUT]:'Outbound (all outbound types)',Outreach:'Outbound (Outreach)'};
+const CONV_SHORT={[CONV_IN]:'Inbound · all',[CONV_OUT]:'Outbound · all'};
+function convMatch(dm,sel){
+  if(!sel||!sel.size) return true;
+  const t=dm.conversion_type||'Unknown', g=dm.conversion_group||'other';
+  return sel.has(t)||(sel.has(CONV_IN)&&g==='inbound')||(sel.has(CONV_OUT)&&g==='outbound');
+}
+// HubSpot labels for publisher_type (property "ICP Type"), fetched 03.09.2026
+const ICP_LABELS={news_publishers:'News publishers',vertical_or_niche_publishers:'Vertical publishers',radio:'Radio',
+  'Finance & banking':'Banking & Finance',tv__broadcasters:'TV & broadcasters',utility_sites:'Utility sites',
+  owned__operated:'Owned & operated media',retail_media:'Retail media',not_a_publisher:'Not a publisher',
+  'E-Commerce':'E-Commerce','SaaS / Software':'SaaS / Software','Agency & services':'Agency & services',
+  'Other / Unclassified':'Other / Unclassified','Partner – Business':'Partner – Solution',
+  'Partner – Implementation':'Partner – Implementation','Partner – Developer':'Partner – Technology',
+  'Sensitive data organizations':'Sensitive data organizations'};
+const MSEL_SEL={};
+function mselSummary(box){
+  const id=box.id, lab=box.dataset.label, sel=MSEL_SEL[id]||new Set();
+  box.querySelector('.msel-btn').textContent=sel.size?lab+': '+(sel.size===1?[...sel].map(x=>box._labels[x]||x)[0]:sel.size+' selected'):lab+': all';
+  box.classList.toggle('on',sel.size>0);
+}
+function msel(id,vals,labels,keepOrder){
+  const box=document.getElementById(id);
+  box._labels=labels||{};
+  MSEL_SEL[id]=MSEL_SEL[id]||new Set();
+  const dd=box.querySelector('.msel-dd');
+  const list=keepOrder?[...vals]:[...vals].sort((a,b)=>String((labels||{})[a]||a).localeCompare(String((labels||{})[b]||b)));
+  dd.innerHTML='<button type="button" class="msel-clear">✕ Clear · select all shown = none</button>'+
+    list.map((v,k)=>{ const grp=String(v).startsWith('__'); const sep=!grp&&k&&String(list[k-1]).startsWith('__')?'<div class="msel-sep"></div>':'';
+      return sep+'<label'+(grp?' class="grp"':'')+'><input type="checkbox" value="'+R.esc(v)+'"'+(MSEL_SEL[id].has(v)?' checked':'')+'> '+R.esc((labels||{})[v]||v)+'</label>'; }).join('');
+  mselSummary(box);
+  if(!box._wired){
+    box._wired=true;
+    box.querySelector('.msel-btn').addEventListener('click',e=>{
+      e.stopPropagation();
+      document.querySelectorAll('.msel.open').forEach(m=>m!==box&&m.classList.remove('open'));
+      box.classList.toggle('open');
+    });
+    dd.addEventListener('click',e=>e.stopPropagation());
+    dd.addEventListener('change',e=>{
+      const cb=e.target; if(cb.type!=='checkbox') return;
+      cb.checked?MSEL_SEL[id].add(cb.value):MSEL_SEL[id].delete(cb.value);
+      mselSummary(box); renderAll();
+    });
+    dd.querySelector('.msel-clear').addEventListener('click',()=>{
+      MSEL_SEL[id].clear();
+      dd.querySelectorAll('input').forEach(c=>c.checked=false);
+      mselSummary(box); renderAll();
+    });
+  }
+}
+document.addEventListener('click',()=>document.querySelectorAll('.msel.open').forEach(m=>m.classList.remove('open')));
+
+// Partners & agencies: not prospects. Recognised by lifecycle stage Evangelist (how partners are kept in
+// HubSpot) or by a partner/agency ICP type. Hidden by default; an explicit ICP selection of such a type
+// brings them back, and the checkbox turns the rule off entirely.
+const PARTNER_ICP=new Set(['Partner – Business','Partner – Implementation','Partner – Developer','Agency & services']);
+const PARTNER_STAGES=new Set(['evangelist','878871240','5824430316']);   // Partner / Agency, Reseller, Reseller-Customer
+function isPartner(dm){ return PARTNER_STAGES.has(String(dm.lifecyclestage_current||'').toLowerCase())||PARTNER_ICP.has(dm.publisher_type||''); }
+function hidePartner(dm){
+  if(!document.getElementById('f-nopartners').checked) return false;
+  const fi=MSEL_SEL['f-icp']||new Set();
+  if(fi.size&&[...fi].some(t=>PARTNER_ICP.has(t))&&PARTNER_ICP.has(dm.publisher_type||'')) return false; // explicitly asked for
+  return isPartner(dm);
+}
+function passDims(dm){
+  const fr=MSEL_SEL['f-region']||new Set(), ft=MSEL_SEL['f-tier']||new Set(), fi=MSEL_SEL['f-icp']||new Set();
+  const q=v('f-search').trim().toLowerCase();
+  if(hidePartner(dm)) return false;
+  return (!fr.size||fr.has(dm.geopolitical_region||'Unknown'))
+    &&(!ft.size||ft.has(dm.account_tier_label||'Unknown'))
+    &&(!fi.size||fi.has(dm.publisher_type||'Unknown'))
+    &&convMatch(dm,MSEL_SEL['f-conv'])
+    &&(!q||(dm.name||'').toLowerCase().includes(q));
+}
+function filtered(){
+  const fr=MSEL_SEL['f-region']||new Set(), ft=MSEL_SEL['f-tier']||new Set(), fi=MSEL_SEL['f-icp']||new Set();
+  const q=v('f-search').trim().toLowerCase();
+  const view=v('f-view'), gran=v('f-gran');
+  return entries.map(e=>{
+    const dm=dims[e.company_id]||{};
+    const date=view==='reported'?(e.reported_ts?e.reported_ts.slice(0,10):null):e.effective_date;
+    if(!date) return null;
+    const p=R.periodOf(date,gran);
+    return {...e,_date:date,_p:p.key,_pl:p.label,_dm:dm};
+  }).filter(e=>e
+    &&!hidePartner(e._dm)
+    &&(!fr.size||fr.has(e._dm.geopolitical_region||'Unknown'))
+    &&(!ft.size||ft.has(e._dm.account_tier_label||'Unknown'))
+    &&(!fi.size||fi.has(e._dm.publisher_type||'Unknown'))
+    &&convMatch(e._dm,MSEL_SEL['f-conv'])
+    &&(!q||(e._dm.name||'').toLowerCase().includes(q)));
+}
+const v=id=>document.getElementById(id).value;
+
+function renderAll(){
+  const rows=filtered();
+  const range=v('f-range'), gran=v('f-gran');
+  const labels={};
+  let periods=[...new Set(rows.map(r=>(labels[r._p]=r._pl,r._p)))].sort().reverse();
+  if(R.periodRange(range)){ const __in=R.rangeTest(range); const __keep=new Set(rows.filter(r=>__in(r._date)).map(r=>r._p)); periods=periods.filter(p=>__keep.has(p)); }
+  const pSet=new Set(periods);
+  const counts={}, hasRe={};
+  let max=1;
+  for(const r of rows){
+    if(!pSet.has(r._p)) continue;
+    const k=r._p+'|'+r.stage;
+    counts[k]=(counts[k]||0)+1;
+    if(counts[k]>max) max=counts[k];
+    if(restated.has(r.company_id+'|'+r.stage+'|'+r.entry_number)) hasRe[k]=true;
+  }
+  renderMetrics(rows,periods,labels);
+  renderFunnel();
+  const gt={weekly:'week',monthly:'month',quarterly:'quarter',yearly:'year'}[gran];
+  document.getElementById('matrix-title').textContent='Entries by '+gt+' and stage';
+  const mx=document.getElementById('matrix');
+  if(!periods.length){mx.className='state';mx.textContent='No entries match the current filters.';return;}
+  mx.className='';
+  const ch={weekly:'Week of',monthly:'Month',quarterly:'Quarter',yearly:'Year'}[gran];
+  let h='<table class="matrix"><tr><th>'+ch+'</th>'+STAGES.map(s=>'<th>'+SHORT[s]+'</th>').join('')+'</tr>';
+  for(const w of periods){
+    h+='<tr><td class="wk" title="'+w+'">'+labels[w]+'</td>';
+    for(const s of STAGES){
+      const c=counts[w+'|'+s]||0;
+      const sel=selected&&selected.period===w&&selected.stage===s?' sel':'';
+      const a=c?0.10+0.72*(c/max):0;
+      h+='<td><button class="cell'+(c?'':' zero')+(a>0.55?' hot':'')+sel+'" '+
+        (c?'onclick="pick(\''+w+'\',\''+s+'\')" ':'tabindex="-1" ')+
+        'style="background:rgba(0,71,113,'+a.toFixed(2)+')" aria-label="'+labels[w]+' '+s+': '+c+'">'+
+        c+(hasRe[w+'|'+s]?'<span class="re"></span>':'')+'</button></td>';
+    }
+    h+='</tr>';
+  }
+  mx.innerHTML=h+'</table>';
+  renderDrill(rows);
+  renderStageTrends(counts,periods,labels,gran);
+}
+const STAGE_COLORS={lead:'#9AA4AD',engaged:'#7FA3BC',responded:'#9DDCFF',discovery:'#4FA3D8',
+  qualified:'#E0A458',opportunity:'#F38C62',customer:'#ED4502'};
+function renderStageTrends(counts,periods,labels,gran){
+  const box=document.getElementById('stage-trends');
+  const chron=[...periods].reverse();
+  box.innerHTML=STAGES.map(st=>{
+    const vals=chron.map(p=>counts[p+'|'+st]||0);
+    const max=Math.max(1,...vals);
+    const W=440,H=130,padB=20,padT=16;
+    const bw=Math.max(6,(W-12)/chron.length-4);
+    const showN=Math.ceil(chron.length/12);
+    let svg='<svg viewBox="0 0 '+W+' '+H+'" class="chart">';
+    chron.forEach((p,i)=>{
+      const v=vals[i];
+      const x=Math.round(6+i*((W-12)/chron.length));
+      const hgt=Math.round((H-padT-padB)*v/max);
+      const y=H-padB-hgt;
+      if(i%showN===0) svg+='<text x="'+(x+bw/2)+'" y="'+(H-4)+'" text-anchor="middle">'+String(labels[p]).slice(0,6)+'</text>';
+      svg+='<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+Math.max(hgt,1)+'" rx="2" fill="'+STAGE_COLORS[st]+'" opacity="'+(v?'0.9':'0.2')+'"><title>'+labels[p]+': '+v+'</title></rect>';
+      if(chron.length<=30) svg+='<text x="'+(x+bw/2)+'" y="'+(y-3)+'" text-anchor="middle" style="font-weight:600;font-size:9px;fill:'+(v?STAGE_COLORS[st]:'var(--faint)')+'">'+v+'</text>';
+    });
+    const total=vals.reduce((a,b)=>a+b,0);
+    return '<div class="card" style="padding:.9rem 1rem"><h2 style="font-size:.9rem">'+
+      '<span style="display:inline-block;width:.6rem;height:.6rem;border-radius:99px;background:'+STAGE_COLORS[st]+';margin-right:.4rem"></span>'+
+      st.charAt(0).toUpperCase()+st.slice(1)+' <span>· '+total+' in view</span></h2>'+svg+'</svg></div>';
+  }).join('');
+}
+
+// ---- Funnel conversion -------------------------------------------------------
+// Cohort = companies whose first funnel entry (usually Lead) falls into the shown periods,
+// respecting the region / tier / ICP / search filters. A company counts for every stage up
+// to its highest reached stage, so stages HubSpot skipped are still "passed through".
+const SIDX={}; STAGES.forEach((s,i)=>SIDX[s]=i);
+const STAGE_LABEL={lead:'Lead',engaged:'Engaged',responded:'Responded',discovery:'Discovery',qualified:'Qualified',opportunity:'Opportunity',customer:'Customer'};
+let FUN=null;
+const FUN_MODE='effective'; let FUN_BASIS='cohort';
+const FUN_HIDDEN=new Set();   // stage indexes excluded from the funnel (Lead can't be excluded)
+function funnelData(mode,basis,from,to,anchor,convSel){
+  anchor=anchor||0;
+  const per={};
+  for(const e of entries){
+    const date=mode==='reported'?(e.reported_ts?e.reported_ts.slice(0,10):null):e.effective_date;
+    if(!date) continue;
+    const dm=dims[e.company_id]||{};
+    if(!passDims(dm)) continue;
+    if(convSel&&!convMatch(dm,convSel)) continue;
+    const c=per[e.company_id]||(per[e.company_id]={id:e.company_id,dm,anchor:null,maxIdx:-1,entries:{},sd:[]});
+    if(!c.anchor||date<c.anchor) c.anchor=date;
+    const i=SIDX[e.stage]; if(i>c.maxIdx) c.maxIdx=i;
+    if(!c.entries[e.stage]||date<c.entries[e.stage]._date) c.entries[e.stage]={...e,_date:date};
+  }
+  // stage dates with backfill: a stage HubSpot skipped is dated with the next higher stage the company did enter
+  for(const c of Object.values(per)){
+    let carry=null;
+    c.jumped={}; c.cd=[];
+    for(let i=STAGES.length-1;i>=0;i--){
+      const e=c.entries[STAGES[i]];
+      if(e) carry=e._date;
+      c.sd[i]=i<=c.maxIdx?(e?e._date:carry):null;
+      // "real" entry = an entry that is not a monotonic backfill (a skipped stage HubSpot never set)
+      c.jumped[i]=i<=c.maxIdx&&(!e||e.evidence_type==='monotonic_backfill');
+    }
+    // cycle dates: a skipped stage counts as reached when the company last really moved (earlier real stage)
+    let lastReal=null;
+    for(let i=0;i<STAGES.length;i++){
+      if(i>c.maxIdx){ c.cd[i]=null; continue; }
+      if(!c.jumped[i]) lastReal=c.sd[i];
+      c.cd[i]=lastReal;
+    }
+  }
+  const all=Object.values(per);
+  const inTf=d=>d&&d>=from&&d<=to;
+  let members, counts;
+  if(basis==='flow'){
+    // every company whose (backfilled) entry into the stage happened in the timeframe
+    members=STAGES.map((s,i)=>all.filter(c=>inTf(c.sd[i])));
+  }else{
+    // anchor 0 = first funnel entry; otherwise the company's REAL entry into the anchor stage
+    const cohort=anchor?all.filter(c=>c.sd[anchor]&&!c.jumped[anchor]&&inTf(c.sd[anchor])):all.filter(c=>inTf(c.anchor));
+    members=STAGES.map((s,i)=>i<anchor?[]:cohort.filter(c=>c.maxIdx>=i));
+  }
+  counts=members.map(m=>m.length);
+  return {counts,members};
+}
+const FUN_COLORS=['#C3CDD6','#A9B8C5','#8FA4B5','#7590A4','#4D83A6','#2C6A93','#004771'];
+function funDates(){
+  const f=document.getElementById('fun-from'), t=document.getElementById('fun-to');
+  if(!f.value||!t.value){ const d=n=>new Date(Date.now()-n*864e5).toISOString().slice(0,10); if(!f.value) f.value=d(120); if(!t.value) t.value=d(30); }
+  return {from:f.value<=t.value?f.value:t.value, to:f.value<=t.value?t.value:f.value};
+}
+function renderFunnelInner(){
+  const {from,to}=funDates();
+  const anchor=FUN_BASIS==='cohort'?Number(document.getElementById('fun-anchor').value||0):0;
+  document.getElementById('fun-anchor-wrap').classList.toggle('dim',FUN_BASIS!=='cohort');
+  for(const i of [...FUN_HIDDEN]) if(i<=anchor) FUN_HIDDEN.delete(i);
+  const A=funnelData(FUN_MODE,FUN_BASIS,from,to,anchor);
+  FUN={A,mode:FUN_MODE,basis:FUN_BASIS};
+  document.querySelectorAll('#fun-basis button').forEach(b=>b.classList.toggle('on',b.dataset.b===FUN_BASIS));
+  const days=Math.round((Date.parse(to)-Date.parse(from))/864e5)+1;
+  const age=Math.round((Date.now()-Date.parse(to))/864e5);
+  document.getElementById('fun-tf').innerHTML=(FUN_BASIS==='flow'
+    ?'<strong>Activity</strong> · how many companies entered each stage between '+R.fmtDate(from)+' and '+R.fmtDate(to)+' ('+days+' days) — volumes only; for conversion rates and cycle times switch to Cohort'
+    :'<strong>Cohort</strong> · companies that '+(anchor?'entered <strong>'+STAGE_LABEL[STAGES[anchor]]+'</strong>':'became leads')+' between '+R.fmtDate(from)+' and '+R.fmtDate(to)+' ('+days+' days), followed until today'+(anchor?' · includes dormant companies reactivated in the window':'')+(age<60?' · <span style="color:#8E5A47">the youngest are only '+age+' days in — move “to” back for mature rates</span>':' · youngest had '+age+' days to convert'))+
+    ' · Discovery = first Discovery meeting entered · Customer = first new-business win (Full License or JENTIS Light)'+
+    (EXCLUDED_DISC.length?' · <a href="#" onclick="showExcluded();return false" style="color:#8E5A47">'+EXCLUDED_DISC.length+' discoveries of existing customers excluded</a>':'')+
+    ' · region / tier / ICP / conversion-type filters apply';
+  const body=document.getElementById('funnel-body');
+  if(!A.counts.some(Boolean)){body.className='state';body.textContent='No companies in this window.';renderSide();return;}
+  body.className='';
+  const pct=(a,b)=>b?Math.round(100*a/b):0;
+  const drawn=STAGES.map((s,i)=>i).filter(i=>i>=anchor);
+  const vis=drawn.filter(i=>!FUN_HIDDEN.has(i));
+  const nAll=drawn.length, rowH=62, offH=22, gap=12, W=900, cx=440, top=12;
+  const wTop=380, wBot=140;
+  const wAt=k=>wTop-(wTop-wBot)*k/nAll;         // taper by position, stable when levels are excluded
+  const svgH=top+drawn.reduce((a,i)=>a+(FUN_HIDDEN.has(i)?offH:rowH)+gap,0)+6;
+  let h='<svg class="funnel-svg" viewBox="0 0 '+W+' '+svgH+'" xmlns="http://www.w3.org/2000/svg">'+
+    '<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#004771"/></marker>'+
+    '<marker id="arrw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8E5A47"/></marker>'+
+    '<marker id="arrg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9AA4AD"/></marker></defs>';
+  let weakest=null, y=top, prevVis=null, prevGeo=null;
+  drawn.forEach((i,pos)=>{
+    const st=STAGES[i], off=FUN_HIDDEN.has(i), c=A.counts[i];
+    const rh=off?offH:rowH, w0=wAt(pos), w1=wAt(pos+1);
+    const x0=cx-w0/2, x1=cx+w0/2, x2=cx+w1/2, x3=cx-w1/2;
+    const light=i>=3;
+    const rates=FUN_BASIS!=='flow';   // Activity view = volumes only, no ratios or arcs
+    const share=rates&&!off&&i&&A.counts[vis[0]]!==undefined&&vis[0]!==i&&A.counts[vis[0]]?pct(c,A.counts[vis[0]])+'% of '+STAGE_LABEL[STAGES[vis[0]]].toLowerCase()+'s':'';
+    h+='<g class="row'+(off?' off':'')+'" onclick="toggleStage('+i+')"><title>'+(off?'Click to include '+STAGE_LABEL[st]+' again':(i===anchor?STAGE_LABEL[st]+': '+c+' companies — cohort base':STAGE_LABEL[st]+': '+c+' companies — click to exclude this level'))+'</title>'+
+      '<polygon class="trap" points="'+x0+','+y+' '+x1+','+y+' '+x2+','+(y+rh)+' '+x3+','+(y+rh)+'" fill="'+FUN_COLORS[i]+'"/>';
+    if(off){
+      h+='<text class="lbl off" x="'+cx+'" y="'+(y+rh/2+4)+'" text-anchor="middle">'+STAGE_LABEL[st].toUpperCase()+' · excluded</text>';
+    }else{
+      h+='<text class="lbl '+(light?'light':'dark')+'" x="'+cx+'" y="'+(y+rh/2+(share?-2:5))+'" text-anchor="middle">'+STAGE_LABEL[st].toUpperCase()+'</text>'+
+        (share?'<text class="sub '+(light?'light':'dark')+'" x="'+cx+'" y="'+(y+rh/2+13)+'" text-anchor="middle">'+share+'</text>':'')+
+        '<g class="cnt-btn" onclick="event.stopPropagation();showStage('+i+')"><title>'+STAGE_LABEL[st]+': show the '+c+' companies</title>'+
+        '<circle cx="'+(x1+2)+'" cy="'+(y+rh/2)+'" r="21" fill="#fff" stroke="'+FUN_COLORS[i]+'" stroke-width="2.5"/>'+
+        '<text class="cnt" x="'+(x1+2)+'" y="'+(y+rh/2+5)+'" text-anchor="middle">'+c+'</text></g>';
+    }
+    h+='</g>';
+    if(!off){
+      if(prevVis!==null&&rates){
+        const pc=A.counts[prevVis], p=pct(c,pc);
+        if(pc>=5&&(weakest===null||p<weakest.p)) weakest={p,from:STAGE_LABEL[STAGES[prevVis]],to:STAGE_LABEL[st]};
+        // curved connector from the previous level's count circle to this one, percentage on the bow
+        const weak=p<25&&pc>=5;
+        const sx=prevGeo.cx+22, sy=prevGeo.cy, ex=x1+2+22, ey=y+rh/2;
+        const bow=Math.max(sx,ex)+84, my=(sy+ey)/2;
+        const cs=cycleStat(A,prevVis,i,from,to);
+        // left-hand mirror of the conversion arc: how long the companies that made this step needed
+        const lsx=prevGeo.x0-6, lsy=prevGeo.cy, lex=x0-6, ley=y+rh/2;
+        const lbow=Math.min(lsx,lex)-72, lmy=(lsy+ley)/2;
+        const ttl=STAGE_LABEL[STAGES[prevVis]]+' → '+STAGE_LABEL[st]+(cs?': the '+cs.n+' compan'+(cs.n===1?'y':'ies')+' that made this step needed '+cs.avg+' days on average (median '+cs.med+')':': nobody made this step in the window');
+        h+='<path class="curve lcurve" d="M'+lsx+','+lsy+' Q'+lbow+','+lmy+' '+lex+','+ley+'" marker-end="url(#arrg)"><title>'+ttl+'</title></path>'+
+           '<text class="cyc" x="'+(lbow+2)+'" y="'+(lmy-3)+'" text-anchor="end"><title>'+ttl+'</title>'+(cs?'<tspan class="b">Ø '+cs.avg+' d</tspan>':'<tspan style="fill:var(--faint)">–</tspan>')+'</text>'+
+           (cs?'<text class="cyc sub" x="'+(lbow+2)+'" y="'+(lmy+11)+'" text-anchor="end">med '+cs.med+' · n '+cs.n+'</text>':'');
+        h+='<path class="curve'+(weak?' weak':'')+'" d="M'+sx+','+sy+' Q'+bow+','+my+' '+ex+','+ey+'" marker-end="url(#'+(weak?'arrw':'arr')+')"><title>'+STAGE_LABEL[STAGES[prevVis]]+' → '+STAGE_LABEL[st]+': '+c+' of '+pc+'</title></path>'+
+           '<text class="pct'+(weak?' weak':'')+'" x="'+(bow-10)+'" y="'+(my+8)+'" text-anchor="start">'+(pc?p+'%':'–')+'</text>';
+      }
+      prevVis=i; prevGeo={cx:x1+2,cy:y+rh/2,x0};
+    }
+    y+=rh+gap;
+  });
+  h+='</svg>';
+  body.innerHTML=h;
+  renderSide();
+  renderCompare(from,to,anchor);
+}
+// ---- side-by-side funnels per conversion type (same window / basis / anchor / filters as above) ----
+const CMP_SEL=new Set([CONV_IN,CONV_OUT]);
+const CMP_COLORS=['#004771','#4FA3D8','#C98A5B','#7B5EA7','#8E5A47','#5B8DA6','#9AA4AD'];
+function buildCompareChips(types){
+  const el=document.getElementById('cmp-chips');
+  const all=[CONV_IN,CONV_OUT,...types];
+  el.innerHTML=all.map(t=>'<label class="'+(String(t).startsWith('__')?'grp ':'')+(CMP_SEL.has(t)?'on':'')+'"><input type="checkbox" value="'+R.esc(t)+'"'+(CMP_SEL.has(t)?' checked':'')+'> '+R.esc(String(t).startsWith('__')?CONV_SHORT[t]:(CONV_LABELS[t]||t))+'</label>').join('');
+  el.onchange=e=>{ const cb=e.target; if(cb.type!=='checkbox') return; cb.checked?CMP_SEL.add(cb.value):CMP_SEL.delete(cb.value); cb.closest('label').classList.toggle('on',cb.checked); renderFunnel(); };
+}
+let CMP=null, CMP_SIDE=null;   // CMP_SIDE = {t, i} of the open company list
+function renderCompare(from,to,anchor){
+  const body=document.getElementById('cmp-body'), sub=document.getElementById('cmp-sub');
+  if(!CONV_LOADED){ body.innerHTML='<div class="cmp-empty">No conversion types yet — the sync “Reporting — Conversion Type Sync” has not written company_conversion_type.</div>'; return; }
+  const sel=[CONV_IN,CONV_OUT,...[...CMP_SEL].filter(t=>!String(t).startsWith('__')).sort()].filter(t=>CMP_SEL.has(t));
+  sub.textContent=sel.length?'· '+sel.length+' side by side':'';
+  if(!sel.length){ body.innerHTML='<div class="cmp-empty">Pick at least one conversion type above.</div>'; CMP_SIDE=null; renderCmpSide(); return; }
+  if(CMP_SIDE&&(!sel.includes(CMP_SIDE.t)||FUN_HIDDEN.has(CMP_SIDE.i)||CMP_SIDE.i<anchor)) CMP_SIDE=null;
+  const drawn=STAGES.map((s,i)=>i).filter(i=>i>=anchor&&!FUN_HIDDEN.has(i));
+  const rates=FUN_BASIS!=='flow';
+  CMP={};
+  body.innerHTML=sel.map((t,k)=>{
+    const A=funnelData(FUN_MODE,FUN_BASIS,from,to,anchor,new Set([t]));
+    CMP[t]=A;
+    const base=A.counts[drawn[0]]||0, color=CMP_COLORS[k%CMP_COLORS.length];
+    const name=String(t).startsWith('__')?CONV_SHORT[t]:(CONV_LABELS[t]||t);
+    let prev=null, rows='';
+    for(const i of drawn){
+      const c=A.counts[i], w=base?Math.round(100*c/base):0;
+      const p=prev===null?null:(A.counts[prev]?Math.round(100*c/A.counts[prev]):null);
+      const weak=p!==null&&p<25&&A.counts[prev]>=5;
+      const click=' onclick="showCmp(\''+R.esc(t)+'\','+i+')" title="'+STAGE_LABEL[STAGES[i]]+': show the '+c+' compan'+(c===1?'y':'ies')+'"';
+      const sel=CMP_SIDE&&CMP_SIDE.t===t&&CMP_SIDE.i===i?' sel':'';
+      rows+='<div class="cmp-row'+sel+'" data-t="'+R.esc(t)+'" data-i="'+i+'"><span class="st">'+SHORT[STAGES[i]]+'</span><div class="bar"'+click+'><i style="width:'+Math.max(w,c?3:0)+'%;background:'+color+';opacity:'+(0.45+0.55*(i/6)).toFixed(2)+'"></i></div>'+
+        '<span class="n"'+click+'>'+c+'</span>'+
+        '<span class="pc'+(weak?' weak':'')+'"'+click+'>'+(rates?(prev===null?'100%':(p===null?'–':p+'%')):'')+(rates&&p!==null?'<small>'+w+'% of '+SHORT[STAGES[drawn[0]]].toLowerCase()+'</small>':'')+'</span></div>';
+      prev=i;
+    }
+    const last=drawn[drawn.length-1];
+    const e2e=rates&&drawn.length>1?'<div class="cmp-e2e">'+STAGE_LABEL[STAGES[drawn[0]]]+' → '+STAGE_LABEL[STAGES[last]]+': <strong>'+(base?Math.round(100*A.counts[last]/base):0)+'%</strong> ('+A.counts[last]+' of '+base+')</div>':'';
+    return '<div class="cmp-col"><h4><span style="color:'+color+'">'+R.esc(name)+'</span><span>'+base+' at start</span></h4>'+rows+e2e+'</div>';
+  }).join('');
+  renderCmpSide();
+}
+function showCmp(t,i){
+  CMP_SIDE=CMP_SIDE&&CMP_SIDE.t===t&&CMP_SIDE.i===i?null:{t,i};
+  document.querySelectorAll('#cmp-body .cmp-row.sel').forEach(r=>r.classList.remove('sel'));
+  renderCmpSide();
+  if(CMP_SIDE){ const el=document.getElementById('cmp-side'); if(el&&el.getBoundingClientRect().top<0) el.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+}
+function closeCmpSide(){ CMP_SIDE=null; renderCmpSide(); }
+function renderCmpSide(){
+  const el=document.getElementById('cmp-side');
+  const A=CMP_SIDE&&CMP&&CMP[CMP_SIDE.t];
+  if(!A){ el.hidden=true; el.innerHTML=''; return; }
+  const t=CMP_SIDE.t, name=String(t).startsWith('__')?CONV_SHORT[t]:(CONV_LABELS[t]||t);
+  el.hidden=false;
+  el.innerHTML=sideListHtml(A,CMP_SIDE.i,name,'closeCmpSide()');
+  // mark the row
+  document.querySelectorAll('#cmp-body .cmp-row').forEach(r=>r.classList.toggle('sel',r.dataset.t===t&&Number(r.dataset.i)===CMP_SIDE.i));
+}
+// days between two stages for companies that genuinely entered both (skipped stages carry no real date)
+function cycleStat(A,i,j,from,to){
+  const all=A.members[0].concat(...A.members.slice(1)).filter((c,k,arr)=>arr.indexOf(c)===k);
+  const inWin=d=>d&&d>=from&&d<=to;
+  // target stage must be a real entry; the source may be a skipped stage (then measured from the last real move)
+  const vals=all.filter(c=>c.cd[i]&&c.cd[j]&&!c.jumped[j]&&(FUN_BASIS==='flow'?inWin(c.sd[j]):true))
+    .map(c=>(Date.parse(c.cd[j])-Date.parse(c.cd[i]))/864e5).filter(d=>d>=0).sort((a,b)=>a-b);
+  if(!vals.length) return null;
+  return {avg:Math.round(vals.reduce((a,b)=>a+b,0)/vals.length),med:Math.round(vals[Math.floor(vals.length/2)]),n:vals.length};
+}
+let FUN_SIDE=null;
+function showStage(i){ FUN_SIDE=i; renderSide(); }
+function showExcluded(){ FUN_SIDE='excluded'; renderSide(); }
+function closeSide(){ FUN_SIDE=null; renderSide(); }
+function renderSide(ALT,altName){
+  const el=document.getElementById('fun-side');
+  if(FUN_SIDE===null||!FUN||FUN_HIDDEN.has(FUN_SIDE)){ el.hidden=true; el.innerHTML=''; return; }
+  if(FUN_SIDE==='excluded'){
+    const list=[...EXCLUDED_DISC].map(x=>({...x,dm:dims[x.company_id]||{}})).sort((a,b)=>a.date<b.date?-1:1);
+    el.hidden=false;
+    el.innerHTML='<h3><span>Existing customers <span style="color:var(--faint);font-weight:500">· '+list.length+' discover'+(list.length===1?'y':'ies')+' not counted</span></span><button type="button" onclick="closeSide()" title="close">✕</button></h3>'+
+      '<div class="fun-hint" style="margin-bottom:.5rem">Discovery meetings of companies that were already a customer / had a won deal / had a deal still open at the time — CS or upsell conversations, not new business.</div>'+
+      list.map(x=>'<div class="co"><div style="min-width:0"><div class="nm"><a href="'+R.hs('0-2',x.company_id)+'" target="_blank" rel="noopener">'+R.esc(x.dm.name||x.company_id)+'</a></div>'+
+        '<div class="meta">meeting '+R.fmtDate(x.date)+' · '+R.esc(x.why)+nowTxt(x.dm)+'</div></div></div>').join('');
+    return;
+  }
+  el.hidden=false;
+  el.innerHTML=sideListHtml(ALT||FUN.A,FUN_SIDE,altName,'closeSide()');
+}
+// company list of one funnel level (shared by the funnel side panel and the comparison card)
+function sideListHtml(A,i,altName,closeFn){
+  const st=STAGES[i];
+  const list=[...A.members[i]].sort((a,b)=>(a.dm.name||'').localeCompare(b.dm.name||''));
+  return '<h3><span>'+STAGE_LABEL[st]+(altName?' · '+R.esc(altName):'')+' <span style="color:var(--faint);font-weight:500">· '+list.length+' compan'+(list.length===1?'y':'ies')+'</span></span><button type="button" onclick="'+closeFn+'" title="close">✕</button></h3>'+
+    (list.length?list.map(c=>{
+      const e=c.entries[st], dm=c.dm;
+      const when=e?R.fmtDate(e._date)+(e._dealtype?' · '+R.esc(e._dealtype):'')+(st==='discovery'&&e._held?' · meeting held '+R.fmtDate(e._held):''):'skipped · dated with '+STAGE_LABEL[STAGES[c.maxIdx]];
+      const disc=st!=='discovery'&&c.entries.discovery?' · discovery '+R.fmtDate(c.entries.discovery._date):'';
+      return '<div class="co"><div style="min-width:0"><div class="nm"><a href="'+R.hs('0-2',c.id)+'" target="_blank" rel="noopener">'+R.esc(dm.name||c.id)+'</a></div>'+
+        '<div class="meta">'+[dm.geopolitical_region,dm.account_tier_label,dm.conversion_type&&dm.conversion_type!=='Unknown'?(CONV_LABELS[dm.conversion_type]||dm.conversion_type)+(dm.conversion_mixed?' (mixed)':''):null,when].filter(Boolean).join(' · ')+disc+nowTxt(dm)+'</div></div></div>';
+    }).join(''):'<div class="empty">Nobody reached this stage in the window.</div>');
+}
+// the funnel must never block the matrix: any error lands in the card, not in renderAll
+function renderFunnel(){
+  try{ renderFunnelInner(); }
+  catch(err){
+    console.error('funnel', err);
+    const b=document.getElementById('funnel-body'); b.className='state'; b.textContent='Funnel could not be rendered: '+err.message;
+  }
+}
+function refreshFunnel(){ renderFunnel(); }
+for(const id of ['fun-from','fun-to','fun-anchor']) document.getElementById(id).addEventListener('change',refreshFunnel);
+document.getElementById('fun-basis').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; FUN_BASIS=b.dataset.b; refreshFunnel(); });
+function toggleStage(i){ const anchor=FUN_BASIS==='cohort'?Number(document.getElementById('fun-anchor').value||0):0; if(i<=anchor) return; FUN_HIDDEN.has(i)?FUN_HIDDEN.delete(i):FUN_HIDDEN.add(i); renderFunnel(); }
+function pickFunnel(i){ toggleStage(i); }
+
+function renderMetrics(rows,periods,labels){
+  const latest=periods[0];
+  const cnt=rows.filter(r=>r._p===latest).length;
+  const last4=new Set(periods.slice(0,4));
+  const recent=rows.filter(r=>last4.has(r._p));
+  const unv=recent.length?Math.round(100*recent.filter(r=>r.confidence!=='verified').length/recent.length):0;
+  const lags=rows.map(r=>r.lag_days).filter(x=>x!==null&&x!==undefined).sort((a,b)=>a-b);
+  const med=lags.length?lags[Math.floor(lags.length/2)]:0;
+  R.metrics(document.getElementById('metrics'),[
+    {label:'Entries · '+(latest?labels[latest]:'—'), val:cnt},
+    {label:'Restatements · last run', val:lastRun?lastRun.restatements:0, warn:lastRun&&lastRun.restatements>0},
+    {label:'Median lag (days)', val:med},
+    {label:'Unverified · last 4 periods', val:unv+'%', warn:unv>25}
+  ]);
+}
+
+function pick(period,stage){ selected={period,stage}; renderAll(); }
+
+function renderDrill(rows){
+  const body=document.getElementById('drill-body');
+  const title=document.getElementById('drill-title');
+  if(!selected){title.textContent='Companies';body.className='empty';
+    body.textContent='Select a cell in the matrix.';return;}
+  if(selected.funnel!==undefined&&FUN){
+    const i=selected.funnel, st=STAGES[i];
+    const list=[...FUN.A.members[i]].sort((a,b)=>(a.dm.name||'').localeCompare(b.dm.name||''));
+    title.innerHTML='Companies <span>· funnel · reached '+STAGE_LABEL[st]+' · '+list.length+'</span>';
+    body.className='';
+    if(!list.length){body.className='empty';body.textContent='No companies reached this stage in the cohort.';return;}
+    body.innerHTML=list.map(c=>{
+      const e=c.entries[st];
+      const dm=c.dm;
+      const via=e?R.fmtDate(e._date)+(e._dealtype?' · '+R.esc(e._dealtype):''):'skipped · dated with '+STAGE_LABEL[STAGES[c.maxIdx]]+' ('+R.fmtDate(c.sd[i]||'')+')';
+      const badge=e?'<span class="badge '+(e.override_conflict?'b-conflict':('b-'+(e.confidence||'verified')))+'">'+R.esc(EV[e.evidence_type]||e.evidence_type)+'</span>':'<span class="badge b-neutral">jumped</span>';
+      return '<div class="co"><div style="min-width:0"><div class="nm"><a href="'+R.hs('0-2',c.id)+'" target="_blank" rel="noopener">'+R.esc(dm.name||c.id)+'</a></div><div class="meta">'+
+        [dm.geopolitical_region,dm.account_tier_label,via].filter(Boolean).join(' · ')+nowTxt(dm)+'</div></div>'+
+        '<div class="side">'+badge+'</div></div>';
+    }).join('');
+    return;
+  }
+  const list=rows.filter(r=>r._p===selected.period&&r.stage===selected.stage)
+    .sort((a,b)=>(a._dm.name||'').localeCompare(b._dm.name||''));
+  const pl=list.length?list[0]._pl:selected.period;
+  title.innerHTML='Companies <span>· '+pl+' · '+selected.stage+' · '+list.length+'</span>';
+  body.className='';
+  if(!list.length){body.className='empty';body.textContent='No entries here with the current filters.';return;}
+  body.innerHTML=list.map(r=>{
+    const dm=r._dm;
+    const badge=r.override_conflict?'b-conflict':('b-'+(r.confidence||'verified'));
+    const lag=(r.lag_days!==null&&r.lag_days!==undefined)?('lag '+r.lag_days+'d'):'';
+    return '<div class="co"><div style="min-width:0"><div class="nm"><a href="'+R.hs('0-2',r.company_id)+'" target="_blank" rel="noopener">'+
+      R.esc(dm.name||r.company_id)+'</a></div><div class="meta">'+
+      [dm.geopolitical_region,dm.account_tier_label,R.fmtDate(r._date)].filter(Boolean).join(' · ')+
+      (r._dealtype?' · '+R.esc(r._dealtype):'')+(r._contact?' · '+R.esc(r._contact):'')+
+      (r.entry_number>1?' · entry '+r.entry_number:'')+'</div></div>'+
+      '<div class="side"><span class="badge '+badge+'" title="'+R.esc(r.override_conflict||r.confidence)+'">'+
+      R.esc(EV[r.evidence_type]||r.evidence_type)+'</span><span class="lag">'+lag+'</span></div></div>';
+  }).join('');
+}
+
+document.getElementById('f-gran').addEventListener('change',()=>{selected=null;renderAll();});
+for(const id of ['f-view','f-range','f-nopartners'])
+  document.getElementById(id).addEventListener('change',renderAll);
+document.getElementById('f-search').addEventListener('input',()=>renderAll());
+init();
+</script>
+</body>
+</html>

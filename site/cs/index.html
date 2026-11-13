@@ -12,6 +12,7 @@
 <div id="shell"></div>
 <script src="../assets/config.js?b=__BUILD__"></script>
 <script src="../assets/app.js?b=__BUILD__"></script>
+<script src="../assets/help.js?b=__BUILD__"></script>
 <script>
 const page = R.shell({ page: 'cs-overview', title: 'Customer Success overview', subtitle: 'Customers, renewals, tickets and professional services — per period and per owner' });
 page.innerHTML = '<div id="tiles" class="tiles" style="margin-bottom:1rem"></div><div class="grid c2"><div class="card"><h2>Renewals due in the period</h2><div id="ren"></div></div><div class="card"><h2>Customers needing attention <span class="muted small">· as of today</span></h2><div id="att"></div></div></div>';
@@ -20,8 +21,8 @@ const PS = /^professional service/i, REN = /^(early )?renewal$/i, UP = /^(upsell
 async function load() {
   const get = q => R.fetchAll(q).catch(() => []);
   const [cust, ren, tix, deals] = await Promise.all([
-    get('v_cs_customers_ext?select=company_id,company_name,owner_name,mrr,next_renewal,status_code,status_text,open_tickets,usage_flag'),
-    get('v_cs_renewals?select=deal_id,company_id,company_name,owner_name,license_end,renewal_status,amount,mrr,auto_renewal'),
+    get('v_cs_customers_ext?select=company_id,company_name,owner_name,mrr,next_renewal,status_code,status_text,open_tickets,usage_flag,unpaid_count'),
+    get('v_cs_renewals?select=deal_id,company_id,company_name,owner_name,license_end,renewal_status,has_renewal_deal,amount,mrr,auto_renewal'),
     get('cs_tickets?select=ticket_id,company_id,created_at,status,owner_name'),
     get('v_deals?select=deal_id,deal_name,company_id,company_name,dealtype,close_date,is_won,amount,owner_name')
   ]);
@@ -44,7 +45,7 @@ function render() {
   document.getElementById('tiles').innerHTML =
     R.kpi('Customers · now', R.num(cust.length), R.eur(mrr) + ' MRR', 'soft') +
     R.kpi('Customers signed', R.num(won(NB, r).length) + ' ' + R.delta(won(NB, r).length, won(NB, p).length), 'before: ' + won(NB, p).length) +
-    R.kpi('Renewals due', R.num(due(r).length) + ' ' + R.delta(due(r).length, due(p).length), R.eur(sum(due(r))) + ' · ' + due(r).filter(x => x.renewal_status === 'renewed').length + ' renewed') +
+    R.kpi('Renewals due', R.num(due(r).length) + ' ' + R.delta(due(r).length, due(p).length), R.eur(sum(due(r))) + ' · ' + due(r).filter(x => x.has_renewal_deal).length + ' with a renewal deal') +
     R.kpi('Renewals won', R.num(won(REN, r).length) + ' ' + R.delta(won(REN, r).length, won(REN, p).length), R.eur(sum(won(REN, r)))) +
     R.kpi('Upsell & expansion won', R.num(won(UP, r).length) + ' ' + R.delta(won(UP, r).length, won(UP, p).length), R.eur(sum(won(UP, r)))) +
     R.kpi('Professional services sold', R.num(won(PS, r).length) + ' ' + R.delta(won(PS, r).length, won(PS, p).length), R.eur(sum(won(PS, r)))) +
@@ -52,8 +53,8 @@ function render() {
     R.kpi('Open tickets · now', R.num(tix.filter(t => !/closed|done|resolved/i.test(t.status || '')).length), '', 'soft');
   const d = due(r).sort((a, b) => (a.license_end || '').localeCompare(b.license_end || ''));
   document.getElementById('ren').innerHTML = d.length ? '<table class="data"><tr><th>Licence end</th><th>Company</th><th>Owner</th><th>Status</th><th style="text-align:right">Value</th></tr>' + d.map(x => '<tr><td>' + R.fmtDate(x.license_end) + '</td><td><a href="' + R.hs('0-2', x.company_id) + '" target="_blank" rel="noopener">' + R.esc(x.company_name || x.company_id) + '</a></td><td>' + R.esc(x.owner_name || '') + '</td><td>' + R.esc(x.renewal_status || '') + (x.auto_renewal ? ' · auto' : '') + '</td><td style="text-align:right">' + R.eur(x.amount || x.mrr) + '</td></tr>').join('') + '</table>' : '<div class="state">No renewals due in this period.</div>';
-  const att = cust.filter(c => c.status_code && c.status_code !== 'ok').sort((a, b) => (a.next_renewal || '9').localeCompare(b.next_renewal || '9'));
-  document.getElementById('att').innerHTML = att.length ? '<table class="data"><tr><th>Company</th><th>Owner</th><th>Why</th><th style="text-align:right">Tickets</th></tr>' + att.slice(0, 25).map(c => '<tr><td><a href="https://vibe-reports.jentis.info/cs-customers/?company=' + c.company_id + '" target="_blank" rel="noopener">' + R.esc(c.company_name) + '</a></td><td>' + R.esc(c.owner_name || '') + '</td><td>' + R.esc(c.status_text || c.status_code) + '</td><td style="text-align:right">' + (c.open_tickets || 0) + '</td></tr>').join('') + '</table>' : '<div class="state">Nobody needs attention right now.</div>';
+  const att = cust.filter(c => R.attention(c).length).sort((a, b) => (a.next_renewal || '9').localeCompare(b.next_renewal || '9'));
+  document.getElementById('att').innerHTML = att.length ? '<table class="data"><tr><th>Company</th><th>Owner</th><th>Why</th><th style="text-align:right">Tickets</th></tr>' + att.slice(0, 25).map(c => '<tr><td><a href="' + R.C.SITE_BASE + 'cs/customers/?company=' + c.company_id + '">' + R.esc(c.company_name) + '</a></td><td>' + R.esc(c.owner_name || '') + '</td><td>' + R.esc(R.attention(c).join(' · ')) + '</td><td style="text-align:right">' + (c.open_tickets || 0) + '</td></tr>').join('') + '</table>' : '<div class="state">Nobody needs attention right now.</div>';
 }
 load();
 </script>

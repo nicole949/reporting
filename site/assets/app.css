@@ -191,3 +191,26 @@ code { font-size: .85em; background: var(--paper); padding: .05em .35em; border-
 .me-add { border: 1px dashed var(--hair); border-radius: var(--radius); padding: .8rem; grid-column: span 2; display: flex; flex-direction: column; gap: .35rem; }
 .me-add select, .me-add button { font: inherit; font-size: .8rem; }
 .warn-li { color: var(--orange); }
+
+/* ---------- "?" explanations ---------- */
+.q { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: .35rem; padding: 0; border-radius: 50%; border: 1px solid var(--hair); background: var(--panel); color: var(--faint); font: 700 9.5px/1 var(--font); letter-spacing: 0; text-transform: none; cursor: pointer; vertical-align: middle; position: relative; top: -1px; flex: 0 0 15px; }
+.q:hover, .q:focus-visible { color: var(--navy); border-color: var(--sky); background: var(--sky-tint); outline: 0; }
+:root[data-theme="dark"] .q:hover { color: var(--sky-light); }
+.qpop { position: absolute; z-index: 90; background: var(--panel); color: var(--text); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 16px 44px -14px rgba(0,40,70,.4); padding: .85rem 1rem .9rem; font-size: .82rem; line-height: 1.5; }
+.qpop h4 { font-size: .9rem; margin: 0 1.6rem .2rem 0; }
+.qpop .ql { font-size: .62rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; color: var(--faint); margin-top: .6rem; }
+.qpop p { margin: .12rem 0 0; }
+.qpop .x { position: absolute; right: .45rem; top: .4rem; border: 0; background: transparent; color: var(--faint); cursor: pointer; font-size: .85rem; padding: .2rem .35rem; }
+/* ---------- filter bar: ported pages use the same bar ---------- */
+.filters .f.search { margin-left: auto; }
+.filters input[type=search], .filters input[type=number], .filters input[type=text] { border: 1px solid var(--hair); border-radius: 8px; padding: .3rem .55rem; font: inherit; font-size: .8rem; color: var(--text); background: var(--panel); }
+.filters input[type=search] { min-width: 200px; } .filters input[type=number] { width: 80px; }
+.filters .f.raw { gap: .5rem; } .filters label.f.raw { cursor: pointer; }
+.filters .f.per select { font-weight: 600; }
+.filters .btn { margin: 0; }
+.runmeta { font-size: .7rem; color: var(--faint); display: flex; align-items: center; gap: .4rem; white-space: nowrap; }
+.v1 footer { margin-top: 1.6rem; padding-top: .8rem; border-top: 1px solid var(--hair); font-size: .74rem; line-height: 1.55; color: var(--faint); }
+.v1 select, .v1 input[type=date], .v1 input[type=number], .v1 input[type=search] { border: 1px solid var(--hair); border-radius: 8px; padding: .28rem .5rem; font: inherit; font-size: .8rem; color: var(--text); background: var(--panel); }
+.filters .f.raw > span:first-child:not(.fl), .filters .f > .msel:first-child { text-transform: none; letter-spacing: 0; font-size: inherit; font-weight: inherit; color: inherit; }
+.filters .f.raw > span:not(.fl), .filters .f.raw > div { display: inline-flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.filters .msel summary { padding: .3rem .6rem; font-size: .8rem; }

@@ -12,6 +12,7 @@
 <div id="shell"></div>
 <script src="../assets/config.js?b=__BUILD__"></script>
 <script src="../assets/app.js?b=__BUILD__"></script>
+<script src="../assets/help.js?b=__BUILD__"></script>
 <script>
 const page = R.shell({ page: 'bd-overview', title: 'Business Development overview', subtitle: 'Calls, connections and discoveries — per period and per SDR' });
 page.innerHTML = '<div id="bd-goals" class="tiles" style="margin-bottom:1rem"></div><div class="grid c2"><div class="card"><h2>Per SDR <span class="muted small" id="sdr-sub"></span></h2><div id="sdr-table"></div></div><div class="card"><h2>Calls per week <span class="muted small">· connected in dark</span></h2><div id="calls-chart"></div></div></div><div class="card" style="margin-top:1rem"><h2>Discoveries booked in the period</h2><div id="disc-list"></div></div>';
@@ -35,7 +36,7 @@ function render() {
   const calls = D.calls.filter(own), discos = D.discos.filter(own).filter(d => d.status !== 'canceled');
   const inR = (rows, f, rg) => rows.filter(x => { const d = f(x); return d && R.inRange(d, rg); });
   const cN = inR(calls, c => c.ts, r).length, cP = inR(calls, c => c.ts, p).length;
-  const conn = rows => rows.filter(c => c.bucket === 'counts_as_responded');
+  const conn = rows => rows.filter(c => (c.bucket === 'connected' || c.bucket === 'rejected'));
   const kN = conn(inR(calls, c => c.ts, r)).length, kP = conn(inR(calls, c => c.ts, p)).length;
   const booked = rows => rows.filter(c => /meeting booked/i.test(c.disposition_label || ''));
   const bN = booked(inR(calls, c => c.ts, r)).length, bP = booked(inR(calls, c => c.ts, p)).length;
@@ -54,7 +55,7 @@ function render() {
     rows.map(x => '<tr><td>' + R.esc(x.n) + '</td><td style="text-align:right">' + x.calls + '</td><td style="text-align:right">' + x.conn + '</td><td style="text-align:right">' + x.rate + '%</td><td style="text-align:right">' + x.booked + '</td><td style="text-align:right">' + x.disc + '</td></tr>').join('') + '</table>';
   // weekly chart (last 13 weeks ending at the period end)
   const weeks = []; const end = new Date(Date.parse(r.to)); for (let i = 12; i >= 0; i--) { const d = new Date(end.getTime() - i * 7 * 864e5); weeks.push(R.isoWeek(d.toISOString())); }
-  const per = {}; for (const c of calls) { const w = R.isoWeek(c.ts); if (!per[w]) per[w] = { a: 0, k: 0 }; per[w].a++; if (c.bucket === 'counts_as_responded') per[w].k++; }
+  const per = {}; for (const c of calls) { const w = R.isoWeek(c.ts); if (!per[w]) per[w] = { a: 0, k: 0 }; per[w].a++; if ((c.bucket === 'connected' || c.bucket === 'rejected')) per[w].k++; }
   const vals = weeks.map(w => (per[w] || { a: 0 }).a), kv = weeks.map(w => (per[w] || { k: 0 }).k);
   const max = Math.max(1, ...vals);
   document.getElementById('calls-chart').innerHTML = '<div style="display:flex;align-items:flex-end;gap:4px;height:140px">' + weeks.map((w, i) => '<div title="' + w + ': ' + vals[i] + ' calls, ' + kv[i] + ' connected" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%"><div style="font-size:.62rem;text-align:center;color:var(--faint)">' + (vals[i] || '') + '</div><div style="background:var(--blue-a12);height:' + (100 * vals[i] / max) + '%;border-radius:3px 3px 0 0;position:relative"><div style="position:absolute;bottom:0;left:0;right:0;background:var(--navy);height:' + (vals[i] ? 100 * kv[i] / vals[i] : 0) + '%;border-radius:3px 3px 0 0"></div></div></div>').join('') + '</div><div style="display:flex;gap:4px;font-size:.6rem;color:var(--faint)">' + weeks.map(w => '<div style="flex:1;text-align:center">' + w.slice(5) + '</div>').join('') + '</div>';
