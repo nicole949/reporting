@@ -1,5 +1,40 @@
 [
   {
+    "version": "2026.11.13-6",
+    "date": "2026-11-13",
+    "title": "Marketing overview rebuilt, with to-dos and KPI targets",
+    "items": [
+      {
+        "section": "marketing",
+        "page": "mkt-overview",
+        "summary": "New \"To-dos & targets\" at the top of the Marketing overview: add to-dos, assign them, set a due date, tick them off. Shared with everyone on the page.",
+        "details": "Tick \"KPI target\" to track a number automatically, e.g. 200 calls every week (optionally only one person's calls) or 150 LinkedIn connection requests this month. The bar fills with the same numbers as the tiles; the thin mark shows where you should be by today. Click the bar for the records.",
+        "departments": [
+          "marketing"
+        ]
+      },
+      {
+        "section": "marketing",
+        "page": "mkt-overview",
+        "summary": "The page now uses the same look and filter bar as the Commercial overview: goals in a compact card, marketing tiles with history bars, and large charts for emails by sequence, LinkedIn actions, responses and contacts set to Responded.",
+        "details": "\"This week\" and \"Last week\" rows are replaced by the period filter (default: this week, compared with last week). The calls and deals charts moved out — they are on the Commercial and BD overviews.",
+        "departments": [
+          "marketing"
+        ]
+      },
+      {
+        "section": "marketing",
+        "page": "mkt-overview",
+        "summary": "Fix: goals counted one day too early in Central European time — the quarter started on the last day of the previous quarter.",
+        "details": "Discoveries Q4 2026 therefore shows 13 instead of 14: one discovery dated 30.09. belongs to Q3. The same fix applies to the goals card on the personal page and the BD overview.",
+        "departments": [
+          "marketing",
+          "bd"
+        ]
+      }
+    ]
+  },
+  {
     "version": "2026.11.13-5",
     "date": "2026-11-13",
     "title": "Commercial overview: charts with history, numbers and labels",

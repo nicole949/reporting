@@ -78,25 +78,14 @@
 
   // ---------------------------------------------------------------- marketing overview
   H.add('mkt-overview', [
-    { m: 'This quarter', t: 'Goals', calc: 'The targets of the selected quarter and how far we are. The bar fills with the stage entries since the quarter started; “ahead / behind” compares the progress with the share of the quarter that has passed.', src: 'goals' },
-    { m: '20', t: 'Goals', calc: 'The targets of the selected quarter and how far we are. The bar fills with the stage entries since the quarter started; “ahead / behind” compares the progress with the share of the quarter that has passed.', src: 'goals' },
-    { m: 'days left in the quarter', calc: 'Calendar days until the last day of the current quarter.', src: 'Today\'s date.' },
-    { m: 'Discoveries Q', calc: 'Companies that entered the stage Discovery in the quarter (first Discovery meeting entered in HubSpot; cancelled, no-show and existing-customer discoveries do not count) against the target.', src: 'goals' },
-    { m: 'Responded Q', calc: 'Contacts whose lead status was set to Responded in the quarter against the target.', src: 'responded' },
-    { m: 'Qualified Accounts', calc: 'Companies that entered the stage Qualified in the goal\'s period against the target.', src: 'goals' },
-    { m: 'This week', calc: 'The six key numbers for the current ISO week (Monday to today).', src: 'lifecycle' },
-    { m: 'Last week', calc: 'The same six numbers for last week (Monday to Sunday), each compared with the week before.', src: 'lifecycle' },
-    { m: 'Trends', calc: 'One chart per number for the last 13 weeks (or months, quarters, years — switch at the top right of the section). Click a bar for what is behind it.', src: 'lifecycle' },
-    { m: 'Sequence emails sent', calc: 'HubSpot sequence emails sent in the week (this week so far / last week).', src: 'email' },
-    { m: 'Calls', calc: 'Calls logged in the week; the percentage is the share where a person was reached (connected or rejected).', src: 'calls' },
-    { m: 'Contacts → lead status Responded', calc: 'Contacts whose HubSpot lead status was set to Responded in the week.', src: 'responded' },
-    { m: 'Discoveries entered', calc: 'Companies that entered the stage Discovery in the week.', src: 'lifecycle' },
-    { m: 'Deals created', calc: 'Deals created in the week with deal type Full License (New Business) or POC. Existing-business deals (renewal, upsell …) are left out.', src: 'deals' },
-    { m: 'Customers signed', calc: 'First won Full License (New Business) or JENTIS Light deal per company, by close date.', src: 'deals' },
-    { m: 'Email outreach sent', calc: 'Emails sent per week: HubSpot sequences and Instantly campaigns stacked. Counts emails, not people.', src: 'email' },
-    { m: 'LinkedIn outreach sent', calc: 'LinkedIn actions per week through LaGrowthMachine: messages, connection requests and follows.', src: 'linkedin' },
-    { m: 'Responded', calc: 'Unique contacts that responded per week, split by channel: email reply, connected call, LinkedIn reply, lead status.', src: 'responded' }
-  ]);
+    { m: 'To-dos & targets', calc: 'A shared list for the marketing team: everyone who opens this page sees and edits the same items. Tick an item when it is done; done items stay under “Show done”. A to-do with “KPI target” tracks a number by itself: the bar fills with the same numbers as the tiles below, the thin mark shows where you should be by today (share of the period that has passed), “ahead / behind” compares the two.', src: 'Entered on this page; stored in the reporting database (table app.todos). The numbers of a target come from the same sources as the tile of that metric.', note: 'There is no login yet: anyone with access to the dashboard can change or delete items. “Every week / month / quarter” targets start again with each new period.' },
+    { m: 'Goals', calc: 'The goals of the chosen quarter (and the year) and how far we are. The bar fills with the actual number, the thin mark shows how much of the quarter has passed; “ahead / behind” compares the two (5 points either way count as on track). Discoveries = companies that entered the stage Discovery. Qualified = companies that entered Qualified, but only if their discovery was in the same period. Responded = contacts set to lead status Responded. Click a goal for the companies or contacts behind it.', src: 'goals' },
+    { m: 'Marketing KPIs', calc: 'The marketing numbers of the chosen period, each compared with the period of the same length before it. The bars show how the number developed: solid = the chosen period, pale = the time before it (“Charts go back”). Click a tile for the records.', src: 'lifecycle' },
+    { m: 'Contacts → lead status Responded', calc: 'Contacts whose HubSpot lead status was set to Responded in the period — one per contact, dated by the first time.' + PREV, src: 'responded' },
+    { m: 'Outreach emails sent', calc: 'Emails sent per day by HubSpot sequences (stacked by sequence) and Instantly (one block, Instantly reports per day only). Counts emails, not people. Click a bar or “Records” for the sequences with emails sent and new recipients.' + PREV, src: 'email' },
+    { m: 'LinkedIn actions', calc: 'Connection requests, messages and follows that LaGrowthMachine sent successfully, stacked by type.' + PREV, src: 'linkedin' },
+    { m: 'Responses', calc: 'Connected calls, email replies to a sequence and LinkedIn replies, stacked by type. Replies only count when the AI check rated them positive or neutral.' + PREV, src: 'responded' }
+  ].concat(H.pages.overview.filter(e => /^(New leads|Engaged|Entered Discovery)/.test(e.m))));
 
   // ---------------------------------------------------------------- leads
   const TREND = st => ({ m: st + ' ·', calc: 'Companies entering the stage ' + st + ' per period (the grouping chosen in the filter bar) for the periods in view. “in view” is their total.', src: 'lifecycle' });

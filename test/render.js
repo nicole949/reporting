@@ -30,7 +30,7 @@ function query(view, params) {           // a small part of PostgREST: eq/neq/gt
   const lim = params.get('limit'); if (lim) rows = rows.slice(0, Number(lim));
   return rows;
 }
-const SF = [];   // shared saved filters (emulates api.saved_filters + rpc/filter_op)
+const SF = [], TD = [];   // TD: shared to-dos (emulates api.todos + rpc/todo_op)   // shared saved filters (emulates api.saved_filters + rpc/filter_op)
 const wire = (page, errs, missing404) => page.route('**/*', async route => {
       const u = new URL(route.request().url());
       if (u.hostname === 'local.test') {
@@ -47,6 +47,17 @@ const wire = (page, errs, missing404) => page.route('**/*', async route => {
           if (j.op === 'save') { const k = SF.findIndex(x => x.page === j.page && x.name.toLowerCase() === j.name.toLowerCase()); const row = { id: k >= 0 ? SF[k].id : SF.length + 1, page: j.page, name: j.name, state: j.state, created_by: j.by }; if (k >= 0) SF[k] = row; else SF.push(row); return route.fulfill({ contentType: 'application/json', body: JSON.stringify(row) }); }
           const k = SF.findIndex(x => x.id === j.id); if (k >= 0) SF.splice(k, 1); return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ deleted: k >= 0 }) });
         }
+        if (u.pathname === '/rpc/todo_op') {
+          if (route.request().method() !== 'POST' || (route.request().headers()['content-type'] || '').indexOf('text/plain') !== 0) { errs.push('todo_op: not a simple POST'); return route.fulfill({ status: 400, body: '{}' }); }
+          const j = JSON.parse(route.request().postData()), now = new Date().toISOString();
+          if (j.kpi && !(j.kpi.target > 0)) return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'KPI target: enter a number above 0' }) });
+          let row;
+          if (j.op === 'add') { row = { id: TD.length + 1, scope: j.scope, title: j.title, assignee: j.assignee || null, due: j.due || null, kpi: j.kpi || null, done: false, done_at: null, done_by: null, sort: TD.length + 1, created_by: j.by, created_at: now }; TD.push(row); }
+          else { const k = TD.findIndex(x => x.id === j.id); if (j.op === 'delete') { TD.splice(k, 1); return route.fulfill({ contentType: 'application/json', body: '{"deleted":true}' }); }
+            row = TD[k]; if (j.op === 'done') Object.assign(row, { done: j.done, done_at: j.done ? now : null, done_by: j.done ? j.by : null }); else ['title', 'assignee', 'due', 'kpi', 'sort'].forEach(f => { if (f in j) row[f] = j[f] === '' ? null : j[f]; }); }
+          return route.fulfill({ contentType: 'application/json', body: JSON.stringify(row) });
+        }
+        if (u.pathname === '/todos') return route.fulfill({ contentType: 'application/json', body: JSON.stringify(TD.filter(x => 'eq.' + x.scope === u.searchParams.get('scope')).sort((a, b) => (a.done - b.done) || (a.sort - b.sort))) });
         if (u.pathname === '/saved_filters') return route.fulfill({ contentType: 'application/json', body: JSON.stringify(SF.filter(x => 'eq.' + x.page === u.searchParams.get('page'))) });
         const view = u.pathname.slice(1); const rows = query(view, u.searchParams);
         if (!rows) { missing404.add(view); return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ code: '42P01', message: 'relation "api.' + view + '" does not exist' }) }); }
@@ -56,7 +67,7 @@ const wire = (page, errs, missing404) => page.route('**/*', async route => {
       if (/supabase|vibe-reports/.test(u.hostname)) { errs.push('still calls ' + u.hostname + u.pathname); return route.fulfill({ status: 500, body: '' }); }
       return route.fulfill({ status: 200, body: '' });
     });
-module.exports = { wire, SF };
+module.exports = { wire, SF, TD };
 if (require.main === module) (async () => {
   const b = await chromium.launch(); const out = {};
   for (const p of PAGES) {

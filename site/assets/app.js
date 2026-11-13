@@ -95,7 +95,9 @@
     chev: '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
     moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
-    bookmark: '<path d="M7 3.5h10a1 1 0 0 1 1 1v16l-6-4-6 4v-16a1 1 0 0 1 1-1z"/>'
+    bookmark: '<path d="M7 3.5h10a1 1 0 0 1 1 1v16l-6-4-6 4v-16a1 1 0 0 1 1-1z"/>',
+    target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".9" fill="currentColor"/>',
+    edit: '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M14.5 7.5l2 2"/>'
   };
   R.icon = (name, cls) => '<svg class="i' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
 
@@ -783,8 +785,10 @@
     const end = new Date(now.getFullYear(), q * 3 + 3, 1);
     const daysLeft = Math.max(0, Math.ceil((end - now) / 86400000));
     const pctGone = Math.min(100, Math.round(100 * (now - start) / (end - start)));
+    // dates written from the calendar values: toISOString() would shift local midnight into the previous day east of UTC
+    const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     return { label: now.getFullYear() + '-Q' + (q + 1), year: String(now.getFullYear()),
-      startIso: start.toISOString().slice(0, 10), endIso: end.toISOString().slice(0, 10),
+      startIso: ymd(start), endIso: ymd(end),
       daysLeft, pctGone };
   };
   R.goalBar = function (g) {
