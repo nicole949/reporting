@@ -15,7 +15,7 @@
 <script src="assets/help.js?b=__BUILD__"></script>
 <script>
 const page = R.shell({ page: 'overview', title: 'Commercial overview', subtitle: 'Key numbers across the whole commercial journey — Marketing → Business Development → Sales → Customer Success' });
-page.innerHTML = '<div class="kgroups" id="kg"><div class="state">Loading…</div></div><p class="small muted" style="margin-top:.8rem">Each tile compares the chosen period with the period of the same length before it; the bars show the period split by the chosen frequency. Click a tile to see the records behind the number. Tiles marked “now” are a snapshot and ignore the period.</p>';
+page.innerHTML = '<div class="kgroups" id="kg"><div class="state">Loading…</div></div><p class="small muted" style="margin-top:.8rem">Each tile compares the chosen period with the period of the same length before it; the bars show how the number developed — solid bars are the chosen period, pale bars the time before it (set with “Charts go back”). Click a tile to see the records behind the number. Tiles marked “now” are a snapshot and ignore the period.</p>';
 let D = null, M = [];
 const NB = /^(full license \(new business\)|jentis light)$/i, POC = /^poc$/i, PS = /^professional service/i, REN = /^(early )?renewal$/i;
 const DAY = 864e5, esc = R.esc, d10 = v => v ? String(v).slice(0, 10) : '';
@@ -39,6 +39,7 @@ async function load() {
   build(); render();
 }
 const F = R.filters({ defaultTime: 'quarter', onChange: render, controls: [
+  { key: 'look', label: 'Charts go back', value: '13w', options: [['period', 'Selected period only'], ['4w', '4 weeks'], ['8w', '8 weeks'], ['13w', '13 weeks'], ['26w', '6 months'], ['52w', '12 months'], ['104w', '24 months']] },
   { key: 'freq', label: 'Frequency', value: 'auto', options: [['auto', 'Auto'], ['day', 'Daily'], ['week', 'Weekly'], ['month', 'Monthly']] }] });
 
 // ---------- what every tile is made of ----------
@@ -95,35 +96,44 @@ function build() {
   ];
 }
 
-// ---------- period → buckets ----------
+// ---------- chart window → buckets ----------
+// The tile number is always the selected period. The bars can reach further back ("Charts go back"): they end where the
+// period ends and start at least that far before; bars that lie before the period are drawn pale.
+const iso = t => new Date(t).toISOString().slice(0, 10), TODAY = () => Date.parse(iso(Date.now()));
+function win(r) {
+  const end = Math.min(Date.parse(r.to), TODAY() + DAY), look = F.look || '13w';
+  const from = look === 'period' ? Date.parse(r.from) : Math.min(Date.parse(r.from), end - parseInt(look, 10) * 7 * DAY);
+  return { from, end, pFrom: Date.parse(r.from) };
+}
 function freqOf(r) {
   if (F.freq && F.freq !== 'auto') return F.freq;
-  const days = (Math.min(Date.parse(r.to), Date.now() + DAY) - Date.parse(r.from)) / DAY;
-  return days <= 21 ? 'day' : days <= 190 ? 'week' : 'month';
+  const w = win(r), days = (w.end - w.from) / DAY;
+  return days <= 21 ? 'day' : days <= 200 ? 'week' : 'month';
 }
-const FREQ = { day: 'daily', week: 'weekly', month: 'monthly' };
+const FREQ = { day: 'daily', week: 'weekly', month: 'monthly' }, UNIT = { day: 'day', week: 'week', month: 'month' };
+const isoWeek = t => { const d = new Date(t); d.setUTCDate(d.getUTCDate() + 3 - ((d.getUTCDay() + 6) % 7)); const y = Date.UTC(d.getUTCFullYear(), 0, 4); return 1 + Math.round(((d - y) / DAY - 3 + ((new Date(y).getUTCDay() + 6) % 7)) / 7); };
+const dm = t => iso(t).slice(8, 10) + '.' + iso(t).slice(5, 7) + '.';
 function buckets(r) {
-  const f = freqOf(r), out = [], iso = t => new Date(t).toISOString().slice(0, 10);
-  const end = Math.min(Date.parse(r.to), Date.parse(iso(Date.now())) + DAY);
-  let a = Date.parse(r.from);
-  while (a < end && out.length < 400) {
-    const x = new Date(a); let b;
-    if (f === 'day') b = a + DAY;
-    else if (f === 'week') b = a + (7 - ((x.getUTCDay() + 6) % 7)) * DAY;            // up to the next Monday
-    else b = Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 1);
-    b = Math.min(b, Date.parse(r.to));
-    const from = iso(a), to = iso(b);
-    out.push({ from, to, label: f === 'month' ? x.toLocaleString('en-GB', { month: 'short', year: '2-digit', timeZone: 'UTC' }) : from.slice(8, 10) + '.' + from.slice(5, 7) + '.',
-      title: f === 'day' ? R.fmtDate(from) : f === 'week' ? 'Week of ' + R.fmtDate(from) : x.toLocaleString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }) });
+  const f = freqOf(r), w = win(r), out = [];
+  const next = a => { const x = new Date(a); return f === 'day' ? a + DAY : f === 'week' ? a + (7 - ((x.getUTCDay() + 6) % 7)) * DAY : Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 1); };
+  let a = w.from;                                   // start on a full week / month so the first bar is not a stub
+  if (a < w.pFrom) { const x = new Date(a); a = f === 'week' ? a - ((x.getUTCDay() + 6) % 7) * DAY : f === 'month' ? Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), 1) : a; }
+  while (a < w.end && out.length < 800) {
+    let b = Math.min(next(a), w.end); if (a < w.pFrom && b > w.pFrom) b = w.pFrom;   // the period always starts on a bar edge → pale + solid bars never mix
+    const x = new Date(a), span = dm(a) + (b - a > DAY ? ' – ' + dm(b - DAY) : '');
+    out.push({ from: iso(a), to: iso(b), inp: a >= w.pFrom,
+      label: f === 'day' ? dm(a).slice(0, 5) : f === 'week' ? 'W' + isoWeek(a) : x.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }) + (x.getUTCMonth() === 0 ? ' ' + String(x.getUTCFullYear()).slice(2) : ''),
+      title: f === 'day' ? R.fmtDate(iso(a)) : f === 'week' ? 'Week ' + isoWeek(a) + ' (' + span + ')' : x.toLocaleString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }) + (b - a < 27 * DAY ? ' (' + span + ')' : '') });
     a = b;
   }
   return out;
 }
 // ---------- numbers ----------
 const valOf = (m, x) => m.n ? Number(m.n(x)) || 0 : 1;
-const inR = (m, rg) => m.rows.filter(x => { const d = m.d(x); return d && R.inRange(String(d), rg); });
+const between = (m, from, to) => m.rows.filter(x => { const d = m.d(x); if (!d) return false; const k = String(d).slice(0, 10); return k >= from && k < to; });
+const inR = (m, rg) => between(m, rg.from, rg.to);
 const total = (m, rows) => rows.reduce((a, x) => a + valOf(m, x), 0);
-function seriesOf(m, rows) {                      // [{name, total}] — fixed order when given, else biggest first; at most 6 + Other
+function seriesOf(m, rows) {                      // [{name, total, ci}] — fixed order when given, else biggest first; at most 6 + Other
   if (!m.s) return [{ name: m.label, total: total(m, rows), ci: 0 }];
   const t = {}; rows.forEach(x => { const k = m.s(x) || '—'; t[k] = (t[k] || 0) + valOf(m, x); });
   let names = Object.keys(t).sort((a, b) => t[b] - t[a]);
@@ -140,46 +150,60 @@ function matrix(m, rows, bk, ser) {                // value per bucket and serie
   return grid;
 }
 const fmt = (m, v) => m.eur ? R.eur(v) : R.num(v);
-function bars(m, bk, ser, grid, W, H, opts) {     // stacked bars; opts.labels: x axis labels + values, opts.pick: clickable
+const short = (m, v) => (m.eur ? '€' : '') + (v >= 10000 ? Math.round(v / 1000) + 'k' : v >= 1000 ? (v / 1000).toFixed(1).replace('.0', '') + 'k' : R.num(v));
+// stacked bars drawn at the pixel width they are shown at; numbers above, week / month / day below
+function bars(m, bk, ser, grid, W, H, opts) {
   opts = opts || {};
-  const top = opts.labels ? 14 : 2, bot = opts.labels ? 16 : 0, h = H - top - bot, max = Math.max(1, ...grid.map(g => g.reduce((a, b) => a + b, 0)));
-  const step = W / bk.length, bw = Math.max(1, Math.min(step - (step > 6 ? 2 : .5), 46)), every = Math.ceil(bk.length / Math.max(1, Math.floor(W / 46)));
-  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + (opts.labels ? W : '100%') + '" height="' + H + '"' + (opts.labels ? '' : ' preserveAspectRatio="none"') + ' role="img" aria-label="' + esc(m.label) + ' over time">';
+  const fs = opts.big ? 10 : 9, top = fs + 4, bot = fs + 6, h = H - top - bot, sums = grid.map(g => g.reduce((a, b) => a + b, 0)), max = Math.max(1, ...sums);
+  const n = Math.max(1, bk.length), step = W / n, bw = Math.max(1, Math.min(step * .78, opts.big ? 46 : 26));
+  const cw = fs * .58, last = n - 1;
+  const every = need => Math.max(1, Math.ceil(need / step));                       // show every k-th label, counted back from the newest bar
+  const kv = every(Math.max(...sums.map(v => short(m, v).length)) * cw + 5), kx = every(Math.max(...bk.map(b => b.label.length)) * cw + 6);
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' + esc(m.label) + ' over time">';
   s += '<line class="ax" x1="0" x2="' + W + '" y1="' + (top + h + .5) + '" y2="' + (top + h + .5) + '"/>';
   bk.forEach((b, i) => {
-    const sum = grid[i].reduce((a, v) => a + v, 0), x = i * step + (step - bw) / 2; let y = top + h;
-    const tip = b.title + ': ' + fmt(m, sum) + (ser.length > 1 && sum ? '\n' + ser.map((q, k) => grid[i][k] ? q.name + ': ' + fmt(m, grid[i][k]) : '').filter(Boolean).join('\n') : '');
-    s += '<g class="bk' + (opts.sel === i ? ' sel' : '') + '" data-b="' + i + '"><title>' + esc(tip) + '</title><rect class="hit" x="' + (i * step) + '" y="0" width="' + step + '" height="' + H + '"/>';
+    const sum = sums[i], cx = i * step + step / 2, x = cx - bw / 2; let y = top + h;
+    const tip = b.title + ': ' + fmt(m, sum) + (ser.length > 1 && sum ? '\n' + ser.map((q, k) => grid[i][k] ? q.name + ': ' + fmt(m, grid[i][k]) : '').filter(Boolean).join('\n') : '') + (b.inp ? '' : '\n(before the selected period)');
+    s += '<g class="bk' + (b.inp ? '' : ' pre') + (opts.sel === i ? ' sel' : '') + '" data-b="' + i + '"><title>' + esc(tip) + '</title><rect class="hit" x="' + (i * step).toFixed(1) + '" y="0" width="' + step.toFixed(1) + '" height="' + H + '"/>';
     grid[i].forEach((v, k) => { if (!v) return; const bh = Math.max(1, h * v / max); y -= bh; s += '<rect class="c' + ser[k].ci + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '"/>'; });
-    if (opts.labels) {
-      if (sum && step >= 22) s += '<text class="val" x="' + (x + bw / 2) + '" y="' + (y - 3) + '" text-anchor="middle">' + (m.eur ? Math.round(sum / 1000) + 'k' : R.num(sum)) + '</text>';
-      if (i % every === 0) s += '<text x="' + (x + bw / 2) + '" y="' + (H - 3) + '" text-anchor="middle">' + esc(b.label) + '</text>';
-    }
+    const anchor = cx < 12 ? 'start' : cx > W - 12 ? 'end' : 'middle', tx = anchor === 'start' ? 0 : anchor === 'end' ? W : cx;
+    if (sum && (last - i) % kv === 0) s += '<text class="val" x="' + tx.toFixed(1) + '" y="' + (y - 3).toFixed(1) + '" text-anchor="' + anchor + '" font-size="' + fs + '">' + short(m, sum) + '</text>';
+    if ((last - i) % kx === 0) s += '<text class="xl" x="' + tx.toFixed(1) + '" y="' + (H - 3) + '" text-anchor="' + anchor + '" font-size="' + fs + '">' + esc(b.label) + '</text>';
     s += '</g>';
   });
   return s + '</svg>';
 }
+const cut = (t, n) => t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t;
 // ---------- tiles ----------
 function tileHtml(m, r, p, bk) {
   let val, sub, spark = '';
   if (m.now) {
-    const rows = m.rowsFor ? m.rowsFor(r) : m.rows; m._rows = rows;
+    const rows = m.rowsFor ? m.rowsFor(r) : m.rows; m._rows = rows; m._c = null;
     val = fmt(m, m.n ? total(m, rows) : rows.length); sub = m.sub || 'as of today';
   } else {
     const rows = inR(m, r), prev = inR(m, p), cur = total(m, rows), was = total(m, prev); m._rows = rows;
     val = fmt(m, cur) + ' ' + R.delta(cur, was);
     sub = m.amount ? R.eur(rows.reduce((a, x) => a + (Number(m.amount(x)) || 0), 0)) + ' · before ' + R.eur(prev.reduce((a, x) => a + (Number(m.amount(x)) || 0), 0)) : 'before: ' + fmt(m, was);
-    const ser = seriesOf(m, rows);
-    spark = '<div class="spark">' + bars(m, bk, ser, matrix(m, rows, bk, ser), 200, 34) + '</div>';
+    const wrows = bk.length ? between(m, bk[0].from, bk[bk.length - 1].to) : [], ser = seriesOf(m, wrows);
+    m._c = { wrows, ser, grid: matrix(m, wrows, bk, ser) };
+    const shown = ser.slice(0, 3), more = ser.length - shown.length;
+    spark = '<div class="spark" data-m="' + m.key + '"></div>' + (ser.length > 1 ? '<div class="sleg">' + shown.map(q => '<span title="' + esc(q.name) + '"><i class="c' + q.ci + '"></i>' + esc(cut(q.name, 18)) + '</span>').join('') + (more > 0 ? '<span class="more" title="' + esc(ser.slice(3).map(q => q.name).join('\n')) + '">+' + more + '</span>' : '') + '</div>' : '');
   }
   return '<div class="tile clk' + (m.now ? ' soft' : '') + '" data-m="' + m.key + '" tabindex="0" role="button" title="Click to see the records behind this number"><div class="k">' + esc(m.label) + '</div><div class="v">' + val + '</div><div class="s">' + sub + '</div>' + spark + '</div>';
 }
+let BK = [];
+function drawSparks() {                             // drawn after layout: the bars need the tile's real width
+  document.querySelectorAll('#kg .spark').forEach(el => { const m = metric(el.dataset.m); if (!m || !m._c) return; const W = Math.max(80, Math.floor(el.clientWidth)); el.innerHTML = bars(m, BK, m._c.ser, m._c.grid, W, 66); });
+}
 function render() {
   if (!D) return;
-  const r = F.range, p = R.prevRange(r), bk = buckets(r);
-  document.getElementById('kg').innerHTML = M.map(g => '<section class="kgroup ' + g.key + '"><div class="gh"><h2>' + g.name + '</h2><span class="st">' + g.st + '</span><span class="st" style="margin-left:auto">' + esc(r.label) + ' · ' + FREQ[freqOf(r)] + '</span></div><div class="tiles">' + g.tiles.map(m => tileHtml(m, r, p, bk)).join('') + '</div></section>').join('');
+  const r = F.range, p = R.prevRange(r); BK = buckets(r);
+  const back = BK.length && !BK[0].inp ? ' · bars from ' + R.fmtDate(BK[0].from) : '';
+  document.getElementById('kg').innerHTML = M.map(g => '<section class="kgroup ' + g.key + '"><div class="gh"><h2>' + g.name + '</h2><span class="st">' + g.st + '</span><span class="st" style="margin-left:auto">' + esc(r.label) + ' · ' + FREQ[freqOf(r)] + back + '</span></div><div class="tiles">' + g.tiles.map(m => tileHtml(m, r, p, BK)).join('') + '</div></section>').join('');
+  drawSparks();
   if (drillKey) drill(drillKey, true);
 }
+let rsT; window.addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(() => { if (D) { drawSparks(); if (drillKey) drill(drillKey, true); } }, 150); });
 // ---------- the records behind a tile ----------
 let drillKey = null, drillSel = null;
 const metric = k => M.flatMap(g => g.tiles).find(m => m.key === k);
@@ -187,18 +211,21 @@ function drill(key, keep) {
   const m = metric(key); if (!m) return;
   if (!keep) drillSel = null;
   drillKey = key;
-  const r = F.range, bk = m.now ? [] : buckets(r);
+  const r = F.range, bk = m.now ? [] : BK, el = document.getElementById('drill');
   if (drillSel != null && drillSel >= bk.length) drillSel = null;
   let rows = (m._rows || []).slice();
-  const ser = m.now ? [] : seriesOf(m, rows);
-  let h = '<div class="dh"><div><h3>' + esc(m.label) + '</h3><div class="small muted">' + (m.now ? 'as of today' : esc(r.label) + ' · ' + FREQ[freqOf(r)]) + '</div></div><button class="x" type="button" aria-label="Close" onclick="closeDrill()">✕</button></div>';
-  if (!m.now) {
-    const el = document.getElementById('drill'), W = Math.max(320, Math.min(760, (el.clientWidth || 640) - 44));
-    h += '<div class="dchart">' + bars(m, bk, ser, matrix(m, rows, bk, ser), W, 190, { labels: true, sel: drillSel }) + '</div>';
-    if (ser.length > 1) h += '<div class="dleg">' + ser.map((q, k) => '<span><i class="c' + q.ci + '"></i>' + esc(q.name) + ' <b>' + fmt(m, q.total) + '</b></span>').join('') + '</div>';
-    if (drillSel != null) { const b = bk[drillSel]; rows = rows.filter(x => { const d = String(m.d(x)).slice(0, 10); return d >= b.from && d < b.to; });
-      h += '<div class="dsel">Showing <b>' + esc(b.title) + '</b> only · <a href="#" onclick="drillSel=null;drill(drillKey,true);return false">show the whole period</a></div>'; }
-    else h += '<div class="dsel muted">Click a bar to see only that ' + ({ day: 'day', week: 'week', month: 'month' })[freqOf(r)] + '.</div>';
+  let h = '<div class="dh"><div><h3>' + esc(m.label) + '</h3><div class="small muted">' + (m.now ? 'as of today' : esc(r.label) + ' · ' + fmt(m, total(m, rows)) + ' · bars ' + FREQ[freqOf(r)]) + '</div></div><button class="x" type="button" aria-label="Close" onclick="closeDrill()">✕</button></div>';
+  if (!m.now && m._c) {
+    const ser = m._c.ser, W = Math.max(320, Math.min(780, (el.clientWidth || 640) - 44));
+    h += '<div class="dchart">' + bars(m, bk, ser, m._c.grid, W, 200, { big: true, sel: drillSel }) + '</div>';
+    if (ser.length > 1) {                             // legend with the totals of the selected period
+      const pt = {}; rows.forEach(x => { const k = m.s(x) || '—'; pt[k] = (pt[k] || 0) + valOf(m, x); });
+      const tot = q => (pt[q.name] || 0) + (q.other || []).reduce((a, n) => a + (pt[n] || 0), 0);
+      h += '<div class="dleg">' + ser.map(q => '<span><i class="c' + q.ci + '"></i>' + esc(q.name) + ' <b>' + fmt(m, tot(q)) + '</b></span>').join('') + '</div>';
+    }
+    if (drillSel != null) { const b = bk[drillSel]; rows = between(m, b.from, b.to);
+      h += '<div class="dsel">Showing <b>' + esc(b.title) + '</b> only' + (b.inp ? '' : ' (before the selected period)') + ' · <a href="#" onclick="drillSel=null;drill(drillKey,true);return false">back to ' + esc(r.label) + '</a></div>'; }
+    else h += '<div class="dsel muted">Pale bars lie before the selected period. Click a bar to see only that ' + UNIT[freqOf(r)] + '.</div>';
   }
   const moreLink = m.more ? ' · <a href="' + R.C.SITE_BASE.replace(/\/?$/, '/') + m.more[0] + '">Open the ' + m.more[1] + ' →</a>' : '';
   if (m.list === 'series') {
@@ -214,7 +241,7 @@ function drill(key, keep) {
     h += rows.length ? '<table><thead><tr>' + m.cols.map(c => '<th class="' + (c[2] || '') + '">' + c[0] + '</th>').join('') + '</tr></thead><tbody>' +
       shown.map(x => '<tr>' + m.cols.map(c => '<td class="' + (c[2] || '') + '">' + c[1](x) + '</td>').join('') + '</tr>').join('') + '</tbody></table>' : '<div class="state">Nothing in this period.</div>';
   }
-  const el = document.getElementById('drill'); el.innerHTML = h; el.classList.add('open'); document.getElementById('drill-bg').classList.add('open');
+  el.innerHTML = h; el.classList.add('open'); document.getElementById('drill-bg').classList.add('open');
   if (!keep) el.scrollTop = 0;
   el.querySelectorAll('.dchart .bk').forEach(g => g.onclick = () => { const i = +g.dataset.b; drillSel = drillSel === i ? null : i; drill(drillKey, true); });
 }

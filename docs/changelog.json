@@ -1,5 +1,30 @@
 [
   {
+    "version": "2026.11.13-5",
+    "date": "2026-11-13",
+    "title": "Commercial overview: charts with history, numbers and labels",
+    "items": [
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "New filter \"Charts go back\": the bars in the tiles can show more history than the selected period (4, 8 or 13 weeks, 6, 12 or 24 months, or the period only). The big number stays the selected period.",
+        "details": "Solid bars are the selected period, pale bars the time before it. Default is 13 weeks.",
+        "departments": [
+          "all"
+        ]
+      },
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "Bars now carry their number, the week, month or day is written underneath, and stacked charts have a small legend.",
+        "details": "Where space is tight, every second or third label is shown; hover a bar for the exact figures.",
+        "departments": [
+          "all"
+        ]
+      }
+    ]
+  },
+  {
     "version": "2026.11.13-4",
     "date": "2026-11-13",
     "title": "Commercial overview: timelines in every tile, click through to the records",
