@@ -1,0 +1,39 @@
+# Copies the live v1 dashboard (vibe-reports.jentis.info) into archive/v1-live/ so pages can be ported to v2
+# from the exact code that is deployed. Run it by hand (Actions -> Snapshot v1 -> Run workflow).
+name: Snapshot v1
+on:
+  workflow_dispatch:
+  push:
+    branches: [staging]
+    paths: ['.github/workflows/snapshot-v1.yml']
+permissions:
+  contents: write
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pages
+        run: |
+          set -u
+          B=https://vibe-reports.jentis.info
+          OUT=archive/v1-live; rm -rf "$OUT"; mkdir -p "$OUT/assets"
+          get() { curl -sSL --max-time 40 -A "v1-snapshot" -w "%{http_code} %{size_download} $1\n" -o "$2" "$B/$1" || true; }
+          for f in app.js app.css config.js; do get "assets/$f" "$OUT/assets/$f"; done
+          # pages named in the v1 menu + the ones v2 links to
+          PAGES="$(grep -oE "['\"][a-z0-9-]+/['\"]" "$OUT/assets/app.js" | tr -d "'\"" | sort -u | tr '\n' ' ')"
+          PAGES="$PAGES overview/ leads/ responded/ calls/ discoveries/ journeys/ deals/ sequences/ subjects/ subject-lines/ instantly/ linkedin/ outreach/ cs/ cs-customers/ cs-renewals/ cs-tickets/ cs-capacity/ cs-quote-checker/ cs-meetings/ cs-services/ docs/ goals/"
+          get "" "$OUT/index.html"
+          for p in $(echo $PAGES | tr ' ' '\n' | sort -u); do
+            mkdir -p "$OUT/$p"; get "$p" "$OUT/${p}index.html"
+            # drop anything that is not a real page (404 pages, empty files)
+            if ! grep -qi "<script" "$OUT/${p}index.html" 2>/dev/null; then rm -rf "$OUT/$p"; fi
+          done
+          # further scripts / styles the pages load from /assets
+          for a in $(grep -rhoE "assets/[A-Za-z0-9_.-]+\.(js|css)" "$OUT" | sort -u); do [ -f "$OUT/$a" ] || get "$a" "$OUT/$a"; done
+          find "$OUT" -type f | sort | xargs wc -c
+      - name: Commit
+        run: |
+          git config user.name "v1-snapshot"; git config user.email "actions@users.noreply.github.com"
+          git add archive/v1-live
+          git diff --cached --quiet && echo "no changes" || { git commit -q -m "Snapshot of the live v1 dashboard"; git push -q; }
