@@ -237,3 +237,25 @@ aside.side::-webkit-scrollbar { width: 6px; } aside.side::-webkit-scrollbar-thum
 .vpop .vshare { flex: 1; display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; color: var(--slate); cursor: pointer; }
 .vpop .vmsg { font-size: .76rem; color: var(--slate); margin-top: .45rem; min-height: 1em; }
 .vpop .vreset { border: 0; background: transparent; color: var(--faint); font: inherit; font-size: .74rem; padding: .2rem 0; cursor: pointer; text-decoration: underline; }
+
+/* overview: mini timelines in the tiles + the records panel */
+:root { --c0: #004771; --c1: #4FA3D8; --c2: #F38C62; --c3: #2F8F6A; --c4: #9B7FD1; --c5: #E0B13A; --c6: #B8C0C8; }
+:root[data-theme="dark"] { --c0: #9DDCFF; --c1: #4FA3D8; --c2: #F38C62; --c3: #5FBF9A; --c4: #B9A3E8; --c5: #E8C55C; --c6: #5B6B78; }
+.c0 { fill: var(--c0); background: var(--c0); } .c1 { fill: var(--c1); background: var(--c1); } .c2 { fill: var(--c2); background: var(--c2); } .c3 { fill: var(--c3); background: var(--c3); }
+.c4 { fill: var(--c4); background: var(--c4); } .c5 { fill: var(--c5); background: var(--c5); } .c6 { fill: var(--c6); background: var(--c6); }
+.tile.clk { cursor: pointer; transition: border-color .12s, box-shadow .12s; display: flex; flex-direction: column; }
+.tile.clk:hover, .tile.clk:focus-visible { border-color: var(--navy); box-shadow: 0 6px 18px -12px rgba(0,40,70,.45); outline: none; }
+.tile .spark { margin-top: auto; padding-top: .4rem; height: 34px; } .tile .spark svg { display: block; width: 100%; height: 34px; }
+svg .ax { stroke: var(--hair); stroke-width: 1; } svg .hit { fill: transparent; }
+#drill-bg { display: none; position: fixed; inset: 0; background: rgba(10,25,38,.32); z-index: 94; } #drill-bg.open { display: block; }
+#drill { position: fixed; top: 0; right: 0; bottom: 0; width: min(820px, 100vw); background: var(--panel); color: var(--text); border-left: 1px solid var(--hair); box-shadow: -24px 0 60px -30px rgba(0,40,70,.5); z-index: 95; overflow: auto; padding: 1.1rem 1.3rem 2rem; transform: translateX(105%); transition: transform .18s ease; box-sizing: border-box; }
+#drill.open { transform: none; }
+#drill .dh { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: .7rem; } #drill .dh h3 { font-size: 1.05rem; margin: 0; }
+#drill .x { border: 1px solid var(--hair); background: var(--panel); color: var(--slate); border-radius: 999px; width: 30px; height: 30px; cursor: pointer; }
+#drill .dchart { overflow-x: auto; } #drill .dchart text { font-size: 10px; fill: var(--slate); } #drill .dchart text.val { font-weight: 600; fill: var(--text); }
+#drill .dchart .bk { cursor: pointer; } #drill .dchart .bk:hover .hit { fill: rgba(79,163,216,.12); } #drill .dchart .bk.sel .hit { fill: rgba(79,163,216,.22); }
+#drill .dleg { display: flex; flex-wrap: wrap; gap: .3rem 1rem; font-size: .76rem; color: var(--slate); margin: .5rem 0 .2rem; } #drill .dleg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: .35rem; } #drill .dleg b { color: var(--text); }
+#drill .dsel { font-size: .76rem; margin: .45rem 0 .2rem; } #drill .dcount { font-size: .78rem; color: var(--slate); margin: .9rem 0 .4rem; padding-top: .7rem; border-top: 1px solid var(--hair); }
+#drill table { width: 100%; border-collapse: collapse; font-size: .8rem; } #drill th { text-align: left; font-size: .64rem; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); font-weight: 700; padding: .35rem .5rem; border-bottom: 1px solid var(--hair); position: sticky; top: -1.1rem; background: var(--panel); }
+#drill td { padding: .38rem .5rem; border-bottom: 1px solid var(--hair); vertical-align: top; } #drill .num { text-align: right; white-space: nowrap; } #drill .nw { white-space: nowrap; }
+#drill a { color: var(--navy); } :root[data-theme="dark"] #drill a { color: var(--sky-light); }

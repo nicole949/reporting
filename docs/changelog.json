@@ -1,5 +1,50 @@
 [
   {
+    "version": "2026.11.13-4",
+    "date": "2026-11-13",
+    "title": "Commercial overview: timelines in every tile, click through to the records",
+    "items": [
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "Every tile now has a small bar chart showing the number over the chosen period. New filter \"Frequency\" (Auto, Daily, Weekly, Monthly) sets how the period is split.",
+        "details": "Auto picks days for periods up to three weeks, weeks up to about six months, months beyond that.",
+        "departments": [
+          "all"
+        ]
+      },
+      {
+        "section": "overview",
+        "page": "overview",
+        "summary": "Every tile is clickable: a panel opens with a larger chart and the records behind the number (companies, calls, meetings, deals, tickets ...). Click a bar to see only that day, week or month.",
+        "details": "Lists show the latest 300 records and link to the detailed page. Deals, companies and tickets link to HubSpot.",
+        "departments": [
+          "all"
+        ]
+      },
+      {
+        "section": "marketing",
+        "page": "overview",
+        "summary": "Outreach emails are stacked by sequence, with emails sent and new recipients per sequence in the list. LinkedIn actions now include connection requests and follows besides messages, stacked by type.",
+        "details": "LinkedIn actions used to count messages only, so the number is higher than before. Instantly is shown as one block because Instantly reports per day, not per campaign and day.",
+        "departments": [
+          "marketing",
+          "bd"
+        ]
+      },
+      {
+        "section": "marketing",
+        "page": "overview",
+        "summary": "Responses are now counted like on the Responses page and stacked by type: connected call, email reply, LinkedIn reply.",
+        "details": "Before, this tile showed contacts set to lead status Responded. The number therefore changed.",
+        "departments": [
+          "marketing",
+          "bd"
+        ]
+      }
+    ]
+  },
+  {
     "version": "2026.11.13-3",
     "date": "2026-11-13",
     "title": "Customer details: product data is back, layout fixed",
